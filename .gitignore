@@ -10,3 +10,9 @@ dist-ssr
 !.env.example
 
 npm-debug.log*
+
+supabase/.branches
+supabase/.temp
+
+supabase/.branches
+supabase/.temp

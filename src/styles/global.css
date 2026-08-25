@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  /* Azul oscuro institucional */
+  --color-navy-100: #dbe4f0;
+  --color-navy-200: #b7c8e0;
+  --color-navy-300: #8ba5c9;
+  --color-navy-400: #5f7fae;
+  --color-navy-500: #415f92;
+  --color-navy-600: #2f4876;
+  --color-navy-700: #22375c;
+  --color-navy-800: #16273f;
+  --color-navy-900: #0d1a2e;
+  --color-navy-950: #070f1d;
+
+  /* Dorado como acento */
+  --color-gold-200: #f5e7bd;
+  --color-gold-300: #ecd68f;
+  --color-gold-400: #dfbf62;
+  --color-gold-500: #c9a227;
+  --color-gold-600: #ab8620;
+  --color-gold-700: #88691c;
+}
+
+@layer base {
+  body {
+    @apply bg-navy-950 text-navy-100 antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-gold-500 px-6 py-3 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-navy-400/40 px-6 py-3 text-sm font-semibold text-navy-100 transition-colors hover:border-gold-400 hover:text-gold-300;
+  }
+
+  .card-panel {
+    @apply block rounded-xl border border-white/10 bg-navy-900/70 p-6 transition-colors hover:border-gold-500/50;
+  }
+}

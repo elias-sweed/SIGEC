@@ -1,5 +1,51 @@
 # CHANGELOG SIGEC
 
+## Fase 05
+
+Fecha: 26/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Estados oficiales del evento**: nuevos estados `preparando`, `evaluando`, `esperando_jurados`, `resultados_listos`, `publicado` centralizados en `src/constants/eventStates.ts` con labels y colores. Eliminados todos los strings hardcodeados.
+- **Centro de Control (Panel Maestro rediseñado)**: dividido en 4 bloques funcionales:
+  - **Bloque A – Evento**: nombre, etapa, estado actual con indicador de color; botones de transición de estado (Iniciar evaluación, Cerrar evaluación, Publicar resultados).
+  - **Bloque B – Candidata activa**: tarjeta grande con nombre, grado y sección; navegación Anterior/Siguiente sin volver a la tabla.
+  - **Bloque C – Progreso de jurados**: cálculo real desde `evaluaciones` (no simulado); muestra "X/5 respondieron" con barra de progreso y lista de completados/pendientes.
+  - **Bloque D – Barra lateral**: última actualización, evento activo, cantidad de candidatas, jurados y respondieron.
+- **Panel Jurado mejorado**: encabezado grande con nombre y grado de la candidata; sliders con label + valor actual / máximo (`18 / 20`); total de puntos calculado con `calcularTotal()`.
+- **Botón Enviar**: cambio visual post-envío — de "Guardar evaluación" (dorado) a "✓ Evaluación enviada" (verde, deshabilitado). El jurado no puede re-enviar hasta que el admin cambie de candidata.
+- **Pantalla Pública estilo escenario**: logo del evento, nombre grande, candidata actual, badge de estado con color; si el estado es `publicado` muestra "Resultados publicados" preparado para puntajes futuros.
+- **Componentes reutilizables** en `src/components/event/`: `EventStatusCard`, `CandidateCard`, `JuryProgressCard`, `ScoreSlider`.
+- **Animaciones Tailwind**: transiciones suaves en hover, cambio de candidata, cambio de estado y botones (duration-300/500, scale, opacity).
+- **Migración RLS dev**: `disable row level security` en todas las tablas para desarrollo sin autenticación.
+
+### Archivos creados
+
+- `src/constants/eventStates.ts`
+- `src/components/event/EventStatusCard.tsx`
+- `src/components/event/CandidateCard.tsx`
+- `src/components/event/JuryProgressCard.tsx`
+- `src/components/event/ScoreSlider.tsx`
+- `supabase/migrations/20260825160000_disable_rls_dev.sql`
+
+Archivos modificados:
+
+- `src/pages/MasterPanel.tsx`
+- `src/pages/JuryPanel.tsx`
+- `src/pages/PublicScreen.tsx`
+- `supabase/seed.sql`
+- `README.md`
+- `CHANGELOG_FASES.md`
+
+### Pendiente para Fase 06
+
+- Autenticación de jurados con identidad real.
+- Reactivar RLS con políticas por rol.
+- Consolidación de resultados y promedio entre jurados.
+- Pantalla Pública con Realtime.
+- Exportación de resultados (PDF o CSV).
+
 ## Fase 04.1
 
 Fecha: 26/08/2026

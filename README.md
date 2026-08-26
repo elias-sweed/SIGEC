@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** Fase 04 completada — MVP funcional completo con Panel Maestro, Panel del Jurado y Pantalla Pública conectados a Supabase. Flujo demostrable de principio a fin.
+> **Estado actual:** Fase 05 completada — Centro de Control funcional con estados oficiales, progreso de jurados en tiempo real y Panel Jurado mejorado.
 
 ## Tecnologías
 
@@ -23,6 +23,8 @@ Danza/
 ├── src/
 │   ├── assets/           # Recursos del proyecto
 │   ├── components/       # Componentes reutilizables de interfaz
+│   │   └── event/        # Componentes del evento (EventStatusCard, CandidateCard, etc.)
+│   ├── constants/        # Estados del evento y constantes compartidas
 │   ├── context/          # Estado global (CertamenContext)
 │   ├── layouts/          # Layouts (estructura común de las vistas)
 │   ├── lib/              # Clientes externos (Supabase)
@@ -41,49 +43,110 @@ Danza/
 └── README.md
 ```
 
-## Tabla `estado_evento` — fuente de verdad
+## Flujo del certamen
 
-La tabla `estado_evento` reemplaza a `localStorage` como fuente oficial del estado del certamen.
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      CENTRO DE CONTROL                          │
+│                                                                  │
+│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
+│  │ Bloque A    │  │ Bloque B     │  │ Bloque D             │   │
+│  │ Evento      │  │ Candidata    │  │ Sidebar              │   │
+│  │             │  │              │  │                      │   │
+│  │ Preparando  │  │  Valentina   │  │ Última actualización │   │
+│  │   ↓         │  │  5° · A     │  │ Evento: Gran Final   │   │
+│  │ Evaluando   │  │  ← Anterior  │  │ Candidatas: 3        │   │
+│  │   ↓         │  │  Siguiente → │  │ Jurados: 2/5         │   │
+│  │ Esperando   │  └──────────────┘  └──────────────────────┘   │
+│  │   Jurados   │                                                │
+│  │   ↓         │  ┌──────────────────────────────────────┐      │
+│  │ Resultados  │  │ Bloque C                             │      │
+│  │ Listos      │  │ Jurados                              │      │
+│  │   ↓         │  │ 2/5 respondieron                     │      │
+│  │ Publicado   │  │ ████████████░░░░░░░░                 │      │
+│  └─────────────┘  │ María     Completado                 │      │
+│                   │ Carlos    Pendiente                   │      │
+│                   │ Ana       Completado                  │      │
+│                   └──────────────────────────────────────┘      │
+└──────────────────────────────────────────────────────────────────┘
+         │
+         │ selecciona candidata / cambia estado
+         ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                     PANEL DEL JURADO                            │
+│                                                                  │
+│                    Candidata actual                               │
+│                    Valentina Ríos                                │
+│                    5° · Sección A                               │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────┐         │
+│  │ Técnica de ejecución              32 / 40          │         │
+│  │ ████████████████████████████░░░░░░░░░░░░           │         │
+│  ├────────────────────────────────────────────────────┤         │
+│  │ Interpretación artística          24 / 30          │         │
+│  │ ████████████████████████░░░░░░░░░░░░               │         │
+│  ├────────────────────────────────────────────────────┤         │
+│  │ Coreografía                       15 / 20          │         │
+│  │ ███████████████░░░░░░░░░░░░                         │         │
+│  ├────────────────────────────────────────────────────┤         │
+│  │ Presencia escénica                 8 / 10          │         │
+│  │ ████████░░░░                                       │         │
+│  └────────────────────────────────────────────────────┘         │
+│                                                                  │
+│                      Total                                       │
+│                      79 puntos                                   │
+│                                                                  │
+│              ┌──────────────────────┐                            │
+│              │  ✓ Evaluación enviada│  ← deshabilitado post-envío│
+│              └──────────────────────┘                            │
+└──────────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                     PANTALLA PÚBLICA                             │
+│                                                                  │
+│                          🏆                                      │
+│                                                                  │
+│                  Gran Final Nacional 2026                        │
+│                       Etapa: final                               │
+│                                                                  │
+│                  ● Evaluando                                     │
+│                                                                  │
+│              ┌──────────────────────────┐                        │
+│              │    Candidata actual       │                        │
+│              │                          │                        │
+│              │    Valentina Ríos        │                        │
+│              │    5° · Sección A        │                        │
+│              └──────────────────────────┘                        │
+│                                                                  │
+│               Evaluación en curso                                │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-| Campo | Descripción |
+### Estados del evento
+
+El evento avanza por estos estados en orden:
+
+```
+Preparando → Evaluando → Esperando Jurados → Resultados Listos → Publicado
+```
+
+| Estado | Descripción |
 | --- | --- |
-| `evento_id` | FK única hacia `eventos` (solo un registro por evento) |
-| `candidata_actual_id` | FK nullable hacia `candidatas`: candidata activa para evaluación |
-| `estado` | Estado actual del evento (activo, en_evaluación, etc.) |
-| `updated_at` | Timestamp de la última actualización |
-
-**Flujo:**
-1. El **Panel Maestro** escribe en esta tabla al seleccionar una candidata.
-2. El **Panel del Jurado**, la **Pantalla Pública** y el **Home** leen desde aquí.
-3. `CertamenContext` sincroniza esta tabla con el estado global de React; mantiene `localStorage` como respaldo temporal si Supabase no responde.
-
-## Flujo del MVP
-
-```
-Panel Maestro ──────── selecciona candidata ────────┐
-         │  escribe estado_evento                   │
-         ▼                                           │
-   estado_evento  ◄── fuente de verdad ──►  Supabase
-         │                                           │
-         ├──── lee Panel Jurado                     │
-         │     carga criterios por etapa            │
-         │     sliders → guardar evaluación         │
-         │                                           │
-         ├──── lee Home                             │
-         │     muestra evento + accesos             │
-         │                                           │
-         └──── lee Pantalla Pública                 │
-               candidata actual + "En curso"        │
-```
+| `preparando` | Configuración inicial, candidatas y criterios listos |
+| `evaluando` | El jurado puede calificar candidatas |
+| `esperando_jurados` | Evaluación cerrada, esperando que todos envíen |
+| `resultados_listos` | Todos los jurados han respondido |
+| `publicado` | Resultados visibles en la Pantalla Pública |
 
 ## Vistas disponibles
 
 | Ruta | Vista | Descripción |
 | --- | --- | --- |
 | `/` | Inicio | Evento actual + accesos a los módulos |
-| `/jurado` | Panel del Jurado | Evaluación dinámica de la candidata activa con sliders y guardado |
-| `/maestro` | Panel Maestro | Selección de candidata (conectado directo a Supabase) |
-| `/publico` | Pantalla Pública | Proyección en vivo para la audiencia (refrescar para actualizar) |
+| `/jurado` | Panel del Jurado | Evaluación con sliders, total y envío |
+| `/maestro` | Centro de Control | Estados, candidatas, progreso de jurados |
+| `/publico` | Pantalla Pública | Proyección estilo escenario |
 | Cualquier otra | 404 | Página no encontrada |
 
 ## Configuración del entorno (.env)
@@ -112,13 +175,15 @@ npm run preview      # Preview local de la compilación
 
 ## Cómo probar el flujo completo
 
-1. Aplica las migraciones y el seed en tu proyecto de Supabase (SQL Editor o `supabase db reset`).
+1. Aplica las migraciones y el seed en tu proyecto de Supabase (SQL Editor).
 2. Ejecuta `npm run dev` y abre `http://localhost:5173`.
 3. En el **Inicio** verás el evento cargado y las tarjetas de acceso.
-4. Entra al **Panel Maestro** → verás las candidatas desde Supabase. Selecciona una.
-5. Abre el **Panel del Jurado** → verás la candidata seleccionada automáticamente. Elige tu nombre de jurado y califica con los sliders.
-6. **Guarda** la evaluación. Vuelve al Panel Maestro → todo sigue consistente.
-7. Abre la **Pantalla Pública** → muestra la candidata actual; al recargar se actualiza.
+4. Entra al **Centro de Control** → verás el Bloque A con estado "Preparando". Haz clic en "Iniciar evaluación".
+5. Selecciona una candidata con los botones ← →.
+6. Abre el **Panel del Jurado** → verás la candidata y los sliders. Califica y haz clic en "Guardar evaluación". El botón cambiará a "✓ Evaluación enviada".
+7. Vuelve al Centro de Control → el Bloque C mostrará el avance de jurados ("1/5 respondieron").
+8. Cuando todos los jurados hayan respondido, cambia a "Publicar resultados".
+9. Abre la **Pantalla Pública** → verás "Resultados publicados".
 
 ## Migraciones y datos de ejemplo
 
@@ -127,20 +192,7 @@ Aplicar en orden contra tu proyecto de Supabase:
 1. `supabase/migrations/20260825090000_initial_schema.sql` — tablas base
 2. `supabase/migrations/20260825110000_evaluacion_detalles.sql` — motor de evaluación
 3. `supabase/migrations/20260825140000_estado_evento.sql` — estado del evento
-4. `supabase/seed.sql` — datos de ejemplo completos
-
-### Opción A · SQL Editor (rápida)
-
-Abre **SQL Editor** en Supabase, pega y ejecuta cada archivo en orden.
-
-### Opción B · Supabase CLI
-
-```bash
-supabase link --project-ref <project-ref>
-supabase db push
-
-# En desarrollo local: levantar todo y aplicar migraciones + seed
-supabase db reset
-```
+4. `supabase/migrations/20260825160000_disable_rls_dev.sql` — desactivar RLS (desarrollo)
+5. `supabase/seed.sql` — datos de ejemplo completos
 
 El historial de trabajo por fases se documenta en [`CHANGELOG_FASES.md`](./CHANGELOG_FASES.md).

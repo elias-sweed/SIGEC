@@ -9,7 +9,7 @@ interface EventStatusCardProps {
 }
 
 export default function EventStatusCard({ nombre, etapa, estado, children }: EventStatusCardProps) {
-  const colors = EVENT_STATE_COLORS[estado]
+  const colors = EVENT_STATE_COLORS[estado] ?? { bg: 'bg-navy-700/40', text: 'text-navy-200', ring: 'ring-navy-500/30' }
 
   return (
     <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 transition-all duration-300">

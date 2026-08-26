@@ -53,7 +53,7 @@ on conflict (evaluacion_id, criterio_id) do update
 
 -- Estado del evento
 insert into public.estado_evento (evento_id, candidata_actual_id, estado) values
-  ('11111111-1111-4111-8111-000000000001', '22222222-2222-4222-8222-000000000001', 'activo')
+  ('11111111-1111-4111-8111-000000000001', '22222222-2222-4222-8222-000000000001', 'preparando')
 on conflict (evento_id) do update
   set candidata_actual_id = excluded.candidata_actual_id,
       estado             = excluded.estado,

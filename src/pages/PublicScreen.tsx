@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
+import { logConsulta, logError } from '../utils/devlog'
 import type { Evento } from '../types/database'
 
 interface CandidataInfo {
@@ -21,36 +22,57 @@ export default function PublicScreen() {
 
   useEffect(() => {
     if (eventoCandidato) setEvento(eventoCandidato)
-    if (candidataActual) setCandidata({ nombre: candidataActual.nombre, grado: candidataActual.grado, seccion: candidataActual.seccion })
+    if (candidataActual) {
+      setCandidata({ nombre: candidataActual.nombre, grado: candidataActual.grado, seccion: candidataActual.seccion })
+    }
   }, [eventoCandidato, candidataActual])
 
   useEffect(() => {
     if (eventoCandidato && candidataActual) return
 
-    async function cargarEstado() {
+    ;(async () => {
       try {
         const supabase = getSupabase()
-        const { data } = await supabase
+
+        logConsulta('PublicScreen: buscar estado_evento')
+        const { data: estadoRaw, error: errEstado } = await supabase
           .from('estado_evento')
-          .select('evento!evento_id(nombre, etapa), candidata:candidata_actual_id(nombre, grado, seccion)')
+          .select('*')
+          .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle()
 
-        if (!data) return
+        if (errEstado) {
+          logError('PublicScreen estado_evento', errEstado.message)
+          return
+        }
+        if (!estadoRaw) return
 
-        const respuesta = data as unknown as {
-          evento: { nombre: string; etapa: string }
-          candidata: CandidataInfo | null
+        const estado = estadoRaw as { evento_id: string; candidata_actual_id: string | null }
+
+        if (estado.evento_id) {
+          logConsulta(`PublicScreen: obtener evento id=${estado.evento_id}`)
+          const { data: evRaw } = await supabase
+            .from('eventos')
+            .select('*')
+            .eq('id', estado.evento_id)
+            .maybeSingle()
+          if (evRaw) setEvento(evRaw as Evento)
         }
 
-        setEvento(respuesta.evento as Evento)
-        if (respuesta.candidata) setCandidata(respuesta.candidata)
-      } catch {
-        // Mostrará estado vacío con mensajes de respaldo
+        if (estado.candidata_actual_id) {
+          logConsulta(`PublicScreen: obtener candidata id=${estado.candidata_actual_id}`)
+          const { data: caRaw } = await supabase
+            .from('candidatas')
+            .select('nombre, grado, seccion')
+            .eq('id', estado.candidata_actual_id)
+            .maybeSingle()
+          if (caRaw) setCandidata(caRaw as CandidataInfo)
+        }
+      } catch (err) {
+        logError('PublicScreen', err instanceof Error ? err.message : String(err))
       }
-    }
-
-    cargarEstado()
+    })()
   }, [eventoCandidato, candidataActual])
 
   return (

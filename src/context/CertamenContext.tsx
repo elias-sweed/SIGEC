@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { getSupabase } from '../lib/supabase'
+import { logConsulta, logError } from '../utils/devlog'
 import type { Candidata, Evento } from '../types/database'
 
 export interface EstadoEvento {
@@ -24,7 +25,11 @@ interface CertamenContextValue {
   estadoEvento: EstadoEvento | null
   cargando: boolean
   actualizarCandidata: (candidataId: string | null) => Promise<void>
-  cargarEstado: () => Promise<{ evento: Evento | null; candidata: Candidata | null; estado: EstadoEvento | null }>
+  cargarEstado: () => Promise<{
+    evento: Evento | null
+    candidata: Candidata | null
+    estado: EstadoEvento | null
+  }>
 }
 
 const CertamenContext = createContext<CertamenContextValue | null>(null)
@@ -49,43 +54,112 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
   const cargarEstado = useCallback(async () => {
     try {
       const supabase = getSupabase()
-      const { data, error } = await supabase
+
+      // 1) Consultar estado_evento sin FK hints (evita error 400 por constraint renombrada)
+      logConsulta('estado_evento: select *, limit 1')
+      const { data: estadoRaw, error: errEstado } = await supabase
         .from('estado_evento')
-        .select('*, evento!evento_id(*), candidata:candidata_actual_id(*)')
+        .select('*')
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle()
 
-      if (error || !data) return { evento: null, candidata: null, estado: null }
-
-      const ev = data as unknown as {
-        evento: Evento
-        candidata: Candidata | null
-        id: string
-        evento_id: string
-        candidata_actual_id: string | null
-        estado: string
-        updated_at: string
+      if (errEstado) {
+        logError('estado_evento', errEstado.message)
+        throw errEstado
       }
 
-      const estado = {
-        id: ev.id,
-        evento_id: ev.evento_id,
-        candidata_actual_id: ev.candidata_actual_id,
-        estado: ev.estado,
-        updated_at: ev.updated_at,
+      if (!estadoRaw) {
+        // 2) No hay registro: intentar crear uno automáticamente
+        logConsulta('estado_evento vacío — intentando crear estado inicial')
+        const { data: primerEvento } = await supabase
+          .from('eventos')
+          .select('*')
+          .order('created_at')
+          .limit(1)
+          .maybeSingle()
+
+        if (!primerEvento) {
+          logConsulta('No hay eventos en la base de datos')
+          const respaldo = leerRespaldo()
+          setEvento(respaldo.evento)
+          setCandidata(null)
+          setEstadoEvento(null)
+          return { evento: respaldo.evento, candidata: null, estado: null }
+        }
+
+        const { data: primeraCandidata } = await supabase
+          .from('candidatas')
+          .select('*')
+          .order('nombre')
+          .limit(1)
+          .maybeSingle()
+
+        const nuevoEstado = {
+          evento_id: primerEvento.id,
+          candidata_actual_id: primeraCandidata?.id ?? null,
+          estado: 'activo',
+        }
+
+        logConsulta('Insertando estado_evento inicial', nuevoEstado)
+        const { error: errInsert } = await supabase.from('estado_evento').insert(nuevoEstado)
+        if (errInsert) {
+          logError('estado_evento insert', errInsert.message)
+          throw errInsert
+        }
+
+        // Re-leer el registro creado
+        const { data: estadoCreado } = await supabase
+          .from('estado_evento')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        const ev = primerEvento as Evento
+        const cand = (primeraCandidata ?? null) as Candidata | null
+        const estado = estadoCreado as unknown as EstadoEvento
+
+        setEvento(ev)
+        setCandidata(cand)
+        setEstadoEvento(estado)
+
+        window.localStorage.setItem('sigec-certamen', JSON.stringify({ evento: ev, candidata: cand }))
+
+        return { evento: ev, candidata: cand, estado }
       }
 
-      setEvento(ev.evento)
-      setCandidata(ev.candidata ?? null)
+      // 3) Hay registro: obtener evento y candidata por separado (sin FK hints)
+      const estado = estadoRaw as unknown as EstadoEvento
+
+      logConsulta(`evento_id=${estado.evento_id}`)
+      const { data: eventoRaw } = await supabase
+        .from('eventos')
+        .select('*')
+        .eq('id', estado.evento_id)
+        .maybeSingle()
+
+      let candRaw: Candidata | null = null
+      if (estado.candidata_actual_id) {
+        logConsulta(`candidata_actual_id=${estado.candidata_actual_id}`)
+        const { data } = await supabase
+          .from('candidatas')
+          .select('*')
+          .eq('id', estado.candidata_actual_id)
+          .maybeSingle()
+        candRaw = (data ?? null) as Candidata | null
+      }
+
+      const ev = (eventoRaw ?? null) as Evento | null
+      setEvento(ev)
+      setCandidata(candRaw)
       setEstadoEvento(estado)
 
-      window.localStorage.setItem(
-        'sigec-certamen',
-        JSON.stringify({ evento: ev.evento, candidata: ev.candidata ?? null }),
-      )
+      window.localStorage.setItem('sigec-certamen', JSON.stringify({ evento: ev, candidata: candRaw }))
 
-      return { evento: ev.evento, candidata: ev.candidata ?? null, estado }
-    } catch {
+      return { evento: ev, candidata: candRaw, estado }
+    } catch (err) {
+      logError('cargarEstado', err instanceof Error ? err.message : String(err))
       const respaldo = leerRespaldo()
       setEvento(respaldo.evento)
       setCandidata(respaldo.candidata)
@@ -96,18 +170,28 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
   const actualizarCandidata = useCallback(
     async (candidataId: string | null) => {
       const supabase = getSupabase()
+
       const { data: actual } = await supabase
         .from('estado_evento')
         .select('evento_id')
         .limit(1)
         .maybeSingle()
 
-      if (!actual) return
+      if (!actual) {
+        logError('actualizarCandidata', 'No se encontró registro en estado_evento')
+        return
+      }
 
-      await supabase
+      logConsulta(`Actualizando estado_evento: candidata_actual_id=${candidataId}`)
+      const { error } = await supabase
         .from('estado_evento')
         .update({ candidata_actual_id: candidataId, updated_at: new Date().toISOString() })
         .eq('evento_id', actual.evento_id)
+
+      if (error) {
+        logError('estado_evento update', error.message)
+        throw error
+      }
 
       await cargarEstado()
     },

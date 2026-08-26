@@ -1,5 +1,37 @@
 # CHANGELOG SIGEC
 
+## Fase 04.1
+
+Fecha: 26/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- Nuevo componente `DebugPanel` que muestra en tiempo real: URL de Supabase (solo dominio), existencia de variables de entorno y estado de conexión.
+- Home actualizada: `DebugPanel` visible + contadores de tablas (eventos, candidatas, jurados, criterios) obtenidos con `count: exact` desde Supabase; se ve claramente cuando una tabla tiene 0 registros.
+- Panel Maestro ampliado con CRUD completo de candidatas: formulario de creación, tabla con acciones (Seleccionar / Editar / Eliminar), edición inline y eliminación (con manejo de errores si tiene evaluaciones asociadas).
+- Panel Maestro ampliado con CRUD de criterios: formulario de creación (etapa, nombre, puntaje máximo, orden), tabla con acciones (Editar nombre / puntaje; orden e IDs no modificables).
+- Tarjeta de estado del evento en Panel Maestro: muestra evento activo, etapa, estado, candidata seleccionada y última actualización; si no existe `estado_evento`, muestra "No existe un estado activo" y botón "Crear estado inicial".
+- `CertamenContext` reescrito: elimina los FK hints (`evento!evento_id`) que causaban error 400 por conflictos con constraints auto-generadas de PostgreSQL; ahora consulta cada tabla por separado. Si `estado_evento` está vacío, intenta automáticamente crear el registro inicial (evento + primera candidata).
+- Utilidad `devlog.ts`: funciones `logConsulta()`, `logFilas()`, `logError()` con `console.group()` que solo se ejecutan en modo desarrollo; centralizan los logs sin dejar `console.log` desordenados.
+
+### Problemas corregidos
+
+- **Error 400 (Bad Request)** en la consulta `estado_evento?select=*,evento!evento_id(*),candidata:...`: los FK hints usaban el nombre de columna en lugar del nombre auto-generado de la constraint (`estado_evento_evento_id_fkey`). Se resolvió eliminando los hints y consultando cada tabla por separado.
+- `estado_evento` vacío devolvía null silenciosamente: ahora se intenta crear el registro automáticamente usando el primer evento y la primera candidata de la base de datos.
+
+### Archivos creados
+
+- `src/components/DebugPanel.tsx`
+- `src/utils/devlog.ts`
+
+Archivos modificados:
+
+- `src/context/CertamenContext.tsx`
+- `src/pages/Home.tsx`
+- `src/pages/MasterPanel.tsx`
+- `CHANGELOG_FASES.md`
+
 ## Fase 04
 
 Fecha: 25/08/2026

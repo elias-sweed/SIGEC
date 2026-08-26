@@ -1,12 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import DebugPanel from '../components/DebugPanel'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
+import { logConsulta, logFilas, logError } from '../utils/devlog'
 import type { Evento } from '../types/database'
+
+interface ConteoTabla {
+  eventos: number
+  candidatas: number
+  jurados: number
+  criterios: number
+}
 
 export default function Home() {
   const { eventoCandidato } = useCertamen()
   const [evento, setEvento] = useState<Evento | null>(eventoCandidato)
+  const [conectado, setConectado] = useState<boolean | null>(null)
+  const [conteos, setConteos] = useState<ConteoTabla>({
+    eventos: 0,
+    candidatas: 0,
+    jurados: 0,
+    criterios: 0,
+  })
 
   useEffect(() => {
     if (eventoCandidato) {
@@ -15,7 +31,9 @@ export default function Home() {
     }
     ;(async () => {
       try {
-        const { data } = await getSupabase()
+        const supabase = getSupabase()
+        logConsulta('Home: obtener primer evento')
+        const { data } = await supabase
           .from('eventos')
           .select('*')
           .order('created_at')
@@ -23,17 +41,51 @@ export default function Home() {
           .maybeSingle()
         setEvento((data as Evento | null) ?? null)
       } catch {
-        // La app sigue funcionando sin evento; el contexto lo manejará
+        // El DebugPanel mostrará el error
       }
     })()
   }, [eventoCandidato])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const supabase = getSupabase()
+
+        const [ev, ca, ju, cr] = await Promise.all([
+          supabase.from('eventos').select('*', { count: 'exact', head: true }),
+          supabase.from('candidatas').select('*', { count: 'exact', head: true }),
+          supabase.from('jurados').select('*', { count: 'exact', head: true }),
+          supabase.from('criterios').select('*', { count: 'exact', head: true }),
+        ])
+
+        if (ev.error || ca.error || ju.error || cr.error) {
+          logError('Home conteos', [ev.error?.message, ca.error?.message, ju.error?.message, cr.error?.message].filter(Boolean).join('; '))
+          setConectado(false)
+          return
+        }
+
+        setConectado(true)
+        const nuevosConteos = {
+          eventos: ev.count ?? 0,
+          candidatas: ca.count ?? 0,
+          jurados: ju.count ?? 0,
+          criterios: cr.count ?? 0,
+        }
+        setConteos(nuevosConteos)
+        logFilas('Home conteos', [nuevosConteos])
+      } catch (err) {
+        logError('Home conteos', err instanceof Error ? err.message : String(err))
+        setConectado(false)
+      }
+    })()
+  }, [])
 
   const tarjetas = useMemo(
     () => [
       {
         to: '/maestro',
         titulo: 'Panel Maestro',
-        descripcion: 'Centro de control: evento, candidatas y selección de la participante activa.',
+        descripcion: 'Centro de control: selecciona candidatas, gestiona criterios y administra el evento.',
         icono: '⚙',
         etiqueta: 'Administrar',
       },
@@ -55,6 +107,13 @@ export default function Home() {
     [],
   )
 
+  const entradasConteo: [string, number][] = [
+    ['Eventos', conteos.eventos],
+    ['Candidatas', conteos.candidatas],
+    ['Jurados', conteos.jurados],
+    ['Criterios', conteos.criterios],
+  ]
+
   return (
     <div className="space-y-10">
       <div className="relative text-center">
@@ -69,10 +128,28 @@ export default function Home() {
           Bienvenido a <span className="text-gold-400">SIGEC</span>
         </h1>
         <p className="relative mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-navy-200">
-          Sistema Integral de Gestión y Evaluación del Certamen. Centraliza la evaluación del
-          jurado y la difusión de resultados en una sola plataforma.
+          Sistema Integral de Gestión y Evaluación del Certamen. Centraliza la evaluación del jurado
+          y la difusión de resultados en una sola plataforma.
         </p>
       </div>
+
+      <DebugPanel conectado={conectado} />
+
+      <section className="mx-auto max-w-2xl rounded-xl border border-white/10 bg-navy-900/70 p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold-400">
+          Resumen de tablas
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+          {entradasConteo.map(([nombre, cantidad]) => (
+            <div key={nombre} className="rounded-lg bg-navy-800/60 p-3">
+              <p className={`text-2xl font-bold ${cantidad === 0 ? 'text-navy-400' : 'text-white'}`}>
+                {cantidad}
+              </p>
+              <p className="mt-0.5 text-xs text-navy-300">{nombre} encontrados</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {evento && (
         <div className="mx-auto max-w-xl rounded-xl border border-white/10 bg-navy-900/70 p-5">

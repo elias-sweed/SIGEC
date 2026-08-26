@@ -1,5 +1,45 @@
 # CHANGELOG SIGEC
 
+## Fase 04
+
+Fecha: 25/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- Nueva migración `estado_evento`: tabla que almacena la candidata activa y el estado del evento en Supabase, reemplazando a `localStorage` como fuente de verdad.
+- `CertamenContext` reescrito completamente: lee desde Supabase en montaje, mantiene `localStorage` como respaldo temporal si Supabase no responde, y expone `eventoCandidato`, `candidataActual`, `estadoEvento`, `actualizarCandidata()` y `cargarEstado()`.
+- Panel Maestro funcional: muestra evento actual, candidatas desde Supabase, botón de selección que actualiza `estado_evento` en la base de datos y resalta visualmente la candidata activa; indicadores de estado, spinner de carga y manejo de errores.
+- Panel del Jurado funcional: lee la candidata activa desde `estado_evento`, muestra su nombre y grado, carga criterios de la etapa, sliders con `puntaje_maximo` desde la base, precarga de evaluaciones existentes, guardado con indicadores de éxito/error y spinner.
+- Pantalla Pública (modo demostración): muestra nombre del evento, etapa y candidata actual; se actualiza al recargar la página.
+- Home rediseñada: muestra el evento actual y tarjetas de acceso con datos reales desde Supabase.
+- Manejo de errores consistente en todos los paneles: nunca se muestra una pantalla completamente vacía si Supabase falla.
+- Seed actualizado con `estado_evento` (registro activo con candidata por defecto).
+- README actualizado con explicación de `estado_evento`, flujo del MVP e instrucciones para probar el flujo completo.
+
+### Archivos creados
+
+- `supabase/migrations/20260825140000_estado_evento.sql`
+
+Archivos modificados:
+
+- `src/context/CertamenContext.tsx`
+- `src/pages/Home.tsx`
+- `src/pages/MasterPanel.tsx`
+- `src/pages/JuryPanel.tsx`
+- `src/pages/PublicScreen.tsx`
+- `supabase/seed.sql`
+- `README.md`
+- `CHANGELOG_FASES.md`
+
+### Pendiente para Fase 05
+
+- Autenticación de usuarios e identidad real del jurado.
+- Row Level Security según roles del certamen.
+- Envío oficial de evaluaciones (estados y bloqueo posterior al envío).
+- Consolidación de resultados y promedio entre jurados.
+- Pantalla Pública con Realtime (actualización sin recargar).
+
 ## Fase 03
 
 Fecha: 25/08/2026

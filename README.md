@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** Fase 03 completada — motor de evaluación dinámico conectado a Supabase (Panel Maestro y Panel del Jurado mínimamente funcionales). Aún no hay autenticación ni RLS.
+> **Estado actual:** Fase 04 completada — MVP funcional completo con Panel Maestro, Panel del Jurado y Pantalla Pública conectados a Supabase. Flujo demostrable de principio a fin.
 
 ## Tecnologías
 
@@ -41,103 +41,99 @@ Danza/
 └── README.md
 ```
 
-## Motor de evaluación
+## Tabla `estado_evento` — fuente de verdad
 
-El sistema de calificación es **100 % dinámico**: los criterios y sus puntajes máximos viven en la base de datos, nunca en el código.
-
-### Flujo actual
-
-1. **Panel Maestro** (`/maestro`): muestra el evento actual y la lista de candidatas desde Supabase, y permite **seleccionar una candidata**.
-2. La selección se comparte mediante `CertamenContext` (persistida en `localStorage`).
-3. **Panel del Jurado** (`/jurado`): al existir candidata seleccionada, carga automáticamente los criterios de la etapa del evento, con un slider por criterio limitado por su `puntaje_maximo`, y guarda la evaluación.
-
-### Tabla `evaluacion_detalles`
-
-Cada fila representa **un criterio calificado dentro de una evaluación**:
+La tabla `estado_evento` reemplaza a `localStorage` como fuente oficial del estado del certamen.
 
 | Campo | Descripción |
 | --- | --- |
-| `id` | Identificador único |
-| `evaluacion_id` | FK hacia `evaluaciones` (borrado en cascada) |
-| `criterio_id` | FK hacia `criterios` |
-| `puntaje` | Puntaje otorgado (`>= 0`) |
-| `created_at` | Fecha de creación |
+| `evento_id` | FK única hacia `eventos` (solo un registro por evento) |
+| `candidata_actual_id` | FK nullable hacia `candidatas`: candidata activa para evaluación |
+| `estado` | Estado actual del evento (activo, en_evaluación, etc.) |
+| `updated_at` | Timestamp de la última actualización |
 
-- El límite superior (`puntaje <= puntaje_maximo`) cruza dos tablas y no puede ir en un `CHECK` de SQL: se valida en la aplicación con `validarPuntaje()` (`src/utils/scoring.ts`).
-- La restricción `unique (evaluacion_id, criterio_id)` permite volver a guardar sin duplicar filas (upsert).
+**Flujo:**
+1. El **Panel Maestro** escribe en esta tabla al seleccionar una candidata.
+2. El **Panel del Jurado**, la **Pantalla Pública** y el **Home** leen desde aquí.
+3. `CertamenContext` sincroniza esta tabla con el estado global de React; mantiene `localStorage` como respaldo temporal si Supabase no responde.
 
-### Capa de servicios y cálculo
+## Flujo del MVP
 
-| Archivo | Responsabilidad |
-| --- | --- |
-| `src/services/criteria.service.ts` | Obtener criterios por etapa |
-| `src/services/evaluation.service.ts` | Crear evaluación, guardar detalle, obtener evaluación completa |
-| `src/utils/scoring.ts` | Funciones puras: `calcularTotal()`, `calcularPromedioJurados()`, `validarPuntaje()` |
-| `src/types/database.ts` | Tipado del modelo completo (sin `any`) |
+```
+Panel Maestro ──────── selecciona candidata ────────┐
+         │  escribe estado_evento                   │
+         ▼                                           │
+   estado_evento  ◄── fuente de verdad ──►  Supabase
+         │                                           │
+         ├──── lee Panel Jurado                     │
+         │     carga criterios por etapa            │
+         │     sliders → guardar evaluación         │
+         │                                           │
+         ├──── lee Home                             │
+         │     muestra evento + accesos             │
+         │                                           │
+         └──── lee Pantalla Pública                 │
+               candidata actual + "En curso"        │
+```
 
 ## Vistas disponibles
 
 | Ruta | Vista | Descripción |
 | --- | --- | --- |
-| `/` | Inicio | Portada con accesos a los demás módulos |
-| `/jurado` | Panel del Jurado | Evaluación dinámica con sliders según criterios de la etapa |
-| `/maestro` | Panel Maestro | Selección del evento actual y de la candidata a evaluar |
-| `/publico` | Pantalla Pública | Proyección para la audiencia (próximas fases) |
+| `/` | Inicio | Evento actual + accesos a los módulos |
+| `/jurado` | Panel del Jurado | Evaluación dinámica de la candidata activa con sliders y guardado |
+| `/maestro` | Panel Maestro | Selección de candidata (conectado directo a Supabase) |
+| `/publico` | Pantalla Pública | Proyección en vivo para la audiencia (refrescar para actualizar) |
 | Cualquier otra | 404 | Página no encontrada |
 
 ## Configuración del entorno (.env)
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. Copia la plantilla `.env.example` como `.env` en la raíz del proyecto.
-3. Completa los valores desde el panel de Supabase (**Project Settings → API**):
-
-```bash
-cp .env.example .env
-```
+2. Copia `.env.example` como `.env` en la raíz del proyecto.
+3. Completa los valores desde **Project Settings → API**:
 
 ```env
 VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=<tu-anon-key>
 ```
 
-El archivo `.env` está ignorado por git: nunca se suben claves al repositorio. Sin `.env`, la aplicación sigue navegando; los paneles muestran un mensaje indicando que falta configurar Supabase.
+> Sin `.env`, la aplicación sigue navegando pero muestra mensajes indicando que falta configurar Supabase.
 
 ## Ejecución
 
-Requisito previo: tener instalado [Node.js](https://nodejs.org) (versión 20 o superior).
+Requisito: [Node.js](https://nodejs.org) ≥ 20.
 
 ```bash
-# Instalar dependencias
 npm install
-
-# Iniciar el servidor de desarrollo
-npm run dev
+npm run dev          # http://localhost:5173
+npm run build        # Compilación para producción (dist/)
+npm run preview      # Preview local de la compilación
 ```
 
-La aplicación queda disponible en `http://localhost:5173`.
+## Cómo probar el flujo completo
 
-Otros comandos disponibles:
-
-```bash
-npm run build     # Compila el proyecto para producción (carpeta dist/)
-npm run preview   # Sirve localmente la build de producción
-```
+1. Aplica las migraciones y el seed en tu proyecto de Supabase (SQL Editor o `supabase db reset`).
+2. Ejecuta `npm run dev` y abre `http://localhost:5173`.
+3. En el **Inicio** verás el evento cargado y las tarjetas de acceso.
+4. Entra al **Panel Maestro** → verás las candidatas desde Supabase. Selecciona una.
+5. Abre el **Panel del Jurado** → verás la candidata seleccionada automáticamente. Elige tu nombre de jurado y califica con los sliders.
+6. **Guarda** la evaluación. Vuelve al Panel Maestro → todo sigue consistente.
+7. Abre la **Pantalla Pública** → muestra la candidata actual; al recargar se actualiza.
 
 ## Migraciones y datos de ejemplo
 
 Aplicar en orden contra tu proyecto de Supabase:
 
-1. `supabase/migrations/20260825090000_initial_schema.sql` — tablas base (`eventos`, `candidatas`, `jurados`, `criterios`, `evaluaciones`)
-2. `supabase/migrations/20260825110000_evaluacion_detalles.sql` — motor de evaluación (`evaluacion_detalles`)
-3. `supabase/seed.sql` — datos de ejemplo (evento, candidatas, jurados, criterios y una evaluación completa)
+1. `supabase/migrations/20260825090000_initial_schema.sql` — tablas base
+2. `supabase/migrations/20260825110000_evaluacion_detalles.sql` — motor de evaluación
+3. `supabase/migrations/20260825140000_estado_evento.sql` — estado del evento
+4. `supabase/seed.sql` — datos de ejemplo completos
 
 ### Opción A · SQL Editor (rápida)
 
 Abre **SQL Editor** en Supabase, pega y ejecuta cada archivo en orden.
 
 ### Opción B · Supabase CLI
-
-Con la [Supabase CLI](https://supabase.com/docs/guides/cli) instalada y habiendo iniciado sesión (`supabase login`):
 
 ```bash
 supabase link --project-ref <project-ref>
@@ -146,11 +142,5 @@ supabase db push
 # En desarrollo local: levantar todo y aplicar migraciones + seed
 supabase db reset
 ```
-
-> El seed no se carga automáticamente contra el proyecto remoto; aplícalo manualmente si lo necesitas.
-
-## Base de datos
-
-Esquema vigente: `eventos`, `candidatas`, `jurados`, `criterios` (configurables por etapa), `evaluaciones` (jurado–candidata–evento) y `evaluacion_detalles` (un puntaje por criterio). Sin autenticación ni RLS por ahora.
 
 El historial de trabajo por fases se documenta en [`CHANGELOG_FASES.md`](./CHANGELOG_FASES.md).

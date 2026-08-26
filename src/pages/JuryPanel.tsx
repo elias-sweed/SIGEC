@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
+import { obtenerCriteriosPorEtapa } from '../services/criteria.service'
 import {
   crearEvaluacion,
   guardarDetalle,
   obtenerEvaluacionCompleta,
 } from '../services/evaluation.service'
-import { obtenerCriteriosPorEtapa } from '../services/criteria.service'
 import type { Criterio, Jurado } from '../types/database'
 import { calcularTotal, validarPuntaje } from '../utils/scoring'
 
@@ -18,51 +18,58 @@ interface Mensaje {
 }
 
 export default function JuryPanel() {
-  const { evento, candidata } = useCertamen()
+  const { eventoCandidato, candidataActual } = useCertamen()
   const [jurados, setJurados] = useState<Jurado[]>([])
   const [juradoId, setJuradoId] = useState('')
   const [criterios, setCriterios] = useState<Criterio[]>([])
   const [valores, setValores] = useState<Record<string, number>>({})
   const [mensaje, setMensaje] = useState<Mensaje | null>(null)
-  const [guardando, setGuardando] = useState(false)
+  const [cargando, setCargando] = useState(false)
+  const [precargado, setPrecargado] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!evento || !candidata) return
+    if (!eventoCandidato || !candidataActual) return
 
     async function cargarJurados() {
       try {
         const supabase = getSupabase()
-        const { data, error } = await supabase.from('jurados').select('*').order('codigo')
-        if (error) throw error
+        const { data, error: errJurados } = await supabase.from('jurados').select('*').order('codigo')
+        if (errJurados) throw errJurados
         setJurados((data ?? []) as Jurado[])
       } catch (err) {
-        setMensaje({
-          tipo: 'error',
-          texto:
-            err instanceof Error ? err.message : 'No se pudo conectar con Supabase. Revisa tu .env.',
-        })
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'No se pudo conectar con Supabase. Verifica tu archivo .env.',
+        )
       }
     }
 
     cargarJurados()
-  }, [evento, candidata])
+  }, [eventoCandidato, candidataActual])
 
   useEffect(() => {
-    if (!evento) {
+    if (!eventoCandidato) {
       setCriterios([])
       return
     }
 
-    obtenerCriteriosPorEtapa(evento.etapa)
+    setCriterios([])
+    setValores({})
+    setMensaje(null)
+
+    obtenerCriteriosPorEtapa(eventoCandidato.etapa)
       .then(setCriterios)
-      .catch(() =>
-        setMensaje({ tipo: 'error', texto: 'No se pudieron cargar los criterios de la etapa.' }),
-      )
-  }, [evento])
+      .catch(() => {
+        setMensaje({ tipo: 'error', texto: 'No se pudieron cargar los criterios de la etapa.' })
+      })
+  }, [eventoCandidato])
 
   useEffect(() => {
-    if (!evento || !candidata || !juradoId) {
+    if (!eventoCandidato || !candidataActual || !juradoId) {
       setValores({})
+      setPrecargado(false)
       return
     }
 
@@ -71,21 +78,19 @@ export default function JuryPanel() {
     async function precargar() {
       try {
         const supabase = getSupabase()
-        const eventoActual = evento!
-        const candidataActual = candidata!
-
         const { data: existente } = await supabase
           .from('evaluaciones')
           .select('id')
           .match({
-            evento_id: eventoActual.id,
-            candidata_id: candidataActual.id,
+            evento_id: eventoCandidato!.id,
+            candidata_id: candidataActual!.id,
             jurado_id: juradoId,
           })
           .maybeSingle()
 
         if (!existente || cancelada) {
           setValores({})
+          setPrecargado(false)
           return
         }
 
@@ -97,8 +102,10 @@ export default function JuryPanel() {
           previos[detalle.criterio_id] = detalle.puntaje
         }
         setValores(previos)
+        setPrecargado(true)
       } catch {
         setValores({})
+        setPrecargado(false)
       }
     }
 
@@ -106,12 +113,12 @@ export default function JuryPanel() {
     return () => {
       cancelada = true
     }
-  }, [evento, candidata, juradoId])
+  }, [eventoCandidato, candidataActual, juradoId])
 
   async function guardarEvaluacion() {
-    if (!evento || !candidata || !juradoId) return
+    if (!eventoCandidato || !candidataActual || !juradoId) return
 
-    setGuardando(true)
+    setCargando(true)
     setMensaje(null)
 
     try {
@@ -127,8 +134,8 @@ export default function JuryPanel() {
       }
 
       const evaluacion = await crearEvaluacion({
-        evento_id: evento.id,
-        candidata_id: candidata.id,
+        evento_id: eventoCandidato.id,
+        candidata_id: candidataActual.id,
         jurado_id: juradoId,
       })
 
@@ -140,6 +147,7 @@ export default function JuryPanel() {
         })
       }
 
+      setPrecargado(true)
       setMensaje({ tipo: 'exito', texto: 'Evaluación guardada correctamente.' })
     } catch (err) {
       setMensaje({
@@ -147,46 +155,56 @@ export default function JuryPanel() {
         texto: err instanceof Error ? err.message : 'No se pudo guardar la evaluación.',
       })
     } finally {
-      setGuardando(false)
+      setCargando(false)
     }
   }
 
-  const total = calcularTotal(criterios.map((criterio) => ({ puntaje: valores[criterio.id] ?? 0 })))
-  const listaVacia = evento !== null && criterios.length === 0
+  const total = calcularTotal(
+    criterios.map((criterio) => ({ puntaje: valores[criterio.id] ?? 0 })),
+  )
+  const sinSeleccion = !eventoCandidato || !candidataActual
 
   return (
     <>
       <PageHeader
         eyebrow="Evaluación"
         title="Panel del Jurado"
-        description="Evalúa a la candidata seleccionada por la organización. Los criterios y sus puntajes máximos provienen de la configuración del certamen."
+        description="Evalúa a la candidata seleccionada por el Panel Maestro. Los criterios se cargan automáticamente según la etapa del evento."
       />
 
-      {!evento || !candidata ? (
-        <section className="mx-auto mt-12 max-w-xl rounded-xl border border-dashed border-gold-500/40 bg-navy-900/50 px-6 py-8 text-center">
+      {sinSeleccion && (
+        <section className="mx-auto mt-10 max-w-xl rounded-xl border border-dashed border-gold-500/40 bg-navy-900/50 px-6 py-8 text-center">
           <p className="text-sm leading-relaxed text-navy-200">
-            Aún no hay candidata seleccionada. Ve al Panel Maestro y elige una para comenzar su
+            Aún no hay candidata activa. Abre el Panel Maestro y selecciona una para comenzar su
             evaluación.
           </p>
           <Link to="/maestro" className="btn-primary mt-5 inline-flex">
             Ir al Panel Maestro
           </Link>
         </section>
-      ) : (
-        <section className="mx-auto mt-10 max-w-2xl space-y-6">
+      )}
+
+      {error && (
+        <div className="mx-auto mt-6 max-w-2xl rounded-xl border border-red-400/30 bg-red-400/10 px-5 py-3 text-center text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      {!sinSeleccion && (
+        <section className="mx-auto mt-8 max-w-2xl space-y-6">
           <div className="rounded-xl border border-white/10 bg-navy-900/70 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold-400">
-                  Candidata evaluada
+                  Candidata a evaluar
                 </p>
-                <h2 className="mt-1 text-xl font-semibold text-white">{candidata.nombre}</h2>
+                <h2 className="mt-1 text-xl font-bold text-white">{candidataActual!.nombre}</h2>
                 <p className="text-sm text-navy-300">
-                  {candidata.grado} · Sección {candidata.seccion}
+                  {candidataActual!.grado} · Sección {candidataActual!.seccion}
                 </p>
               </div>
               <span className="rounded-full bg-gold-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-300">
-                Etapa: {evento.etapa}
+                Etapa: {eventoCandidato!.etapa}
               </span>
             </div>
           </div>
@@ -198,7 +216,11 @@ export default function JuryPanel() {
             <select
               id="jurado"
               value={juradoId}
-              onChange={(e) => setJuradoId(e.target.value)}
+              onChange={(e) => {
+                setJuradoId(e.target.value)
+                setMensaje(null)
+                setPrecargado(false)
+              }}
               className="mt-2 w-full rounded-lg border border-white/10 bg-navy-800 px-4 py-2.5 text-sm text-white focus:border-gold-500 focus:outline-none"
             >
               <option value="">Selecciona tu nombre…</option>
@@ -210,15 +232,20 @@ export default function JuryPanel() {
             </select>
           </div>
 
-          {listaVacia && (
-            <p className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-center text-sm text-red-200">
-              No hay criterios definidos para la etapa "{evento.etapa}". Configúralos en la tabla
-              criterios.
+          {criterios.length === 0 && !error && (
+            <p className="rounded-xl border border-dashed border-navy-600 px-4 py-3 text-center text-sm text-navy-300">
+              Cargando criterios…
             </p>
           )}
 
           {criterios.length > 0 && (
             <div className="space-y-5 rounded-xl border border-white/10 bg-navy-900/70 p-6">
+              {precargado && (
+                <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-center text-xs font-semibold text-emerald-300">
+                  Evaluación guardada · Valores precargados
+                </div>
+              )}
+
               {criterios.map((criterio) => {
                 const puntaje = valores[criterio.id] ?? 0
                 return (
@@ -260,10 +287,17 @@ export default function JuryPanel() {
           <button
             type="button"
             onClick={guardarEvaluacion}
-            disabled={!juradoId || guardando || criterios.length === 0}
+            disabled={!juradoId || cargando || criterios.length === 0}
             className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {guardando ? 'Guardando…' : 'Guardar evaluación'}
+            {cargando ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Guardando…
+              </span>
+            ) : (
+              'Guardar evaluación'
+            )}
           </button>
 
           {mensaje && (

@@ -24,7 +24,6 @@ insert into public.criterios (id, etapa, nombre, puntaje_maximo, orden) values
   ('55555555-5555-4555-8555-000000000003', 'final', 'Coreografía', 20, 3),
   ('55555555-5555-4555-8555-000000000004', 'final', 'Presencia escénica', 10, 4);
 
--- Evaluación de ejemplo: jurado JUR-001 evalúa a Valentina Ríos.
 insert into public.evaluaciones (id, evento_id, candidata_id, jurado_id, estado) values
   ('44444444-4444-4444-8444-000000000001',
    '11111111-1111-4111-8111-000000000001',
@@ -32,9 +31,17 @@ insert into public.evaluaciones (id, evento_id, candidata_id, jurado_id, estado)
    '33333333-3333-4333-8333-000000000001',
    'en_proceso');
 
--- Detalles de la evaluación: un puntaje por criterio, dentro de su máximo.
 insert into public.evaluacion_detalles (evaluacion_id, criterio_id, puntaje) values
   ('44444444-4444-4444-8444-000000000001', '55555555-5555-4555-8555-000000000001', 32.5),
   ('44444444-4444-4444-8444-000000000001', '55555555-5555-4555-8555-000000000002', 24),
   ('44444444-4444-4444-8444-000000000001', '55555555-5555-4555-8555-000000000003', 15),
   ('44444444-4444-4444-8444-000000000001', '55555555-5555-4555-8555-000000000004', 8);
+
+-- Registro de estado del evento: candidata activa para evaluación.
+-- Si el registro no existe, el Panel Maestro lo creará la primera vez que se use.
+insert into public.estado_evento (evento_id, candidata_actual_id, estado) values
+  ('11111111-1111-4111-8111-000000000001', '22222222-2222-4222-8222-000000000001', 'activo')
+on conflict (evento_id) do update
+  set candidata_actual_id = excluded.candidata_actual_id,
+      estado             = excluded.estado,
+      updated_at         = now();

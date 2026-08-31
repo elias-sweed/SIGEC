@@ -266,15 +266,22 @@ export default function MasterPanel() {
                 >
                   <span className="font-mono text-xs font-bold text-gold-400">{j.codigo}</span>
                   <span className="flex-1 truncate px-3 text-left text-white">{j.nombre}</span>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      j.en_sesion
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : 'bg-navy-600/40 text-navy-400'
-                    }`}
-                  >
-                    {j.en_sesion ? 'En sesión' : 'Sin sesión'}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {j.en_sesion && (
+                      <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                        ● En sesión
+                      </span>
+                    )}
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        j.activado
+                          ? 'bg-emerald-500/15 text-emerald-400'
+                          : 'bg-navy-600/40 text-navy-400'
+                      }`}
+                    >
+                      {j.activado ? '✔ Activado' : 'Pendiente'}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -652,6 +659,33 @@ function CandidatasForm({
   const [nombre, setNombre] = useState('')
   const [grado, setGrado] = useState('')
   const [seccion, setSeccion] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editando, setEditando] = useState({ nombre: '', grado: '', seccion: '' })
+
+  const comenzarEdicion = (c: Candidata) => {
+    setEditandoId(c.id)
+    setEditando({ nombre: c.nombre, grado: c.grado, seccion: c.seccion })
+  }
+
+  const guardarEdicion = async (id: string) => {
+    if (!editando.nombre.trim() || !editando.grado.trim() || !editando.seccion.trim()) {
+      onError('Todos los campos son obligatorios')
+      return
+    }
+    const supabase = getSupabase()
+    const { error } = await supabase.from('candidatas').update({
+      nombre: editando.nombre.trim(),
+      grado: editando.grado.trim(),
+      seccion: editando.seccion.trim(),
+    }).eq('id', id)
+    if (error) {
+      onError(error.message)
+      return
+    }
+    setEditandoId(null)
+    onError(null)
+    await onCambio()
+  }
 
   const agregar = async () => {
     if (!nombre.trim() || !grado.trim() || !seccion.trim()) {
@@ -724,16 +758,58 @@ function CandidatasForm({
               key={c.id}
               className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
             >
-              <span className="truncate text-white">
-                <span className="font-semibold">{c.nombre}</span>
-                <span className="text-navy-400"> · {c.grado} · {c.seccion}</span>
-              </span>
-              <button
-                onClick={() => eliminar(c.id)}
-                className="ml-3 shrink-0 rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
-              >
-                Eliminar
-              </button>
+              {editandoId === c.id ? (
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <input
+                    value={editando.nombre}
+                    onChange={(e) => setEditando({ ...editando, nombre: e.target.value })}
+                    className="flex-1 rounded-lg border border-gold-500/40 bg-navy-800 px-2 py-1 text-sm text-white"
+                  />
+                  <input
+                    value={editando.grado}
+                    onChange={(e) => setEditando({ ...editando, grado: e.target.value })}
+                    className="w-16 rounded-lg border border-gold-500/40 bg-navy-800 px-2 py-1 text-sm text-white"
+                  />
+                  <input
+                    value={editando.seccion}
+                    onChange={(e) => setEditando({ ...editando, seccion: e.target.value })}
+                    className="w-16 rounded-lg border border-gold-500/40 bg-navy-800 px-2 py-1 text-sm text-white"
+                  />
+                  <button
+                    onClick={() => guardarEdicion(c.id)}
+                    title="Guardar"
+                    aria-label="Guardar"
+                    className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/15 text-emerald-400 transition hover:bg-emerald-500/25"
+                  >
+                    <IconoCheck />
+                  </button>
+                </div>
+              ) : (
+                <span className="truncate text-white">
+                  <span className="font-semibold">{c.nombre}</span>
+                  <span className="text-navy-400"> · {c.grado} · {c.seccion}</span>
+                </span>
+              )}
+              <div className="flex shrink-0 items-center gap-1.5">
+                {editandoId !== c.id && (
+                  <button
+                    onClick={() => comenzarEdicion(c)}
+                    title="Editar candidata"
+                    aria-label="Editar candidata"
+                    className="grid h-8 w-8 place-items-center rounded-lg bg-gold-500/10 text-gold-400 transition hover:bg-gold-500/25"
+                  >
+                    <IconoLapiz />
+                  </button>
+                )}
+                <button
+                  onClick={() => eliminar(c.id)}
+                  title="Eliminar candidata"
+                  aria-label="Eliminar candidata"
+                  className="grid h-8 w-8 place-items-center rounded-lg bg-red-500/10 text-red-400 transition hover:bg-red-500/25"
+                >
+                  <IconoPapelera />
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -754,6 +830,29 @@ function JuradosForm({
   onError: (msg: string | null) => void
 }) {
   const [nombre, setNombre] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editandoNombre, setEditandoNombre] = useState('')
+
+  const comenzarEdicion = (id: string, valor: string) => {
+    setEditandoId(id)
+    setEditandoNombre(valor)
+  }
+
+  const guardarEdicion = async (id: string) => {
+    if (!editandoNombre.trim()) {
+      onError('El nombre no puede estar vacío')
+      return
+    }
+    const supabase = getSupabase()
+    const { error } = await supabase.from('jurados').update({ nombre: editandoNombre.trim() }).eq('id', id)
+    if (error) {
+      onError(error.message)
+      return
+    }
+    setEditandoId(null)
+    onError(null)
+    await onCambio()
+  }
 
   const siguienteCodigo = useMemo(() => {
     const maxN = jurados.reduce((max, j) => {
@@ -822,16 +921,48 @@ function JuradosForm({
               key={j.id}
               className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
             >
-              <span className="truncate">
-                <span className="font-mono text-xs font-bold text-gold-400">{j.codigo}</span>
-                <span className="ml-2 text-white">{j.nombre}</span>
-              </span>
-              <button
-                onClick={() => eliminar(j.id)}
-                className="ml-3 shrink-0 rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
-              >
-                Eliminar
-              </button>
+              {editandoId === j.id ? (
+                <div className="flex flex-1 items-center gap-2">
+                  <input
+                    value={editandoNombre}
+                    onChange={(e) => setEditandoNombre(e.target.value)}
+                    className="flex-1 rounded-lg border border-gold-500/40 bg-navy-800 px-2 py-1 text-sm text-white"
+                  />
+                  <button
+                    onClick={() => guardarEdicion(j.id)}
+                    title="Guardar"
+                    aria-label="Guardar"
+                    className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/15 text-emerald-400 transition hover:bg-emerald-500/25"
+                  >
+                    <IconoCheck />
+                  </button>
+                </div>
+              ) : (
+                <span className="truncate">
+                  <span className="font-mono text-xs font-bold text-gold-400">{j.codigo}</span>
+                  <span className="ml-2 text-white">{j.nombre}</span>
+                </span>
+              )}
+              <div className="flex shrink-0 items-center gap-1.5">
+                {editandoId !== j.id && (
+                  <button
+                    onClick={() => comenzarEdicion(j.id, j.nombre)}
+                    title="Editar jurado"
+                    aria-label="Editar jurado"
+                    className="grid h-8 w-8 place-items-center rounded-lg bg-gold-500/10 text-gold-400 transition hover:bg-gold-500/25"
+                  >
+                    <IconoLapiz />
+                  </button>
+                )}
+                <button
+                  onClick={() => eliminar(j.id)}
+                  title="Eliminar jurado"
+                  aria-label="Eliminar jurado"
+                  className="grid h-8 w-8 place-items-center rounded-lg bg-red-500/10 text-red-400 transition hover:bg-red-500/25"
+                >
+                  <IconoPapelera />
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -916,5 +1047,60 @@ function CriteriosForm({
         <p className="mt-4 text-center text-sm text-navy-500">Sin criterios cargados todavía.</p>
       )}
     </div>
+  )
+}
+
+/* ─── Iconos ───────────────────────────────────────────────────────────── */
+
+function IconoPapelera() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.8}
+      stroke="currentColor"
+      className="h-4.5 w-4.5"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 8.25L6.75 20.5A1.5 1.5 0 008.25 22h7.5a1.5 1.5 0 001.5-1.5L18 8.25M9.75 11.25v5.25M14.25 11.25v5.25M10.5 8.25v-3A1.5 1.5 0 0112 3.75h0a1.5 1.5 0 011.5 1.5v3M5.5 8.25h13"
+      />
+    </svg>
+  )
+}
+
+function IconoLapiz() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.8}
+      stroke="currentColor"
+      className="h-4.5 w-4.5"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.862 4.487zM19.5 8.25l.5-.5M13.5 14.25l.5-.5"
+      />
+    </svg>
+  )
+}
+
+function IconoCheck() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={2}
+      stroke="currentColor"
+      className="h-4.5 w-4.5"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    </svg>
   )
 }

@@ -22,6 +22,7 @@ export default function JuradoEvaluacion() {
 
   const [jurado, setJurado] = useState<Jurado | null>(null)
   const [candidataSel, setCandidataSel] = useState<Candidata | null>(null)
+  const [evaluadasIds, setEvaluadasIds] = useState<Set<string>>(new Set())
   const [criterios, setCriterios] = useState<Criterio[]>([])
   const [detalles, setDetalles] = useState<DetalleState[]>([])
   const [enviado, setEnviado] = useState(false)
@@ -49,6 +50,15 @@ export default function JuradoEvaluacion() {
       }
 
       setJurado(data as Jurado)
+
+      // Candidatas que este jurado ya evaluó (para mostrarlas en el selector)
+      const { data: evals } = await supabase
+        .from('evaluaciones')
+        .select('candidata_id')
+        .eq('jurado_id', (data as Jurado).id)
+      if (evals) {
+        setEvaluadasIds(new Set(evals.map((e) => e.candidata_id as string)))
+      }
     })()
   }, [sesion, jurado, navigate])
 
@@ -199,6 +209,11 @@ export default function JuradoEvaluacion() {
     logConsulta('Jurado: evaluación guardada con éxito')
     setEnviado(true)
     setSaving(false)
+
+    // Marcar la candidata como evaluada para que se refleje en el selector
+    if (candidataSel) {
+      setEvaluadasIds((prev) => new Set(prev).add(candidataSel.id))
+    }
   }
 
   if (!jurado) {
@@ -262,22 +277,45 @@ export default function JuradoEvaluacion() {
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
                 Selecciona la candidata a evaluar
               </p>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-semibold text-emerald-400">
+                  ● Ya evaluada — toca para corregir
+                </span>
+              </div>
               {candidatas.length === 0 ? (
                 <p className="mt-4 text-sm text-navy-500">Sin candidatas registradas.</p>
               ) : (
                 <div className="mt-4 grid gap-2">
-                  {candidatas.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => setCandidataSel(c)}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3 text-left transition hover:border-gold-500/40 hover:bg-navy-800"
-                    >
-                      <span className="font-semibold text-white">{c.nombre}</span>
-                      <span className="text-sm text-navy-300">
-                        {c.grado} · Sección {c.seccion}
-                      </span>
-                    </button>
-                  ))}
+                  {candidatas.map((c) => {
+                    const evaluada = evaluadasIds.has(c.id)
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setCandidataSel(c)}
+                        className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+                          evaluada
+                            ? 'border-emerald-500/30 bg-emerald-500/10 hover:border-emerald-500/50 hover:bg-emerald-500/15'
+                            : 'border-white/10 bg-navy-800/50 hover:border-gold-500/40 hover:bg-navy-800'
+                        }`}
+                      >
+                        <span className="font-semibold text-white">{c.nombre}</span>
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm text-navy-300">
+                            {c.grado} · Sección {c.seccion}
+                          </span>
+                          {evaluada ? (
+                            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
+                              ✔ Evaluado · Corregir
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-navy-600/40 px-2.5 py-0.5 text-xs font-semibold text-navy-300">
+                              Evaluar
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>

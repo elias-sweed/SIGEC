@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getSupabase } from '../lib/supabase'
+import PasswordInput from '../components/form/PasswordInput'
 import { emailDeJurado, marcarEnSesion, obtenerJuradoPorCodigo } from '../services/jurado.service'
 import { estaActivadoLocal, guardarSesionJurado, leerSesionJurado } from '../utils/session'
 import { logConsulta, logError } from '../utils/devlog'
@@ -163,14 +164,12 @@ export default function JuradoLogin() {
           <label className="mt-5 block text-xs font-semibold uppercase tracking-[0.25em] text-navy-300">
             Contraseña
           </label>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && ingresar()}
             placeholder="Tu contraseña"
             autoFocus
-            className="mt-2 w-full rounded-xl border border-white/10 bg-navy-800 px-4 py-3.5 text-white placeholder:text-navy-500 focus:border-gold-500/50 focus:outline-none"
           />
 
           {error && (

@@ -160,7 +160,6 @@ export default function JuradoLogin() {
             <p className="font-mono text-xs font-bold text-gold-400">{jurado.codigo}</p>
             <p className="mt-1 text-xs text-navy-400">{emailDeJurado(jurado.codigo)}</p>
           </div>
-
           <label className="mt-5 block text-xs font-semibold uppercase tracking-[0.25em] text-navy-300">
             Contraseña
           </label>

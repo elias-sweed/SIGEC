@@ -2,12 +2,14 @@ import { getSupabase } from '../lib/supabase'
 import { logError } from '../utils/devlog'
 import type { Jurado } from '../types/database'
 
-// Nota: Supabase Auth rechaza emails cuyo dominio no resuelve en DNS (p. ej. .local),
-// por eso se usa un dominio ".com" que exista. Las cuentas sirven solo de identificador
-// de login; nunca reciben correos (confirmación desactivada).
-const DOMINIO_EMAIL = 'sigec.com'
+// Nota sobre el dominio: Supabase Auth rechaza emails cuyo dominio no tenga registro
+// MX en DNS (p. ej. sigec.com, example.com → 400 "Email is invalid").
+// Se usa un dominio con MX válido (gmail.com) para que la validación pase; estas
+// cuentas solo sirven de identificador de login y nunca reciben correos reales
+// (la confirmación de email está desactivada), por lo que no importa que la bandeja no exista.
+const DOMINIO_EMAIL = 'gmail.com'
 
-/** Correo interno derivado del código: JUR-001 → jur-001@sigec.com */
+/** Correo interno derivado del código: JUR-001 → jur-001@gmail.com */
 export function emailDeJurado(codigo: string): string {
   return `${codigo.trim().toLowerCase()}@${DOMINIO_EMAIL}`
 }

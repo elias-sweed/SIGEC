@@ -6,7 +6,7 @@ alter table public.jurados add column if not exists en_sesion boolean not null d
 -- Control de primer acceso: el jurado activa su cuenta una sola vez.
 alter table public.jurados add column if not exists activado boolean not null default false;
 
--- Correo interno usado para crear la cuenta en Supabase Auth (jur-001@sigec.com).
+-- Correo interno usado para crear la cuenta en Supabase Auth (jur-001@gmail.com).
 alter table public.jurados add column if not exists email_interno text;
 
 -- Id del usuario creado en Supabase Auth (auth.users).

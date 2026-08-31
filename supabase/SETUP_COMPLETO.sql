@@ -89,3 +89,10 @@ alter table public.jurados add column if not exists en_sesion boolean not null d
 alter table public.jurados add column if not exists activado boolean not null default false;
 alter table public.jurados add column if not exists email_interno text;
 alter table public.jurados add column if not exists auth_uid uuid;
+
+-- =============================================
+-- SIGEC — POLÍTICAS RLS PARA DESARROLLO
+-- Las tablas clave (p. ej. auth.users) usan Supabase Auth con
+-- correo interno jur-XXX@gmail.com (dominio con MX válido).
+-- La tabla public.jurados registra activado/email_interno/auth_uid.
+-- =============================================

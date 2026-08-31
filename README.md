@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** Fase 06 completada — Asistente de configuración: prepara un certamen completo desde la interfaz (evento, jurados con código, candidatas, criterios) sin SQL manual. Panel Jurado con ingreso por código.
+> **Estado actual:** Fase 07 completada — Acceso profesional del jurado separado del panel de administración: login con código (JUR-001), sesión por pestaña, evaluación protegida por ruta y seguimiento "Jurados conectados". Sin acceso del jurado desde la Home.
 
 ## Tecnologías
 
@@ -143,11 +143,21 @@ Preparando → Evaluando → Esperando Jurados → Resultados Listos → Publica
 
 | Ruta | Vista | Descripción |
 | --- | --- | --- |
-| `/` | Inicio | Evento actual + accesos a los módulos |
-| `/jurado` | Panel del Jurado | Evaluación con sliders, total y envío |
-| `/maestro` | Configurar Certamen | Asistente: evento, candidatas, jurados, criterios e iniciar |
-| `/publico` | Pantalla Pública | Proyección estilo escenario |
+| `/` | Inicio | Portada del sistema (sin acceso directo al jurado) |
+| `/panel` | Centro de Control | Asistente: evento, candidatas, jurados, criterios e iniciar |
+| `/jurado` | Login del jurado | Acceso premium con código JUR-XXX (se comparte solo con jurados) |
+| `/jurado/evaluacion` | Evaluación | Protegida por sesión: evalúa a la candidata activa |
+| `/pantalla` | Pantalla Pública | Proyección estilo escenario |
 | Cualquier otra | 404 | Página no encontrada |
+
+## Flujo de acceso del jurado
+
+```
+/jurado ── código JUR-XXX ──▶ valida en jurados ──▶ sessionStorage ──▶ /jurado/evaluacion
+                                                                        │
+                                    sin sesión directa a /jurado/evaluacion
+                                    → JuradoGuard redirige a /jurado
+```
 
 ## Configuración del entorno (.env)
 
@@ -197,6 +207,7 @@ Aplicar contra tu proyecto de Supabase:
 2. `supabase/migrations/20260825110000_evaluacion_detalles.sql` — motor de evaluación
 3. `supabase/migrations/20260825140000_estado_evento.sql` — estado del evento
 4. `supabase/migrations/20260825160000_disable_rls_dev.sql` — desactivar RLS (desarrollo)
+5. `supabase/migrations/20260826100000_jurados_sesion.sql` — columna `en_sesion` en jurados
 
 > `supabase/seed.sql` queda como **referencia opcional** (datos de ejemplo). El asistente permite preparar el certamen sin usarlo.
 

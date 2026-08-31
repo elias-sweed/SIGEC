@@ -168,7 +168,7 @@ export default function MasterPanel() {
               to="/jurado"
               className="mt-4 inline-block rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
             >
-              Ir al Panel de Jurado →
+              Abrir acceso del jurado →
             </Link>
           </div>
         )}
@@ -237,6 +237,40 @@ export default function MasterPanel() {
               </>
             )}
           </div>
+        </div>
+
+        {/* Jurados conectados */}
+        <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+              Jurados conectados
+            </p>
+            <span className="text-xs text-navy-500">Se actualiza al recargar</span>
+          </div>
+          {jurados.length === 0 ? (
+            <p className="mt-4 text-sm text-navy-500">Sin jurados registrados todavía.</p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {jurados.map((j) => (
+                <li
+                  key={j.id}
+                  className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2.5 text-sm"
+                >
+                  <span className="font-mono text-xs font-bold text-gold-400">{j.codigo}</span>
+                  <span className="flex-1 truncate px-3 text-left text-white">{j.nombre}</span>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      j.en_sesion
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : 'bg-navy-600/40 text-navy-400'
+                    }`}
+                  >
+                    {j.en_sesion ? 'En sesión' : 'Sin sesión'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Paso 1 — Evento */}

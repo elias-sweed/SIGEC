@@ -19,6 +19,7 @@ export interface Jurado {
   id: string
   nombre: string
   codigo: string
+  en_sesion: boolean
   created_at: string
 }
 

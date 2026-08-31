@@ -2,9 +2,8 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 const navigation = [
   { label: 'Inicio', to: '/' },
-  { label: 'Panel del Jurado', to: '/jurado' },
-  { label: 'Panel Maestro', to: '/maestro' },
-  { label: 'Pantalla Pública', to: '/publico' },
+  { label: 'Centro de Control', to: '/panel' },
+  { label: 'Pantalla Pública', to: '/pantalla' },
 ]
 
 export default function MainLayout() {

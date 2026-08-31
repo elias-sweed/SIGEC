@@ -1,5 +1,53 @@
 # CHANGELOG SIGEC
 
+## Fase 07
+
+Fecha: 27/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Separación total del acceso del jurado**: el jurado nunca ve la administración.
+- **Nuevas rutas**: `/`, `/panel` (Centro de Control), `/jurado` (login), `/jurado/evaluacion` (evaluación protegida) y `/pantalla` (pantalla pública). Eliminadas las rutas `/maestro` y `/publico`.
+- **Login premium del jurado** en `/jurado`: logo del certamen, nombre del evento obtenido desde Supabase (sin datos hardcodeados), campo grande para el código y botón "Ingresar"; diseño azul oscuro con acento dorado.
+- **Validación del código**: busca el código en la tabla `jurados`; si existe guarda `jurado_id` y `jurado_codigo` en `sessionStorage` y redirige a `/jurado/evaluacion`; si no existe muestra "Código no válido." de forma elegante.
+- **Sesión persistente**: mientras la pestaña esté abierta no vuelve al login; entrar directamente a `/jurado/evaluacion` sin sesión redirige a `/jurado` (JuradoGuard).
+- **Pantalla de evaluación** en `/jurado/evaluacion` con encabezado de sesión: nombre del jurado, código, candidata activa, etapa y botón "Salir". Diseño premium propio (sin navegación de administración).
+- **Cerrar sesión**: "Salir" limpia `sessionStorage` y vuelve a `/jurado`.
+- **Jurados conectados** en el Panel Maestro: lista con estado "En sesión / Sin sesión" basada en la nueva columna `en_sesion` de `jurados`; se actualiza al recargar la página.
+- **Home rediseñada como portada**: solo "Centro de Control" y "Pantalla Pública"; eliminado el acceso directo al jurado, el DebugPanel y los contadores técnicos.
+- **Navegación**: el menú principal ya no muestra el enlace al jurado.
+
+### Archivos creados
+
+- `supabase/migrations/20260826100000_jurados_sesion.sql`
+- `src/pages/JuradoLogin.tsx`
+- `src/pages/JuradoEvaluacion.tsx`
+- `src/layouts/JuradoLayout.tsx`
+- `src/components/JuradoGuard.tsx`
+- `src/utils/session.ts`
+
+Archivos eliminados:
+
+- `src/pages/JuryPanel.tsx` (contenido movido a JuradoEvaluacion)
+
+Archivos modificados:
+
+- `src/routes/index.tsx`
+- `src/layouts/MainLayout.tsx`
+- `src/pages/Home.tsx`
+- `src/pages/MasterPanel.tsx`
+- `src/types/database.ts`
+- `README.md`
+- `CHANGELOG_FASES.md`
+
+### Pendiente para Fase 08
+
+- Consolidación de resultados y promedio entre jurados (`calcularPromedioJurados()`).
+- Pantalla Pública con puntajes publicados.
+- Realtime: progreso de jurados conectados y evaluaciones sin recargar.
+- Reactivar RLS con políticas por rol.
+
 ## Fase 06
 
 Fecha: 27/08/2026

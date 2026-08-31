@@ -8,7 +8,7 @@ Estado: Completada
 ### Cambios realizados
 
 - **Acceso profesional por QR**: el administrador genera una tarjeta por jurado con nombre, código (JUR-001) y un QR único que apunta a `/jurado/activar?codigo=JUR-001`.
-- **Primer acceso** en `/jurado/activar`: solicita contraseña y confirmación, crea la cuenta en Supabase Auth con el correo interno `jur-001@sigec.local` y marca al jurado como `activado`.
+- **Primer acceso** en `/jurado/activar`: solicita contraseña y confirmación, crea la cuenta en Supabase Auth con el correo interno `jur-001@sigec.com` y marca al jurado como `activado`. El dominio `.com` se usa porque Supabase rechaza correos cuyo dominio no resuelve en DNS (`.local` da error 400 "Email is invalid").
 - **Redirecciones automáticas**: un jurado ya activado que escanea su QR se envía directo al login; el login detecta el parámetro `codigo` y completa el código automáticamente.
 - **Ingreso profesional**: después de activarse, el jurado solo escribe su contraseña (el correo interno se deriva del código).
 - **Descarga de PDF**: botón "Descargar PDF" en el Panel Maestro que abre la vista de impresión con las tarjetas de todos los jurados (destino "Guardar como PDF").

@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** Fase 08 completada — Acceso profesional del jurado por QR: tarjetas con QR único, primer acceso con contraseña (Supabase Auth, correo interno jur-XXX@sigec.local), redirección automática al login para activados y descarga de PDF con las tarjetas.
+> **Estado actual:** Fase 08 completada — Acceso profesional del jurado por QR: tarjetas con QR único, primer acceso con contraseña (Supabase Auth, correo interno jur-XXX@sigec.com), redirección automática al login para activados y descarga de PDF con las tarjetas.
 
 ## Tecnologías
 
@@ -156,7 +156,7 @@ Preparando → Evaluando → Esperando Jurados → Resultados Listos → Publica
 ```
 QR (JUR-001) ──▶ /jurado/activar?codigo=JUR-001
                       │
-                      ├─ nunca activado ──▶ contraseña × 2 ──▶ Supabase Auth (jur-001@sigec.local) ──▶ activado ✔
+                      ├─ nunca activado ──▶ contraseña × 2 ──▶ Supabase Auth (jur-001@sigec.com) ──▶ activado ✔
                       │
                       └─ ya activado ──▶ /jurado?codigo=JUR-001 ──▶ contraseña ──▶ sessionStorage ──▶ /jurado/evaluacion
                                                                                                       │

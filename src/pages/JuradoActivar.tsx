@@ -65,7 +65,7 @@ export default function JuradoActivar() {
         return
       }
       logError('signUp', errSignUp.message)
-      setError(errSignUp.message)
+      setError('No se pudo crear tu cuenta. Intenta de nuevo.')
       setEnviando(false)
       return
     }

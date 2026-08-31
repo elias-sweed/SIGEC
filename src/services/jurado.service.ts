@@ -2,9 +2,12 @@ import { getSupabase } from '../lib/supabase'
 import { logError } from '../utils/devlog'
 import type { Jurado } from '../types/database'
 
-const DOMINIO_EMAIL = 'sigec.local'
+// Nota: Supabase Auth rechaza emails cuyo dominio no resuelve en DNS (p. ej. .local),
+// por eso se usa un dominio ".com" que exista. Las cuentas sirven solo de identificador
+// de login; nunca reciben correos (confirmación desactivada).
+const DOMINIO_EMAIL = 'sigec.com'
 
-/** Correo interno derivado del código: JUR-001 → jur-001@sigec.local */
+/** Correo interno derivado del código: JUR-001 → jur-001@sigec.com */
 export function emailDeJurado(codigo: string): string {
   return `${codigo.trim().toLowerCase()}@${DOMINIO_EMAIL}`
 }

@@ -8,7 +8,7 @@ import { logConsulta, logFilas, logError } from '../utils/devlog'
 import { leerSesionJurado, limpiarSesionJurado } from '../utils/session'
 import ScoreSlider from '../components/event/ScoreSlider'
 import { EVENT_STATE_LABELS, type EventState } from '../constants/eventStates'
-import type { Criterio, Jurado } from '../types/database'
+import type { Candidata, Criterio, Jurado } from '../types/database'
 
 interface DetalleState {
   criterio_id: string
@@ -16,17 +16,19 @@ interface DetalleState {
 }
 
 export default function JuradoEvaluacion() {
-  const { candidataActual, eventoCandidato, estadoEvento } = useCertamen()
+  const { candidatas, eventoCandidato: evento, estadoEvento } = useCertamen()
   const navigate = useNavigate()
   const sesion = leerSesionJurado()
 
   const [jurado, setJurado] = useState<Jurado | null>(null)
+  const [candidataSel, setCandidataSel] = useState<Candidata | null>(null)
   const [criterios, setCriterios] = useState<Criterio[]>([])
   const [detalles, setDetalles] = useState<DetalleState[]>([])
   const [enviado, setEnviado] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Cargar jurado por sesión
   useEffect(() => {
     if (!sesion || jurado) return
 
@@ -50,19 +52,17 @@ export default function JuradoEvaluacion() {
     })()
   }, [sesion, jurado, navigate])
 
-  const juradoId = jurado?.id
-
+  // Al elegir una candidata, cargar criterios de la etapa y la evaluación existente
   useEffect(() => {
-    if (!juradoId || !candidataActual || !eventoCandidato || !estadoEvento) return
-    if (estadoEvento.estado !== 'evaluando') return
+    if (!jurado || !candidataSel || !evento?.etapa || !estadoEvento) return
 
     ;(async () => {
       const supabase = getSupabase()
-      logConsulta(`Jurado ${jurado?.codigo}: criterios etapa=${eventoCandidato.etapa}`)
+      logConsulta(`Jurado ${jurado.codigo}: criterios etapa=${evento.etapa}`)
       const { data: criteriosData, error: criteriosError } = await supabase
         .from('criterios')
         .select('*')
-        .eq('etapa', eventoCandidato.etapa)
+        .eq('etapa', evento.etapa)
         .order('orden')
 
       if (criteriosError) {
@@ -76,9 +76,8 @@ export default function JuradoEvaluacion() {
       const { data: existente, error: existenteError } = await supabase
         .from('evaluaciones')
         .select('id')
-        .eq('evento_id', eventoCandidato.id)
-        .eq('candidata_id', candidataActual.id)
-        .eq('jurado_id', juradoId)
+        .eq('candidata_id', candidataSel.id)
+        .eq('jurado_id', jurado.id)
         .maybeSingle()
 
       if (existenteError) {
@@ -101,7 +100,7 @@ export default function JuradoEvaluacion() {
         setDetalles([])
       }
     })()
-  }, [juradoId, jurado?.codigo, candidataActual, eventoCandidato, estadoEvento])
+  }, [jurado, candidataSel, evento?.etapa, estadoEvento])
 
   const salir = async () => {
     if (jurado) {
@@ -128,7 +127,7 @@ export default function JuradoEvaluacion() {
   }
 
   const handleGuardar = async () => {
-    if (!juradoId || !candidataActual || !eventoCandidato) return
+    if (!jurado || !candidataSel || !evento) return
     setSaving(true)
     setError(null)
 
@@ -138,9 +137,8 @@ export default function JuradoEvaluacion() {
     const { data: existente } = await supabase
       .from('evaluaciones')
       .select('id')
-      .eq('evento_id', eventoCandidato.id)
-      .eq('candidata_id', candidataActual.id)
-      .eq('jurado_id', juradoId)
+      .eq('candidata_id', candidataSel.id)
+      .eq('jurado_id', jurado.id)
       .maybeSingle()
 
     let evaluacionId: string
@@ -164,9 +162,9 @@ export default function JuradoEvaluacion() {
       const { data: nuevaEval, error: evalError } = await supabase
         .from('evaluaciones')
         .insert({
-          evento_id: eventoCandidato.id,
-          candidata_id: candidataActual.id,
-          jurado_id: juradoId,
+          evento_id: evento.id,
+          candidata_id: candidataSel.id,
+          jurado_id: jurado.id,
           estado: 'completada',
         })
         .select('id')
@@ -212,7 +210,6 @@ export default function JuradoEvaluacion() {
   }
 
   const evaluando = estadoEvento?.estado === 'evaluando'
-  const total = calcularTotal(detalles)
 
   return (
     <div className="space-y-4">
@@ -235,17 +232,10 @@ export default function JuradoEvaluacion() {
             Salir
           </button>
         </div>
-
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-4 text-sm">
           <div>
-            <p className="text-[11px] uppercase tracking-widest text-navy-500">Candidata activa</p>
-            <p className="font-semibold text-white">
-              {candidataActual ? `${candidataActual.nombre} · ${candidataActual.grado} · ${candidataActual.seccion}` : '—'}
-            </p>
-          </div>
-          <div>
             <p className="text-[11px] uppercase tracking-widest text-navy-500">Etapa</p>
-            <p className="font-semibold text-gold-400">{eventoCandidato?.etapa ?? '—'}</p>
+            <p className="font-semibold text-gold-400">{evento?.etapa ?? '—'}</p>
           </div>
         </div>
       </header>
@@ -261,71 +251,110 @@ export default function JuradoEvaluacion() {
           <p className="mt-3 text-sm text-navy-500">
             El administrador debe iniciar la evaluación desde el Centro de Control. Esta pantalla se
             habilitará automáticamente cuando comience.{' '}
-            {eventoCandidato && `Etapa: ${eventoCandidato.etapa}`}
+            {evento && `Etapa: ${evento.etapa}`}
           </p>
         </div>
       ) : (
         <>
-          {/* Candidata */}
-          <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 text-center transition-all duration-300">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
-              Evaluando
-            </p>
-            <h2 className="mt-1 text-3xl font-bold text-white sm:text-4xl">
-              {candidataActual?.nombre ?? '—'}
-            </h2>
-            <p className="mt-1 text-sm text-navy-300">
-              {candidataActual ? `${candidataActual.grado} · Sección ${candidataActual.seccion}` : ''}
-            </p>
-          </div>
+          {/* Selector de candidata */}
+          {!candidataSel ? (
+            <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+                Selecciona la candidata a evaluar
+              </p>
+              {candidatas.length === 0 ? (
+                <p className="mt-4 text-sm text-navy-500">Sin candidatas registradas.</p>
+              ) : (
+                <div className="mt-4 grid gap-2">
+                  {candidatas.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setCandidataSel(c)}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3 text-left transition hover:border-gold-500/40 hover:bg-navy-800"
+                    >
+                      <span className="font-semibold text-white">{c.nombre}</span>
+                      <span className="text-sm text-navy-300">
+                        {c.grado} · Sección {c.seccion}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Candidata actual */}
+              <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 text-center transition-all duration-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+                  Evaluando
+                </p>
+                <h2 className="mt-1 text-3xl font-bold text-white sm:text-4xl">
+                  {candidataSel.nombre}
+                </h2>
+                <p className="mt-1 text-sm text-navy-300">
+                  {candidataSel.grado} · Sección {candidataSel.seccion}
+                </p>
+                <button
+                  onClick={() => {
+                    setCandidataSel(null)
+                    setDetalles([])
+                    setEnviado(false)
+                  }}
+                  className="mt-3 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-navy-300 transition hover:bg-navy-800 hover:text-white"
+                >
+                  ← Cambiar candidata
+                </button>
+              </div>
 
-          {/* Sliders */}
-          <div className="space-y-3">
-            {criterios.map((cr) => {
-              const det = detalles.find((d) => d.criterio_id === cr.id)
-              const puntaje = det?.puntaje ?? 0
+              {/* Sliders */}
+              <div className="space-y-3">
+                {criterios.map((cr) => {
+                  const det = detalles.find((d) => d.criterio_id === cr.id)
+                  const puntaje = det?.puntaje ?? 0
 
-              return (
-                <ScoreSlider
-                  key={cr.id}
-                  label={cr.nombre}
-                  value={puntaje}
-                  max={cr.puntaje_maximo}
-                  onChange={(v) => handleSliderChange(cr.id, v)}
-                />
-              )
-            })}
-          </div>
+                  return (
+                    <ScoreSlider
+                      key={cr.id}
+                      label={cr.nombre}
+                      value={puntaje}
+                      max={cr.puntaje_maximo}
+                      onChange={(v) => handleSliderChange(cr.id, v)}
+                    />
+                  )
+                })}
+              </div>
 
-          {/* Total */}
-          <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy-400">Total</p>
-            <p className="mt-2 text-5xl font-bold text-gold-400">{total}</p>
-            <p className="mt-1 text-sm text-navy-500">puntos</p>
-          </div>
+              {/* Total */}
+              <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy-400">Total</p>
+                <p className="mt-2 text-5xl font-bold text-gold-400">{calcularTotal(detalles)}</p>
+                <p className="mt-1 text-sm text-navy-500">puntos</p>
+              </div>
 
-          {error && (
-            <p className="rounded-lg bg-red-500/10 px-4 py-2 text-center text-sm text-red-400">
-              {error}
-            </p>
+              {error && (
+                <p className="rounded-lg bg-red-500/10 px-4 py-2 text-center text-sm text-red-400">
+                  {error}
+                </p>
+              )}
+
+              {/* Botón Enviar */}
+              <button
+                onClick={handleGuardar}
+                disabled={saving || enviado}
+                className={`w-full rounded-2xl py-4 text-lg font-bold transition-all duration-300 ${
+                  enviado
+                    ? 'cursor-default bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30'
+                    : 'bg-gold-500 text-navy-900 hover:bg-gold-400 active:scale-[0.98]'
+                } disabled:opacity-70`}
+              >
+                {enviado
+                  ? '✓ Evaluación enviada'
+                  : saving
+                    ? 'Guardando…'
+                    : 'Guardar evaluación'}
+              </button>
+            </>
           )}
-
-          {/* Botón Enviar */}
-          <button
-            onClick={handleGuardar}
-            disabled={saving || enviado}
-            className={`w-full rounded-2xl py-4 text-lg font-bold transition-all duration-300 ${
-              enviado
-                ? 'cursor-default bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30'
-                : 'bg-gold-500 text-navy-900 hover:bg-gold-400 active:scale-[0.98]'
-            } disabled:opacity-70`}
-          >
-            {enviado
-              ? '✓ Evaluación enviada'
-              : saving
-                ? 'Guardando…'
-                : 'Guardar evaluación'}
-          </button>
         </>
       )}
     </div>

@@ -1,5 +1,17 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Evaluación de todas las candidatas
+
+Fecha: 27/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **El jurado ya no evalúa solo la candidata activa**: ahora puede **elegir qué candidata evaluar** desde su pantalla, viendo la lista completa.
+- **Contexto ampliado**: `CertamenContext` ahora expone la lista completa de candidatas (`candidatas`).
+- **JuradoEvaluacion**: añadido selector de candidata. Al elegir una, carga sus criterios/etapa y muestra sliders, total y guardado; incluye botón "↩ Cambiar candidata" y mantiene el estado de "evaluación enviada" por candidata.
+- **Centro de Control**: nuevo panel **"Evaluaciones por candidata"** (tabla) con el puntaje que ha dado cada jurado a cada candidata, y el progreso (n.º evaluaciones / n.º jurados). Botón "↻ Recargar".
+
 ## Fase 08
 
 Fecha: 27/08/2026

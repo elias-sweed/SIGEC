@@ -95,18 +95,34 @@ export default function MasterPanel() {
   }, [estadoEvento])
 
   const handleStateChange = async (newState: EventState) => {
-    if (!estadoEvento) return
+    if (!eventoCandidato) return
     const supabase = getSupabase()
     logConsulta(`MasterPanel: cambiar estado a ${newState}`)
-    const { error } = await supabase
-      .from('estado_evento')
-      .update({ estado: newState, updated_at: new Date().toISOString() })
-      .eq('evento_id', estadoEvento.evento_id)
 
-    if (error) {
-      logError('cambiar estado', error.message)
-      return
+    if (estadoEvento) {
+      const { error } = await supabase
+        .from('estado_evento')
+        .update({ estado: newState, updated_at: new Date().toISOString() })
+        .eq('evento_id', estadoEvento.evento_id)
+
+      if (error) {
+        logError('cambiar estado', error.message)
+        return
+      }
+    } else {
+      const candidataInicial = candidatas[0]?.id ?? null
+      const { error } = await supabase.from('estado_evento').insert({
+        evento_id: eventoCandidato.id,
+        candidata_actual_id: candidataInicial,
+        estado: newState,
+      })
+
+      if (error) {
+        logError('crear estado inicial', error.message)
+        return
+      }
     }
+
     cargarEstado()
   }
 
@@ -136,30 +152,41 @@ export default function MasterPanel() {
         {/* Main content */}
         <div className="space-y-6">
           {/* Block A – Evento */}
-          {eventoCandidato && estadoEvento && (
+          {eventoCandidato && (
             <EventStatusCard
               nombre={eventoCandidato.nombre}
               etapa={eventoCandidato.etapa}
               estado={currentState}
             >
-              {nextState && (
-                <button
-                  onClick={() => handleStateChange(nextState)}
-                  className="rounded-full bg-gold-500 px-4 py-1.5 text-xs font-semibold text-navy-900 transition hover:bg-gold-400"
-                >
-                  {nextState === 'evaluando' && 'Iniciar evaluación'}
-                  {nextState === 'esperando_jurados' && 'Cerrar evaluación'}
-                  {nextState === 'resultados_listos' && 'Verificar resultados'}
-                  {nextState === 'publicado' && 'Publicar resultados'}
-                </button>
-              )}
-              {currentState === 'evaluando' && (
+              {!estadoEvento ? (
                 <button
                   onClick={() => handleStateChange('preparando')}
-                  className="rounded-full border border-white/10 px-4 py-1.5 text-xs font-semibold text-navy-300 transition hover:bg-navy-800"
+                  className="mt-1 w-full rounded-xl bg-gold-500 px-4 py-3 text-sm font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98]"
                 >
-                  Preparando
+                  Crear e iniciar certamen
                 </button>
+              ) : (
+                <>
+                  {nextState && (
+                    <button
+                      onClick={() => handleStateChange(nextState)}
+                      className="mt-1 w-full rounded-xl bg-gold-500 px-4 py-3 text-sm font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98]"
+                    >
+                      {nextState === 'evaluando' && '▶ Iniciar evaluación'}
+                      {nextState === 'esperando_jurados' && 'Cerrar evaluación'}
+                      {nextState === 'resultados_listos' && 'Verificar resultados'}
+                      {nextState === 'publicado' && 'Publicar resultados'}
+                    </button>
+                  )}
+                  {currentState === 'evaluando' && (
+                    <button
+                      onClick={() => handleStateChange('preparando')}
+                      className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-navy-300 transition hover:bg-navy-800"
+                    >
+                      Volver a Preparando
+                    </button>
+                  )}
+                </>
               )}
             </EventStatusCard>
           )}

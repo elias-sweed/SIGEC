@@ -5,6 +5,7 @@ import { getSupabase } from '../lib/supabase'
 import { calcularTotal } from '../utils/scoring'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
 import ScoreSlider from '../components/event/ScoreSlider'
+import { EVENT_STATE_LABELS, type EventState } from '../constants/eventStates'
 import type { Criterio } from '../types/database'
 
 interface DetalleState {
@@ -183,14 +184,19 @@ export default function JuryPanel() {
         <PageHeader
           eyebrow="Panel de jurado"
           title="Panel de Evaluación"
-          description="La evaluación no está activa."
+          description="La evaluación no está activa en este momento."
         />
         <div className="mx-auto mt-12 max-w-md rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
           <p className="text-lg font-semibold text-navy-300">
-            Estado actual: <span className="text-gold-400">{estadoEvento.estado}</span>
+            Estado actual:{' '}
+            <span className="text-gold-400">
+              {EVENT_STATE_LABELS[estadoEvento.estado as EventState] ?? estadoEvento.estado}
+            </span>
           </p>
-          <p className="mt-2 text-sm text-navy-500">
-            Espera a que el administrador inicie la evaluación.
+          <p className="mt-3 text-sm text-navy-500">
+            El administrador debe iniciar la evaluación desde el{' '}
+            <strong className="text-navy-200">Centro de Control</strong>.
+            Cuando lo haga, esta pantalla se habilitará automáticamente.
           </p>
         </div>
       </>

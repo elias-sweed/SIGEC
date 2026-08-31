@@ -98,7 +98,7 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
         const nuevoEstado = {
           evento_id: primerEvento.id,
           candidata_actual_id: primeraCandidata?.id ?? null,
-          estado: 'activo',
+          estado: 'preparando',
         }
 
         logConsulta('Insertando estado_evento inicial', nuevoEstado)

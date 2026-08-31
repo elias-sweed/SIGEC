@@ -84,15 +84,15 @@ export default function Home() {
     () => [
       {
         to: '/maestro',
-        titulo: 'Panel Maestro',
-        descripcion: 'Centro de control: selecciona candidatas, gestiona criterios y administra el evento.',
+        titulo: 'Configurar Certamen',
+        descripcion: 'Asistente completo: crea el evento, registra jurados y candidatas, y inicia la evaluación.',
         icono: '⚙',
-        etiqueta: 'Administrar',
+        etiqueta: 'Configurar',
       },
       {
         to: '/jurado',
         titulo: 'Panel del Jurado',
-        descripcion: 'Evaluación de la candidata activa: criterios dinámicos, sliders y guardado.',
+        descripcion: 'Ingresa con tu código (JUR-001) y evalúa a la candidata activa.',
         icono: '⚖',
         etiqueta: 'Evaluar',
       },

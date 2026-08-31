@@ -1,5 +1,45 @@
 # CHANGELOG SIGEC
 
+## Fase 06
+
+Fecha: 27/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Panel Maestro convertido en Asistente de Configuración**: flujo obligatorio de 4 pasos con checklist visual — Evento → Candidatas → Jurados → Criterios.
+- **Creación de evento** desde la interfaz: nombre + selección de etapa por botones (preliminar, eliminatoria, semifinal, final).
+- **Candidatas**: formulario de alta y lista con eliminación.
+- **Jurados**: código auto-generado `JUR-001`, `JUR-002`, … (siguiente número basado en el máximo existente, sin duplicados); alta y eliminación.
+- **Criterios oficiales**: botón "Cargar criterios oficiales" inserta por upsert (etapa, orden) los criterios definidos en `src/constants/criteriosOficiales.ts` según la etapa; constante con 4 etapas.
+- **Botón grande "Iniciar Evaluación"**: habilitado solo cuando el checklist está completo. Al iniciar: crea/actualiza `estado_evento`, selecciona automáticamente la primera candidata, cambia el estado a `evaluando` y actualiza `eventos.estado`.
+- **Botón rojo "Reiniciar Certamen"**: con confirmación, vacía `evaluacion_detalles`, `evaluaciones`, `estado_evento`, `criterios`, `jurados`, `candidatas` y `eventos` (servicio `reset.service.ts`), sin eliminar las tablas.
+- **Panel Jurado con login por código**: primero pide el código del jurado (ej. JUR-001), valida contra la tabla `jurados` y recién muestra la candidata activa; banner de sesión con botón "Salir".
+- **Sin dependencia de `seed.sql`**: todo el certamen se prepara desde la interfaz; `seed.sql` queda como referencia opcional.
+- **Contexto**: ya no auto-crea `estado_evento` al cargar — el registro solo se crea al iniciar la evaluación explícitamente.
+
+### Archivos creados
+
+- `src/constants/criteriosOficiales.ts`
+- `src/services/reset.service.ts`
+
+Archivos modificados:
+
+- `src/pages/MasterPanel.tsx`
+- `src/pages/JuryPanel.tsx`
+- `src/context/CertamenContext.tsx`
+- `src/pages/Home.tsx`
+- `src/layouts/MainLayout.tsx`
+- `README.md`
+- `CHANGELOG_FASES.md`
+
+### Pendiente para Fase 07
+
+- Consolidación de resultados y promedio entre jurados (`calcularPromedioJurados()`).
+- Pantalla Pública con puntajes publicados.
+- Realtime sin recargar.
+- Reactivar RLS con políticas por rol.
+
 ## Fase 05
 
 Fecha: 26/08/2026

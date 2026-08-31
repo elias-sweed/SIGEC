@@ -50,7 +50,7 @@ export default function MainLayout() {
       <footer className="border-t border-white/10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-sm text-navy-300">
           <p>© 2026 SIGEC · Certamen de Danza</p>
-          <p>Fase 01 — Base del proyecto</p>
+          <p>Fase 06 — Asistente de configuración del certamen</p>
         </div>
       </footer>
     </div>

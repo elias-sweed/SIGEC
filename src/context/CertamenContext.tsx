@@ -70,8 +70,9 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
       }
 
       if (!estadoRaw) {
-        // 2) No hay registro: intentar crear uno automáticamente
-        logConsulta('estado_evento vacío — intentando crear estado inicial')
+        // 2) No hay registro: sin estado activo. La creación ocurre
+        //    únicamente al pulsar "Iniciar Evaluación" en el asistente.
+        logConsulta('estado_evento vacío — sin estado activo')
         const { data: primerEvento } = await supabase
           .from('eventos')
           .select('*')
@@ -79,54 +80,26 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
           .limit(1)
           .maybeSingle()
 
-        if (!primerEvento) {
-          logConsulta('No hay eventos en la base de datos')
-          const respaldo = leerRespaldo()
-          setEvento(respaldo.evento)
-          setCandidata(null)
-          setEstadoEvento(null)
-          return { evento: respaldo.evento, candidata: null, estado: null }
+        const ev = (primerEvento ?? null) as Evento | null
+
+        let cand: Candidata | null = null
+        if (ev) {
+          const { data: primeraCandidata } = await supabase
+            .from('candidatas')
+            .select('*')
+            .order('nombre')
+            .limit(1)
+            .maybeSingle()
+          cand = (primeraCandidata ?? null) as Candidata | null
         }
-
-        const { data: primeraCandidata } = await supabase
-          .from('candidatas')
-          .select('*')
-          .order('nombre')
-          .limit(1)
-          .maybeSingle()
-
-        const nuevoEstado = {
-          evento_id: primerEvento.id,
-          candidata_actual_id: primeraCandidata?.id ?? null,
-          estado: 'preparando',
-        }
-
-        logConsulta('Insertando estado_evento inicial', nuevoEstado)
-        const { error: errInsert } = await supabase.from('estado_evento').insert(nuevoEstado)
-        if (errInsert) {
-          logError('estado_evento insert', errInsert.message)
-          throw errInsert
-        }
-
-        // Re-leer el registro creado
-        const { data: estadoCreado } = await supabase
-          .from('estado_evento')
-          .select('*')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        const ev = primerEvento as Evento
-        const cand = (primeraCandidata ?? null) as Candidata | null
-        const estado = estadoCreado as unknown as EstadoEvento
 
         setEvento(ev)
         setCandidata(cand)
-        setEstadoEvento(estado)
+        setEstadoEvento(null)
 
         window.localStorage.setItem('sigec-certamen', JSON.stringify({ evento: ev, candidata: cand }))
 
-        return { evento: ev, candidata: cand, estado }
+        return { evento: ev, candidata: cand, estado: null }
       }
 
       // 3) Hay registro: obtener evento y candidata por separado (sin FK hints)

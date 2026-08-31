@@ -6,7 +6,7 @@ import { calcularTotal } from '../utils/scoring'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
 import ScoreSlider from '../components/event/ScoreSlider'
 import { EVENT_STATE_LABELS, type EventState } from '../constants/eventStates'
-import type { Criterio } from '../types/database'
+import type { Criterio, Jurado } from '../types/database'
 
 interface DetalleState {
   criterio_id: string
@@ -14,11 +14,12 @@ interface DetalleState {
 }
 
 export default function JuryPanel() {
-  const {
-    candidataActual,
-    eventoCandidato,
-    estadoEvento,
-  } = useCertamen()
+  const { candidataActual, eventoCandidato, estadoEvento } = useCertamen()
+
+  const [jurado, setJurado] = useState<Jurado | null>(null)
+  const [codigo, setCodigo] = useState('')
+  const [verificando, setVerificando] = useState(false)
+  const [errorCodigo, setErrorCodigo] = useState<string | null>(null)
 
   const [criterios, setCriterios] = useState<Criterio[]>([])
   const [detalles, setDetalles] = useState<DetalleState[]>([])
@@ -26,15 +27,15 @@ export default function JuryPanel() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const juradoId = '33333333-3333-4333-8333-000000000001'
+  const juradoId = jurado?.id
 
   useEffect(() => {
-    if (!candidataActual || !eventoCandidato || !estadoEvento) return
+    if (!juradoId || !candidataActual || !eventoCandidato || !estadoEvento) return
     if (estadoEvento.estado !== 'evaluando') return
 
     ;(async () => {
       const supabase = getSupabase()
-      logConsulta(`Jurado: criterios etapa=${eventoCandidato.etapa}`)
+      logConsulta(`Jurado ${jurado?.codigo}: criterios etapa=${eventoCandidato.etapa}`)
       const { data: criteriosData, error: criteriosError } = await supabase
         .from('criterios')
         .select('*')
@@ -46,7 +47,7 @@ export default function JuryPanel() {
         return
       }
 
-      logFilas('criterios', criteriosData)
+      logFilas('criterios', criteriosData ?? [])
       setCriterios((criteriosData ?? []) as Criterio[])
 
       const { data: existente, error: existenteError } = await supabase
@@ -77,7 +78,36 @@ export default function JuryPanel() {
         setDetalles([])
       }
     })()
-  }, [candidataActual, eventoCandidato, estadoEvento])
+  }, [juradoId, jurado?.codigo, candidataActual, eventoCandidato, estadoEvento])
+
+  const verificarCodigo = async () => {
+    const codigoLimpio = codigo.trim().toUpperCase()
+    if (!codigoLimpio) {
+      setErrorCodigo('Ingresa el código del jurado')
+      return
+    }
+    setVerificando(true)
+    setErrorCodigo(null)
+
+    const supabase = getSupabase()
+    logConsulta(`Jurado: validar código ${codigoLimpio}`)
+    const { data, error } = await supabase
+      .from('jurados')
+      .select('*')
+      .eq('codigo', codigoLimpio)
+      .maybeSingle()
+
+    if (error) {
+      logError('validar código', error.message)
+      setErrorCodigo(error.message)
+    } else if (!data) {
+      setErrorCodigo(`El código "${codigoLimpio}" no es válido. Verifica con el administrador.`)
+    } else {
+      setJurado(data as Jurado)
+      setCodigo('')
+    }
+    setVerificando(false)
+  }
 
   const handleSliderChange = (criterioId: string, value: number) => {
     setDetalles((prev) => {
@@ -90,7 +120,7 @@ export default function JuryPanel() {
   }
 
   const handleGuardar = async () => {
-    if (!candidataActual || !eventoCandidato) return
+    if (!juradoId || !candidataActual || !eventoCandidato) return
     setSaving(true)
     setError(null)
 
@@ -165,20 +195,50 @@ export default function JuryPanel() {
     setSaving(false)
   }
 
-  if (!eventoCandidato || !candidataActual || !estadoEvento) {
+  /* ─── 1) Login con código ─────────────────────────────────────── */
+
+  if (!jurado) {
     return (
       <>
         <PageHeader
           eyebrow="Panel de jurado"
           title="Panel de Evaluación"
-          description="Cargando datos del evento…"
+          description="Ingresa el código que te entregó el administrador."
         />
-        <p className="mt-10 text-center text-navy-400">Esperando datos del certamen…</p>
+        <div className="mx-auto mt-10 max-w-sm rounded-2xl border border-white/10 bg-navy-900/70 p-8">
+          <label className="block text-xs font-semibold uppercase tracking-[0.25em] text-gold-400">
+            Código del jurado
+          </label>
+          <input
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && verificarCodigo()}
+            placeholder="JUR-001"
+            className="mt-3 w-full rounded-xl border border-white/10 bg-navy-800 px-4 py-3 text-center font-mono text-lg font-bold uppercase tracking-widest text-white placeholder:text-navy-500 focus:border-gold-500/50 focus:outline-none"
+          />
+          {errorCodigo && (
+            <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-center text-sm text-red-400">
+              {errorCodigo}
+            </p>
+          )}
+          <button
+            onClick={verificarCodigo}
+            disabled={verificando}
+            className="mt-4 w-full rounded-xl bg-gold-500 py-3 text-sm font-bold text-navy-900 transition hover:bg-gold-400 disabled:opacity-50"
+          >
+            {verificando ? 'Validando…' : 'Ingresar'}
+          </button>
+          <p className="mt-4 text-center text-xs text-navy-500">
+            El administrador te entrega tu código (JUR-001, JUR-002…) al iniciar el certamen.
+          </p>
+        </div>
       </>
     )
   }
 
-  if (estadoEvento.estado !== 'evaluando') {
+  /* ─── 2) Esperando evaluación ───────────────────────────────────── */
+
+  if (!estadoEvento || estadoEvento.estado !== 'evaluando') {
     return (
       <>
         <PageHeader
@@ -186,22 +246,27 @@ export default function JuryPanel() {
           title="Panel de Evaluación"
           description="La evaluación no está activa en este momento."
         />
-        <div className="mx-auto mt-12 max-w-md rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
-          <p className="text-lg font-semibold text-navy-300">
+        <div className="mx-auto mt-8 max-w-md rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
+          <p className="rounded-lg bg-emerald-500/10 px-3 py-1.5 text-sm font-semibold text-emerald-400">
+            ✓ Sesión iniciada: {jurado.nombre} · {jurado.codigo}
+          </p>
+          <p className="mt-4 text-lg font-semibold text-navy-300">
             Estado actual:{' '}
             <span className="text-gold-400">
-              {EVENT_STATE_LABELS[estadoEvento.estado as EventState] ?? estadoEvento.estado}
+              {estadoEvento ? (EVENT_STATE_LABELS[estadoEvento.estado as EventState] ?? estadoEvento.estado) : 'Preparando'}
             </span>
           </p>
           <p className="mt-3 text-sm text-navy-500">
             El administrador debe iniciar la evaluación desde el{' '}
-            <strong className="text-navy-200">Centro de Control</strong>.
-            Cuando lo haga, esta pantalla se habilitará automáticamente.
+            <strong className="text-navy-200">Centro de Control</strong>. Cuando lo haga, esta
+            pantalla se habilitará automáticamente.
           </p>
         </div>
       </>
     )
   }
+
+  /* ─── 3) Evaluación ─────────────────────────────────────────────── */
 
   const total = calcularTotal(detalles)
 
@@ -214,16 +279,34 @@ export default function JuryPanel() {
       />
 
       <div className="mx-auto mt-6 max-w-lg space-y-6">
+        {/* Sesión */}
+        <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm">
+          <span className="text-emerald-300">
+            ✓ Evaluando como <strong className="text-white">{jurado.nombre}</strong>{' '}
+            <span className="font-mono text-emerald-400">{jurado.codigo}</span>
+          </span>
+          <button
+            onClick={() => {
+              setJurado(null)
+              setDetalles([])
+              setEnviado(false)
+            }}
+            className="rounded bg-navy-800 px-2 py-1 text-xs font-semibold text-navy-200 transition hover:bg-navy-700"
+          >
+            Salir
+          </button>
+        </div>
+
         {/* Header grande de candidata */}
-        <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
+        <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center transition-all duration-300">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
             Evaluando
           </p>
           <h2 className="mt-2 text-4xl font-bold text-white sm:text-5xl">
-            {candidataActual.nombre}
+            {candidataActual?.nombre ?? '—'}
           </h2>
           <p className="mt-2 text-lg text-navy-300">
-            {candidataActual.grado} · Sección {candidataActual.seccion}
+            {candidataActual ? `${candidataActual.grado} · Sección ${candidataActual.seccion}` : ''}
           </p>
         </div>
 

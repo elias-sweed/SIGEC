@@ -1,345 +1,440 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
+import { resetCertamen } from '../services/reset.service'
+import { CRITERIOS_OFICIALES, ETAPAS } from '../constants/criteriosOficiales'
+import { EVENT_STATE_LABELS } from '../constants/eventStates'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
-import { type EventState } from '../constants/eventStates'
-import EventStatusCard from '../components/event/EventStatusCard'
-import CandidateCard from '../components/event/CandidateCard'
-import JuryProgressCard from '../components/event/JuryProgressCard'
-import type { Candidata } from '../types/database'
+import type { Candidata, Criterio, Evento, Jurado } from '../types/database'
 
-interface JuradoInfo {
-  id: string
-  nombre: string
-  respondio: boolean
-}
-
-const TRANSITIONS: Record<EventState, EventState | null> = {
-  preparando:        'evaluando',
-  evaluando:         'esperando_jurados',
-  esperando_jurados: 'resultados_listos',
-  resultados_listos: 'publicado',
-  publicado:         null,
+interface ItemChecklist {
+  clave: string
+  label: string
+  ok: boolean
 }
 
 export default function MasterPanel() {
-  const {
-    eventoCandidato,
-    candidataActual,
-    estadoEvento,
-    cargarEstado,
-    actualizarCandidata,
-  } = useCertamen()
+  const { estadoEvento, candidataActual, cargarEstado } = useCertamen()
 
+  const [evento, setEvento] = useState<Evento | null>(null)
   const [candidatas, setCandidatas] = useState<Candidata[]>([])
-  const [jurados, setJurados] = useState<{ id: string; nombre: string }[]>([])
-  const [juradoProgress, setJuradoProgress] = useState<JuradoInfo[]>([])
-  const [lastUpdate, setLastUpdate] = useState<string | null>(null)
+  const [jurados, setJurados] = useState<Jurado[]>([])
+  const [criterios, setCriterios] = useState<Criterio[]>([])
+
+  const [error, setError] = useState<string | null>(null)
+  const [iniciando, setIniciando] = useState(false)
+  const [reiniciando, setReiniciando] = useState(false)
+
+  const cargarDatos = async () => {
+    const supabase = getSupabase()
+
+    const [ev, ca, ju, cr] = await Promise.all([
+      supabase.from('eventos').select('*').order('created_at').limit(1).maybeSingle(),
+      supabase.from('candidatas').select('*').order('nombre'),
+      supabase.from('jurados').select('*').order('codigo'),
+      supabase.from('criterios').select('*').order('orden'),
+    ])
+
+    if (ev.error) logError('eventos', ev.error.message)
+    if (cr.error) logError('criterios', cr.error.message)
+
+    setEvento((ev.data as Evento | null) ?? null)
+    setCandidatas((ca.data ?? []) as Candidata[])
+    setJurados((ju.data ?? []) as Jurado[])
+    setCriterios((cr.data ?? []) as Criterio[])
+
+    logFilas('asistente: candidatas', ca.data ?? [])
+    logFilas('asistente: jurados', ju.data ?? [])
+    logFilas('asistente: criterios', cr.data ?? [])
+  }
 
   useEffect(() => {
-    ;(async () => {
-      const supabase = getSupabase()
-      logConsulta('MasterPanel: jurados')
-      const { data: juradosData } = await supabase.from('jurados').select('id, nombre')
-      if (juradosData) {
-        logFilas('jurados', juradosData)
-        setJurados(juradosData as { id: string; nombre: string }[])
-      }
-
-      logConsulta('MasterPanel: candidatas')
-      const { data: candidatasData } = await supabase.from('candidatas').select('*')
-      if (candidatasData) {
-        logFilas('candidatas', candidatasData)
-        setCandidatas(candidatasData as Candidata[])
-      }
-    })()
+    cargarDatos()
   }, [])
 
-  const loadJuradoProgress = useCallback(async () => {
-    if (!candidataActual || !eventoCandidato) {
-      setJuradoProgress([])
+  const etapa = evento?.etapa ?? ''
+  const criteriosEtapa = criterios.filter((c) => c.etapa === etapa)
+
+  const checklist: ItemChecklist[] = [
+    { clave: 'evento', label: 'Evento creado', ok: !!evento },
+    { clave: 'candidatas', label: 'Candidatas registradas', ok: candidatas.length > 0 },
+    { clave: 'jurados', label: 'Jurados registrados', ok: jurados.length > 0 },
+    { clave: 'criterios', label: 'Criterios oficiales cargados', ok: criteriosEtapa.length > 0 },
+  ]
+  const completo = checklist.every((i) => i.ok)
+  const evaluando = estadoEvento?.estado === 'evaluando'
+
+  /* ─── Acciones ─────────────────────────────────────────────────── */
+
+  const recargar = async () => {
+    await cargarDatos()
+    await cargarEstado()
+  }
+
+  const iniciarEvaluacion = async () => {
+    if (!evento || candidatas.length === 0) return
+    setIniciando(true)
+    setError(null)
+    const supabase = getSupabase()
+
+    const candidataInicial = candidatas[0]
+
+    logConsulta('Asistente: marcando evento como evaluando')
+    const { error: errEvento } = await supabase
+      .from('eventos')
+      .update({ estado: 'evaluando' })
+      .eq('id', evento.id)
+    if (errEvento) {
+      logError('iniciar evento', errEvento.message)
+      setError(errEvento.message)
+      setIniciando(false)
       return
     }
 
-    const supabase = getSupabase()
-    logConsulta(`MasterPanel: evaluaciones candidata=${candidataActual.id}`)
-    const { data: evals } = await supabase
-      .from('evaluaciones')
-      .select('jurado_id')
-      .eq('evento_id', eventoCandidato.id)
-      .eq('candidata_id', candidataActual.id)
-
-    const juradoIdsQueRespondieron = new Set<string>(
-      (evals ?? []).map((e: { jurado_id: string }) => e.jurado_id),
-    )
-    logFilas('evaluaciones para candidata', evals ?? [])
-
-    setJuradoProgress(
-      jurados.map((j) => ({
-        id: j.id,
-        nombre: j.nombre,
-        respondio: juradoIdsQueRespondieron.has(j.id),
-      })),
-    )
-  }, [candidataActual, eventoCandidato, jurados])
-
-  useEffect(() => {
-    loadJuradoProgress()
-  }, [loadJuradoProgress])
-
-  useEffect(() => {
-    if (estadoEvento?.updated_at) {
-      setLastUpdate(new Date(estadoEvento.updated_at).toLocaleTimeString())
-    }
-  }, [estadoEvento])
-
-  const handleStateChange = async (newState: EventState) => {
-    if (!eventoCandidato) return
-    const supabase = getSupabase()
-    logConsulta(`MasterPanel: cambiar estado a ${newState}`)
-
     if (estadoEvento) {
+      logConsulta('Asistente: actualizando estado_evento a evaluando')
       const { error } = await supabase
         .from('estado_evento')
-        .update({ estado: newState, updated_at: new Date().toISOString() })
-        .eq('evento_id', estadoEvento.evento_id)
-
+        .update({
+          candidata_actual_id: candidataInicial.id,
+          estado: 'evaluando',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('evento_id', evento.id)
       if (error) {
-        logError('cambiar estado', error.message)
+        logError('iniciar estado_evento', error.message)
+        setError(error.message)
+        setIniciando(false)
         return
       }
     } else {
-      const candidataInicial = candidatas[0]?.id ?? null
+      logConsulta('Asistente: creando estado_evento (evaluando)')
       const { error } = await supabase.from('estado_evento').insert({
-        evento_id: eventoCandidato.id,
-        candidata_actual_id: candidataInicial,
-        estado: newState,
+        evento_id: evento.id,
+        candidata_actual_id: candidataInicial.id,
+        estado: 'evaluando',
       })
-
       if (error) {
-        logError('crear estado inicial', error.message)
+        logError('crear estado_evento', error.message)
+        setError(error.message)
+        setIniciando(false)
         return
       }
     }
 
-    cargarEstado()
+    await recargar()
+    setIniciando(false)
   }
 
-  const handleCandidateChange = async (direction: 'prev' | 'next') => {
-    if (!candidataActual || candidatas.length === 0) return
-    const currentIdx = candidatas.findIndex((c) => c.id === candidataActual.id)
-    const newIdx =
-      direction === 'next'
-        ? (currentIdx + 1) % candidatas.length
-        : (currentIdx - 1 + candidatas.length) % candidatas.length
-    await actualizarCandidata(candidatas[newIdx].id)
+  const reiniciarCertamen = async () => {
+    if (!window.confirm('¿Seguro que quieres ELIMINAR todos los datos del certamen? Esta acción no se puede deshacer.')) {
+      return
+    }
+    setReiniciando(true)
+    setError(null)
+    try {
+      await resetCertamen()
+      await recargar()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+    setReiniciando(false)
   }
-
-  const currentState: EventState = (estadoEvento?.estado as EventState) || 'preparando'
-  const nextState = TRANSITIONS[currentState]
-  const completados = juradoProgress.filter((j) => j.respondio).length
 
   return (
     <>
       <PageHeader
-        eyebrow="Panel de administración"
-        title="Centro de Control"
-        description="Gestiona el estado del certamen, candidatas y avance de jurados."
+        eyebrow="Configuración"
+        title="Asistente de Certamen"
+        description="Prepara un certamen completo desde cero: evento, jurados, candidatas e inicio de la evaluación."
       />
 
-      <div className="mx-auto mt-6 grid max-w-7xl grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
-        {/* Main content */}
-        <div className="space-y-6">
-          {/* Block A – Evento */}
-          {eventoCandidato && (
-            <EventStatusCard
-              nombre={eventoCandidato.nombre}
-              etapa={eventoCandidato.etapa}
-              estado={currentState}
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Banner de evaluación en curso */}
+        {evaluando && (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-6 transition-all duration-500">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400">
+              Evaluación en curso
+            </p>
+            <p className="mt-2 text-lg font-bold text-white">
+              {evento?.nombre ?? 'Certamen'}
+            </p>
+            <p className="mt-1 text-sm text-navy-200">
+              Candidata activa: <strong className="text-white">{candidataActual?.nombre ?? '—'}</strong>
+            </p>
+            <Link
+              to="/jurado"
+              className="mt-4 inline-block rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
             >
-              {!estadoEvento ? (
-                <button
-                  onClick={() => handleStateChange('preparando')}
-                  className="mt-1 w-full rounded-xl bg-gold-500 px-4 py-3 text-sm font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98]"
+              Ir al Panel de Jurado →
+            </Link>
+          </div>
+        )}
+
+        {error && (
+          <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
+        )}
+
+        {/* Checklist + Iniciar */}
+        <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+              Checklist de configuración
+            </p>
+            <button
+              onClick={reiniciarCertamen}
+              disabled={reiniciando}
+              className="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+            >
+              {reiniciando ? 'Reiniciando…' : 'Reiniciar Certamen'}
+            </button>
+          </div>
+
+          <ul className="mt-5 grid gap-2 sm:grid-cols-2">
+            {checklist.map((item) => (
+              <li
+                key={item.clave}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
+                  item.ok ? 'bg-emerald-500/10 text-emerald-300' : 'bg-navy-800/60 text-navy-300'
+                }`}
+              >
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${
+                    item.ok ? 'bg-emerald-500 text-navy-950' : 'border border-navy-600 text-transparent'
+                  }`}
                 >
-                  Crear e iniciar certamen
+                  ✔
+                </span>
+                {item.label}
+                <span className="ml-auto text-xs uppercase opacity-70">
+                  {item.ok ? 'Listo' : 'Pendiente'}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-6 border-t border-white/5 pt-5">
+            {evaluando ? (
+              <p className="text-center text-sm font-semibold text-emerald-400">
+                ✓ Certamen iniciado — la evaluación ya está activa.
+              </p>
+            ) : (
+              <>
+                <button
+                  onClick={iniciarEvaluacion}
+                  disabled={!completo || iniciando}
+                  className="w-full rounded-2xl bg-gold-500 py-4 text-lg font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {iniciando ? 'Iniciando…' : 'Iniciar Evaluación'}
                 </button>
-              ) : (
-                <>
-                  {nextState && (
-                    <button
-                      onClick={() => handleStateChange(nextState)}
-                      className="mt-1 w-full rounded-xl bg-gold-500 px-4 py-3 text-sm font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98]"
-                    >
-                      {nextState === 'evaluando' && '▶ Iniciar evaluación'}
-                      {nextState === 'esperando_jurados' && 'Cerrar evaluación'}
-                      {nextState === 'resultados_listos' && 'Verificar resultados'}
-                      {nextState === 'publicado' && 'Publicar resultados'}
-                    </button>
-                  )}
-                  {currentState === 'evaluando' && (
-                    <button
-                      onClick={() => handleStateChange('preparando')}
-                      className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-navy-300 transition hover:bg-navy-800"
-                    >
-                      Volver a Preparando
-                    </button>
-                  )}
-                </>
-              )}
-            </EventStatusCard>
-          )}
-
-          {/* Block B – Candidata activa */}
-          {candidataActual && (
-            <CandidateCard
-              nombre={candidataActual.nombre}
-              grado={candidataActual.grado}
-              seccion={candidataActual.seccion}
-              onPrevious={() => handleCandidateChange('prev')}
-              onNext={() => handleCandidateChange('next')}
-              disabled={candidatas.length <= 1}
-            />
-          )}
-
-          {/* Block C – Progreso de jurados */}
-          <JuryProgressCard
-            total={jurados.length}
-            completados={completados}
-            jurados={juradoProgress}
-          />
-
-          {/* CRUD Candidatas */}
-          <CandidatasManager
-            candidatas={candidatas}
-            onRefresh={cargarEstado}
-          />
-
-          {/* CRUD Criterios */}
-          <CriteriosManager
-            etapa={eventoCandidato?.etapa}
-          />
+                {!completo && (
+                  <p className="mt-3 text-center text-xs text-navy-400">
+                    Completa todos los pasos para habilitar el inicio.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Block D – Sidebar */}
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-5 space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Resumen</p>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-navy-300">Última actualización</span>
-                <span className="font-medium text-white">{lastUpdate || '—'}</span>
+        {/* Paso 1 — Evento */}
+        <Section numero={1} titulo="Evento" descripcion="Nombre y etapa del certamen" completado={!!evento}>
+          {evento ? (
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-navy-800/50 px-4 py-3">
+              <div>
+                <p className="font-semibold text-white">{evento.nombre}</p>
+                <p className="text-sm text-navy-300">
+                  Etapa: <span className="text-gold-400">{evento.etapa}</span> · Estado:{' '}
+                  <span className="text-gold-400">
+                    {EVENT_STATE_LABELS[evento.estado as keyof typeof EVENT_STATE_LABELS] ?? evento.estado}
+                  </span>
+                </p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-navy-300">Evento activo</span>
-                <span className="font-medium text-white">
-                  {eventoCandidato?.nombre || '—'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-navy-300">Candidatas</span>
-                <span className="font-semibold text-white">{candidatas.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-navy-300">Jurados</span>
-                <span className="font-semibold text-white">{jurados.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-navy-300">Jurados respondieron</span>
-                <span className="font-semibold text-emerald-400">{completados}/{jurados.length}</span>
-              </div>
+              <span className="text-emerald-400">✔</span>
             </div>
-          </div>
-        </aside>
+          ) : (
+            <EventoForm onCreado={recargar} onError={setError} />
+          )}
+        </Section>
+
+        {/* Paso 2 — Candidatas */}
+        <Section numero={2} titulo="Candidatas" descripcion="Registra a las participantes" completado={candidatas.length > 0}>
+          <CandidatasForm candidatas={candidatas} onCambio={recargar} onError={setError} />
+        </Section>
+
+        {/* Paso 3 — Jurados */}
+        <Section numero={3} titulo="Jurados" descripcion="Se genera automáticamente un código (JUR-001…)" completado={jurados.length > 0}>
+          <JuradosForm jurados={jurados} onCambio={recargar} onError={setError} />
+        </Section>
+
+        {/* Paso 4 — Criterios */}
+        <Section numero={4} titulo="Criterios" descripcion="Carga los criterios oficiales según la etapa" completado={criteriosEtapa.length > 0}>
+          <CriteriosForm
+            etapa={etapa}
+            criterios={criteriosEtapa}
+            onCambio={recargar}
+            onError={setError}
+          />
+        </Section>
       </div>
     </>
   )
 }
 
-/* ─── Sub-componente: CRUD Candidatas ─────────────────────────────────── */
+/* ─── Sección con número y estado ─────────────────────────────────────── */
 
-interface CandidatasManagerProps {
-  candidatas: Candidata[]
-  onRefresh: () => void
+interface SectionProps {
+  numero: number
+  titulo: string
+  descripcion: string
+  completado: boolean
+  children: React.ReactNode
 }
 
-function CandidatasManager({ candidatas, onRefresh }: CandidatasManagerProps) {
-  const [nombre, setNombre] = useState('')
-  const [grado, setGrado] = useState('')
-  const [seccion, setSeccion] = useState('')
-  const [editId, setEditId] = useState<string | null>(null)
-  const [editNombre, setEditNombre] = useState('')
-  const [editGrado, setEditGrado] = useState('')
-  const [editSeccion, setEditSeccion] = useState('')
-  const [error, setError] = useState<string | null>(null)
+function Section({ numero, titulo, descripcion, completado, children }: SectionProps) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy-800 text-sm font-bold text-gold-400 ring-1 ring-gold-500/30">
+          {numero}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-white">{titulo}</h3>
+          <p className="truncate text-xs text-navy-400">{descripcion}</p>
+        </div>
+        <span className={completado ? 'text-emerald-400' : 'text-navy-600'}>
+          {completado ? '✔' : '○'}
+        </span>
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
+  )
+}
 
-  const handleAdd = async () => {
-    if (!nombre.trim() || !grado.trim() || !seccion.trim()) {
-      setError('Todos los campos son obligatorios')
+/* ─── Evento ──────────────────────────────────────────────────────────── */
+
+function EventoForm({
+  onCreado,
+  onError,
+}: {
+  onCreado: () => Promise<void>
+  onError: (msg: string | null) => void
+}) {
+  const [nombre, setNombre] = useState('')
+  const [etapa, setEtapa] = useState<string>(ETAPAS[0])
+
+  const crear = async () => {
+    if (!nombre.trim()) {
+      onError('Ingresa el nombre del evento')
       return
     }
     const supabase = getSupabase()
-    logConsulta('Insertar candidata')
-    const { error: insertError } = await supabase
-      .from('candidatas')
-      .insert({ nombre: nombre.trim(), grado: grado.trim(), seccion: seccion.trim() })
+    logConsulta('Asistente: crear evento')
+    const { error } = await supabase.from('eventos').insert({
+      nombre: nombre.trim(),
+      etapa,
+      estado: 'preparando',
+    })
+    if (error) {
+      logError('crear evento', error.message)
+      onError(error.message)
+      return
+    }
+    onError(null)
+    await onCreado()
+  }
 
-    if (insertError) {
-      logError('insertar candidata', insertError.message)
-      setError(insertError.message)
+  return (
+    <div className="space-y-2">
+      <input
+        placeholder="Nombre del certamen (ej: Gran Final Nacional 2026)"
+        value={nombre}
+        onChange={(e) => setNombre(e.target.value)}
+        className="w-full rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-navy-400">Etapa:</span>
+        {ETAPAS.map((e) => (
+          <button
+            key={e}
+            onClick={() => setEtapa(e)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              etapa === e
+                ? 'bg-gold-500 text-navy-900'
+                : 'bg-navy-800 text-navy-300 hover:bg-navy-700'
+            }`}
+          >
+            {e}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={crear}
+        className="mt-2 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
+      >
+        Crear evento
+      </button>
+    </div>
+  )
+}
+
+/* ─── Candidatas ──────────────────────────────────────────────────────── */
+
+function CandidatasForm({
+  candidatas,
+  onCambio,
+  onError,
+}: {
+  candidatas: Candidata[]
+  onCambio: () => Promise<void>
+  onError: (msg: string | null) => void
+}) {
+  const [nombre, setNombre] = useState('')
+  const [grado, setGrado] = useState('')
+  const [seccion, setSeccion] = useState('')
+
+  const agregar = async () => {
+    if (!nombre.trim() || !grado.trim() || !seccion.trim()) {
+      onError('Todos los campos son obligatorios')
+      return
+    }
+    const supabase = getSupabase()
+    logConsulta('Asistente: agregar candidata')
+    const { error } = await supabase.from('candidatas').insert({
+      nombre: nombre.trim(),
+      grado: grado.trim(),
+      seccion: seccion.trim(),
+    })
+    if (error) {
+      logError('agregar candidata', error.message)
+      onError(error.message)
       return
     }
     setNombre('')
     setGrado('')
     setSeccion('')
-    setError(null)
-    onRefresh()
+    onError(null)
+    await onCambio()
   }
 
-  const handleUpdate = async (id: string) => {
-    if (!editNombre.trim() || !editGrado.trim() || !editSeccion.trim()) return
+  const eliminar = async (id: string) => {
     const supabase = getSupabase()
-    const { error } = await supabase
-      .from('candidatas')
-      .update({ nombre: editNombre.trim(), grado: editGrado.trim(), seccion: editSeccion.trim() })
-      .eq('id', id)
-
-    if (error) {
-      logError('actualizar candidata', error.message)
-      setError(error.message)
-      return
-    }
-    setEditId(null)
-    setError(null)
-    onRefresh()
-  }
-
-  const handleDelete = async (id: string) => {
-    const supabase = getSupabase()
-    logConsulta(`Eliminar candidata id=${id}`)
     const { error } = await supabase.from('candidatas').delete().eq('id', id)
     if (error) {
-      logError('eliminar candidata', error.message)
-      setError(error.message)
+      onError(error.message)
       return
     }
-    setError(null)
-    onRefresh()
+    onError(null)
+    await onCambio()
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">Candidatas</p>
-
-      {error && (
-        <p className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>
-      )}
-
-      <div className="mt-4 grid grid-cols-3 gap-2">
+    <div>
+      <div className="grid grid-cols-[1fr_90px_90px] gap-2">
         <input
-          placeholder="Nombre"
+          placeholder="Nombre completo"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           className="rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
@@ -358,302 +453,210 @@ function CandidatasManager({ candidatas, onRefresh }: CandidatasManagerProps) {
         />
       </div>
       <button
-        onClick={handleAdd}
-        className="mt-3 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
+        onClick={agregar}
+        className="mt-2 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
       >
         Agregar candidata
       </button>
 
-      <div className="mt-4 max-h-64 overflow-y-auto">
-        {candidatas.length === 0 ? (
-          <p className="py-4 text-center text-sm text-navy-500">Sin candidatas registradas</p>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {candidatas.map((c) =>
-              editId === c.id ? (
-                <li key={c.id} className="space-y-2 py-3">
-                  <div className="grid grid-cols-3 gap-2">
-                    <input
-                      value={editNombre}
-                      onChange={(e) => setEditNombre(e.target.value)}
-                      className="rounded-lg border border-white/10 bg-navy-800 px-2 py-1.5 text-sm text-white"
-                    />
-                    <input
-                      value={editGrado}
-                      onChange={(e) => setEditGrado(e.target.value)}
-                      className="rounded-lg border border-white/10 bg-navy-800 px-2 py-1.5 text-sm text-white"
-                    />
-                    <input
-                      value={editSeccion}
-                      onChange={(e) => setEditSeccion(e.target.value)}
-                      className="rounded-lg border border-white/10 bg-navy-800 px-2 py-1.5 text-sm text-white"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleUpdate(c.id)}
-                      className="flex-1 rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-500"
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      onClick={() => setEditId(null)}
-                      className="flex-1 rounded bg-navy-700 px-3 py-1 text-xs font-semibold text-navy-200 transition hover:bg-navy-600"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </li>
-              ) : (
-                <li key={c.id} className="flex items-center justify-between py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-white">{c.nombre}</p>
-                    <p className="text-xs text-navy-400">{c.grado} · {c.seccion}</p>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <button
-                      onClick={() => {
-                        setEditId(c.id)
-                        setEditNombre(c.nombre)
-                        setEditGrado(c.grado)
-                        setEditSeccion(c.seccion)
-                      }}
-                      className="rounded px-2 py-1 text-xs text-navy-300 transition hover:bg-navy-800 hover:text-white"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(c.id)}
-                      className="rounded px-2 py-1 text-xs text-red-400 transition hover:bg-red-500/10"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </li>
-              ),
-            )}
-          </ul>
-        )}
-      </div>
+      {candidatas.length > 0 && (
+        <ul className="mt-4 max-h-56 space-y-1 overflow-y-auto">
+          {candidatas.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
+            >
+              <span className="truncate text-white">
+                <span className="font-semibold">{c.nombre}</span>
+                <span className="text-navy-400"> · {c.grado} · {c.seccion}</span>
+              </span>
+              <button
+                onClick={() => eliminar(c.id)}
+                className="ml-3 shrink-0 rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+              >
+                Eliminar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
 
-/* ─── Sub-componente: CRUD Criterios ─────────────────────────────────── */
+/* ─── Jurados ─────────────────────────────────────────────────────────── */
 
-interface CriteriosManagerProps {
-  etapa: string | undefined
-}
-
-interface CriterioRow {
-  id: string
-  etapa: string
-  nombre: string
-  puntaje_maximo: number
-  orden: number
-}
-
-function CriteriosManager({ etapa }: CriteriosManagerProps) {
-  const [criterios, setCriterios] = useState<CriterioRow[]>([])
+function JuradosForm({
+  jurados,
+  onCambio,
+  onError,
+}: {
+  jurados: Jurado[]
+  onCambio: () => Promise<void>
+  onError: (msg: string | null) => void
+}) {
   const [nombre, setNombre] = useState('')
-  const [puntajeMax, setPuntajeMax] = useState(10)
-  const [orden, setOrden] = useState(1)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [editNombre, setEditNombre] = useState('')
-  const [editPuntajeMax, setEditPuntajeMax] = useState(10)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!etapa) return
-    ;(async () => {
-      const supabase = getSupabase()
-      logConsulta(`CriteriosManager: cargar etapa=${etapa}`)
-      const { data } = await supabase
-        .from('criterios')
-        .select('*')
-        .eq('etapa', etapa)
-        .order('orden')
-      if (data) {
-        logFilas('criterios', data)
-        setCriterios(data as CriterioRow[])
-      }
-    })()
-  }, [etapa])
+  const siguienteCodigo = useMemo(() => {
+    const maxN = jurados.reduce((max, j) => {
+      const n = parseInt(j.codigo.replace(/^JUR-/i, ''), 10)
+      return Number.isFinite(n) ? Math.max(max, n) : max
+    }, 0)
+    return `JUR-${String(maxN + 1).padStart(3, '0')}`
+  }, [jurados])
 
-  const refresh = async () => {
-    if (!etapa) return
-    const supabase = getSupabase()
-    const { data } = await supabase
-      .from('criterios')
-      .select('*')
-      .eq('etapa', etapa)
-      .order('orden')
-    if (data) setCriterios(data as CriterioRow[])
-  }
-
-  const handleAdd = async () => {
-    if (!nombre.trim() || !etapa) {
-      setError('Nombre y etapa son obligatorios')
+  const agregar = async () => {
+    if (!nombre.trim()) {
+      onError('Ingresa el nombre del jurado')
       return
     }
     const supabase = getSupabase()
-    logConsulta('Insertar criterio')
-    const { error: insertError } = await supabase.from('criterios').insert({
-      etapa,
+    logConsulta(`Asistente: agregar jurado con código ${siguienteCodigo}`)
+    const { error } = await supabase.from('jurados').insert({
       nombre: nombre.trim(),
-      puntaje_maximo: puntajeMax,
-      orden,
+      codigo: siguienteCodigo,
     })
-
-    if (insertError) {
-      logError('insertar criterio', insertError.message)
-      setError(insertError.message)
+    if (error) {
+      logError('agregar jurado', error.message)
+      onError(error.message)
       return
     }
     setNombre('')
-    setPuntajeMax(10)
-    setOrden(criterios.length + 1)
-    setError(null)
-    refresh()
+    onError(null)
+    await onCambio()
   }
 
-  const handleUpdate = async (id: string) => {
-    if (!editNombre.trim()) return
+  const eliminar = async (id: string) => {
     const supabase = getSupabase()
-    const { error } = await supabase
-      .from('criterios')
-      .update({ nombre: editNombre.trim(), puntaje_maximo: editPuntajeMax })
-      .eq('id', id)
-
+    const { error } = await supabase.from('jurados').delete().eq('id', id)
     if (error) {
-      logError('actualizar criterio', error.message)
-      setError(error.message)
+      onError(error.message)
       return
     }
-    setEditId(null)
-    setError(null)
-    refresh()
-  }
-
-  const handleDelete = async (id: string) => {
-    const supabase = getSupabase()
-    const { error } = await supabase.from('criterios').delete().eq('id', id)
-    if (error) {
-      logError('eliminar criterio', error.message)
-      setError(error.message)
-      return
-    }
-    setError(null)
-    refresh()
+    onError(null)
+    await onCambio()
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
-        Criterios {etapa ? `· ${etapa}` : ''}
-      </p>
-
-      {error && (
-        <p className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>
-      )}
-
-      <div className="mt-4 grid grid-cols-[1fr_80px_60px] gap-2">
+    <div>
+      <div className="flex gap-2">
         <input
-          placeholder="Nombre del criterio"
+          placeholder="Nombre del jurado"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
-          className="rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
+          className="flex-1 rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
         />
-        <input
-          type="number"
-          placeholder="Pts"
-          value={puntajeMax}
-          onChange={(e) => setPuntajeMax(Number(e.target.value))}
-          className="rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white"
-        />
-        <input
-          type="number"
-          placeholder="#"
-          value={orden}
-          onChange={(e) => setOrden(Number(e.target.value))}
-          className="rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white"
-        />
+        <div className="flex items-center rounded-lg border border-gold-500/30 bg-gold-500/10 px-3 text-xs font-bold text-gold-400">
+          {siguienteCodigo}
+        </div>
       </div>
       <button
-        onClick={handleAdd}
-        className="mt-3 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
+        onClick={agregar}
+        className="mt-2 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
       >
-        Agregar criterio
+        Agregar jurado
       </button>
 
-      <div className="mt-4 max-h-64 overflow-y-auto">
-        {criterios.length === 0 ? (
-          <p className="py-4 text-center text-sm text-navy-500">Sin criterios registrados</p>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {criterios.map((cr) =>
-              editId === cr.id ? (
-                <li key={cr.id} className="space-y-2 py-3">
-                  <div className="grid grid-cols-[1fr_80px] gap-2">
-                    <input
-                      value={editNombre}
-                      onChange={(e) => setEditNombre(e.target.value)}
-                      className="rounded-lg border border-white/10 bg-navy-800 px-2 py-1.5 text-sm text-white"
-                    />
-                    <input
-                      type="number"
-                      value={editPuntajeMax}
-                      onChange={(e) => setEditPuntajeMax(Number(e.target.value))}
-                      className="rounded-lg border border-white/10 bg-navy-800 px-2 py-1.5 text-sm text-white"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleUpdate(cr.id)}
-                      className="flex-1 rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-500"
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      onClick={() => setEditId(null)}
-                      className="flex-1 rounded bg-navy-700 px-3 py-1 text-xs font-semibold text-navy-200 transition hover:bg-navy-600"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </li>
-              ) : (
-                <li key={cr.id} className="flex items-center justify-between py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-white">{cr.nombre}</p>
-                    <p className="text-xs text-navy-400">
-                      {cr.puntaje_maximo} pts · orden {cr.orden}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <button
-                      onClick={() => {
-                        setEditId(cr.id)
-                        setEditNombre(cr.nombre)
-                        setEditPuntajeMax(cr.puntaje_maximo)
-                      }}
-                      className="rounded px-2 py-1 text-xs text-navy-300 transition hover:bg-navy-800 hover:text-white"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(cr.id)}
-                      className="rounded px-2 py-1 text-xs text-red-400 transition hover:bg-red-500/10"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </li>
-              ),
-            )}
-          </ul>
-        )}
+      {jurados.length > 0 && (
+        <ul className="mt-4 max-h-56 space-y-1 overflow-y-auto">
+          {jurados.map((j) => (
+            <li
+              key={j.id}
+              className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
+            >
+              <span className="truncate">
+                <span className="font-mono text-xs font-bold text-gold-400">{j.codigo}</span>
+                <span className="ml-2 text-white">{j.nombre}</span>
+              </span>
+              <button
+                onClick={() => eliminar(j.id)}
+                className="ml-3 shrink-0 rounded bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+              >
+                Eliminar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/* ─── Criterios ───────────────────────────────────────────────────────── */
+
+function CriteriosForm({
+  etapa,
+  criterios,
+  onCambio,
+  onError,
+}: {
+  etapa: string
+  criterios: Criterio[]
+  onCambio: () => Promise<void>
+  onError: (msg: string | null) => void
+}) {
+  const [cargando, setCargando] = useState(false)
+  const oficiales = CRITERIOS_OFICIALES[etapa]
+
+  const cargar = async () => {
+    if (!etapa || !oficiales) return
+    setCargando(true)
+    const supabase = getSupabase()
+    logConsulta(`Asistente: cargar criterios oficiales para etapa "${etapa}"`)
+    const { error } = await supabase.from('criterios').upsert(
+      oficiales.map((c, i) => ({
+        etapa,
+        nombre: c.nombre,
+        puntaje_maximo: c.puntaje_maximo,
+        orden: i + 1,
+      })),
+      { onConflict: 'etapa,orden' },
+    )
+    if (error) {
+      logError('cargar criterios', error.message)
+      onError(error.message)
+    }
+    setCargando(false)
+    onError(null)
+    await onCambio()
+  }
+
+  if (!etapa) {
+    return <p className="text-sm text-navy-500">Primero crea el evento para definir la etapa.</p>
+  }
+
+  return (
+    <div>
+      <div className="rounded-lg border border-white/10 bg-navy-800/50 p-3 text-xs leading-relaxed text-navy-300">
+        Etapa actual: <strong className="text-gold-400">{etapa}</strong> — los criterios oficiales
+        para esta etapa se insertarán en la base de datos.
       </div>
+      <button
+        onClick={cargar}
+        disabled={cargando || (criterios.length > 0 && !criterios.some((c) => c.etapa === etapa && c.orden === oficiales?.length))}
+        className="mt-3 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400 disabled:opacity-40"
+      >
+        {cargando ? 'Cargando…' : 'Cargar criterios oficiales'}
+      </button>
+
+      {criterios.length > 0 ? (
+        <ul className="mt-4 space-y-1">
+          {criterios.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
+            >
+              <span className="text-white">
+                <span className="text-navy-500">#{c.orden} </span>
+                {c.nombre}
+              </span>
+              <span className="font-mono text-xs font-bold text-gold-400">{c.puntaje_maximo} pts</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 text-center text-sm text-navy-500">Sin criterios cargados todavía.</p>
+      )}
     </div>
   )
 }

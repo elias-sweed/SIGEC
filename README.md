@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** Fase 05 completada — Centro de Control funcional con estados oficiales, progreso de jurados en tiempo real y Panel Jurado mejorado.
+> **Estado actual:** Fase 06 completada — Asistente de configuración: prepara un certamen completo desde la interfaz (evento, jurados con código, candidatas, criterios) sin SQL manual. Panel Jurado con ingreso por código.
 
 ## Tecnologías
 
@@ -145,7 +145,7 @@ Preparando → Evaluando → Esperando Jurados → Resultados Listos → Publica
 | --- | --- | --- |
 | `/` | Inicio | Evento actual + accesos a los módulos |
 | `/jurado` | Panel del Jurado | Evaluación con sliders, total y envío |
-| `/maestro` | Centro de Control | Estados, candidatas, progreso de jurados |
+| `/maestro` | Configurar Certamen | Asistente: evento, candidatas, jurados, criterios e iniciar |
 | `/publico` | Pantalla Pública | Proyección estilo escenario |
 | Cualquier otra | 404 | Página no encontrada |
 
@@ -175,24 +175,29 @@ npm run preview      # Preview local de la compilación
 
 ## Cómo probar el flujo completo
 
-1. Aplica las migraciones y el seed en tu proyecto de Supabase (SQL Editor).
+> A partir de la Fase 06 ya **no es necesario el seed**: todo se prepara desde la interfaz.
+
+1. Aplica las migraciones en tu proyecto de Supabase (SQL Editor). RLS debe estar desactivado (migración `20260825160000_disable_rls_dev.sql`).
 2. Ejecuta `npm run dev` y abre `http://localhost:5173`.
-3. En el **Inicio** verás el evento cargado y las tarjetas de acceso.
-4. Entra al **Centro de Control** → verás el Bloque A con estado "Preparando". Haz clic en "Iniciar evaluación".
-5. Selecciona una candidata con los botones ← →.
-6. Abre el **Panel del Jurado** → verás la candidata y los sliders. Califica y haz clic en "Guardar evaluación". El botón cambiará a "✓ Evaluación enviada".
-7. Vuelve al Centro de Control → el Bloque C mostrará el avance de jurados ("1/5 respondieron").
-8. Cuando todos los jurados hayan respondido, cambia a "Publicar resultados".
-9. Abre la **Pantalla Pública** → verás "Resultados publicados".
+3. En el **Inicio** verás el estado de las tablas (todo en 0 al empezar).
+4. Entra a **Configurar Certamen** → completa el checklist:
+   - Crea el evento (nombre + etapa).
+   - Agrega candidatas.
+   - Agrega jurados (los códigos JUR-001, JUR-002… se generan solos).
+   - Carga los criterios oficiales de la etapa.
+5. Cuando todo esté listo, pulsa el botón dorado **"Iniciar Evaluación"** → se crea `estado_evento`, se selecciona la primera candidata y pasa a `evaluando`.
+6. Abre el **Panel del Jurado** → ingresa con un código (ej. `JUR-001`) → evalúa con los sliders → "Guardar evaluación".
+7. Al terminar, en el asistente: **Reiniciar Certamen** (rojo) borra todos los datos.
 
 ## Migraciones y datos de ejemplo
 
-Aplicar en orden contra tu proyecto de Supabase:
+Aplicar contra tu proyecto de Supabase:
 
 1. `supabase/migrations/20260825090000_initial_schema.sql` — tablas base
 2. `supabase/migrations/20260825110000_evaluacion_detalles.sql` — motor de evaluación
 3. `supabase/migrations/20260825140000_estado_evento.sql` — estado del evento
 4. `supabase/migrations/20260825160000_disable_rls_dev.sql` — desactivar RLS (desarrollo)
-5. `supabase/seed.sql` — datos de ejemplo completos
+
+> `supabase/seed.sql` queda como **referencia opcional** (datos de ejemplo). El asistente permite preparar el certamen sin usarlo.
 
 El historial de trabajo por fases se documenta en [`CHANGELOG_FASES.md`](./CHANGELOG_FASES.md).

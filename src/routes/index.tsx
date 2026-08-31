@@ -5,6 +5,7 @@ import Home from '../pages/Home'
 import MasterPanel from '../pages/MasterPanel'
 import PublicScreen from '../pages/PublicScreen'
 import JuradoLogin from '../pages/JuradoLogin'
+import JuradoActivar from '../pages/JuradoActivar'
 import JuradoEvaluacion from '../pages/JuradoEvaluacion'
 import JuradoGuard from '../components/JuradoGuard'
 import NotFound from '../pages/NotFound'
@@ -23,6 +24,7 @@ export default function AppRoutes() {
       {/* Zona privada del jurado (sin navegación de administración) */}
       <Route element={<JuradoLayout />}>
         <Route path="/jurado" element={<JuradoLogin />} />
+        <Route path="/jurado/activar" element={<JuradoActivar />} />
         <Route element={<JuradoGuard />}>
           <Route path="/jurado/evaluacion" element={<JuradoEvaluacion />} />
         </Route>

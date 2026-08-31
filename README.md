@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** Fase 07 completada — Acceso profesional del jurado separado del panel de administración: login con código (JUR-001), sesión por pestaña, evaluación protegida por ruta y seguimiento "Jurados conectados". Sin acceso del jurado desde la Home.
+> **Estado actual:** Fase 08 completada — Acceso profesional del jurado por QR: tarjetas con QR único, primer acceso con contraseña (Supabase Auth, correo interno jur-XXX@sigec.local), redirección automática al login para activados y descarga de PDF con las tarjetas.
 
 ## Tecnologías
 
@@ -145,7 +145,8 @@ Preparando → Evaluando → Esperando Jurados → Resultados Listos → Publica
 | --- | --- | --- |
 | `/` | Inicio | Portada del sistema (sin acceso directo al jurado) |
 | `/panel` | Centro de Control | Asistente: evento, candidatas, jurados, criterios e iniciar |
-| `/jurado` | Login del jurado | Acceso premium con código JUR-XXX (se comparte solo con jurados) |
+| `/jurado` | Inicio de sesión | Detecta `?codigo=` del QR; valida y pide contraseña |
+| `/jurado/activar` | Primer acceso | Activa la cuenta con contraseña (viene del QR) |
 | `/jurado/evaluacion` | Evaluación | Protegida por sesión: evalúa a la candidata activa |
 | `/pantalla` | Pantalla Pública | Proyección estilo escenario |
 | Cualquier otra | 404 | Página no encontrada |
@@ -153,10 +154,14 @@ Preparando → Evaluando → Esperando Jurados → Resultados Listos → Publica
 ## Flujo de acceso del jurado
 
 ```
-/jurado ── código JUR-XXX ──▶ valida en jurados ──▶ sessionStorage ──▶ /jurado/evaluacion
-                                                                        │
-                                    sin sesión directa a /jurado/evaluacion
-                                    → JuradoGuard redirige a /jurado
+QR (JUR-001) ──▶ /jurado/activar?codigo=JUR-001
+                      │
+                      ├─ nunca activado ──▶ contraseña × 2 ──▶ Supabase Auth (jur-001@sigec.local) ──▶ activado ✔
+                      │
+                      └─ ya activado ──▶ /jurado?codigo=JUR-001 ──▶ contraseña ──▶ sessionStorage ──▶ /jurado/evaluacion
+                                                                                                      │
+                                           sin sesión directa a /jurado/evaluacion
+                                           → JuradoGuard redirige a /jurado
 ```
 
 ## Configuración del entorno (.env)
@@ -208,6 +213,7 @@ Aplicar contra tu proyecto de Supabase:
 3. `supabase/migrations/20260825140000_estado_evento.sql` — estado del evento
 4. `supabase/migrations/20260825160000_disable_rls_dev.sql` — desactivar RLS (desarrollo)
 5. `supabase/migrations/20260826100000_jurados_sesion.sql` — columna `en_sesion` en jurados
+6. `supabase/migrations/20260827100000_jurados_activacion.sql` — activación por QR (`en_sesion`, `activado`, `email_interno`, `auth_uid`)
 
 > `supabase/seed.sql` queda como **referencia opcional** (datos de ejemplo). El asistente permite preparar el certamen sin usarlo.
 

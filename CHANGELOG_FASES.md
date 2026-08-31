@@ -1,5 +1,50 @@
 # CHANGELOG SIGEC
 
+## Fase 08
+
+Fecha: 27/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Acceso profesional por QR**: el administrador genera una tarjeta por jurado con nombre, código (JUR-001) y un QR único que apunta a `/jurado/activar?codigo=JUR-001`.
+- **Primer acceso** en `/jurado/activar`: solicita contraseña y confirmación, crea la cuenta en Supabase Auth con el correo interno `jur-001@sigec.local` y marca al jurado como `activado`.
+- **Redirecciones automáticas**: un jurado ya activado que escanea su QR se envía directo al login; el login detecta el parámetro `codigo` y completa el código automáticamente.
+- **Ingreso profesional**: después de activarse, el jurado solo escribe su contraseña (el correo interno se deriva del código).
+- **Descarga de PDF**: botón "Descargar PDF" en el Panel Maestro que abre la vista de impresión con las tarjetas de todos los jurados (destino "Guardar como PDF").
+- **Corrección PATCH /jurados 400**: la actualización de `en_sesion` ahora verifica primero (vía `information_schema.columns`) que la columna exista y usa exactamente el nombre `en_sesion`; si la migración no se aplicó, omite la actualización sin error.
+- Cierre de sesión también cierra la sesión de Supabase Auth (`signOut`).
+
+### Archivos creados
+
+- `supabase/migrations/20260827100000_jurados_activacion.sql`
+- `src/pages/JuradoActivar.tsx`
+- `src/services/jurado.service.ts`
+- `src/utils/impresion.ts`
+
+Archivos modificados:
+
+- `src/pages/JuradoLogin.tsx`
+- `src/pages/JuradoEvaluacion.tsx`
+- `src/pages/MasterPanel.tsx`
+- `src/routes/index.tsx`
+- `src/types/database.ts`
+- `src/utils/session.ts`
+- `README.md`
+- `CHANGELOG_FASES.md`
+
+### Configuración requerida en Supabase
+
+- Aplicar la migración `20260827100000_jurados_activacion.sql`.
+- Auth → Providers → Email habilitado, y **desactivar** "Confirm email" para que el primer acceso funcione sin verificación de correo.
+
+### Pendiente para Fase 09
+
+- Consolidación de resultados y promedio entre jurados.
+- Pantalla Pública con puntajes publicados.
+- Realtime: progreso de jurados conectados y evaluaciones sin recargar.
+- Reactivar RLS con políticas por rol.
+
 ## Fase 07
 
 Fecha: 27/08/2026

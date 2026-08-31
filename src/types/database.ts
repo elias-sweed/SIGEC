@@ -20,6 +20,9 @@ export interface Jurado {
   nombre: string
   codigo: string
   en_sesion: boolean
+  activado: boolean
+  email_interno: string | null
+  auth_uid: string | null
   created_at: string
 }
 

@@ -1,5 +1,6 @@
 const KEY_ID = 'sigec_jurado_id'
 const KEY_CODIGO = 'sigec_jurado_codigo'
+const KEY_ACTIVADO = 'sigec_jurado_activado'
 
 export interface SesionJurado {
   id: string
@@ -21,4 +22,14 @@ export function leerSesionJurado(): SesionJurado | null {
 export function limpiarSesionJurado(): void {
   sessionStorage.removeItem(KEY_ID)
   sessionStorage.removeItem(KEY_CODIGO)
+}
+
+/** Marca local de activación: útil si la columna `activado` aún no existe. */
+export function marcarActivadoLocal(codigo: string): void {
+  sessionStorage.setItem(KEY_ACTIVADO, codigo)
+}
+
+export function estaActivadoLocal(codigo: string): boolean {
+  if (typeof sessionStorage === 'undefined') return false
+  return sessionStorage.getItem(KEY_ACTIVADO) === codigo
 }

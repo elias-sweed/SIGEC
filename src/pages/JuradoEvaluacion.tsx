@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
+import { marcarEnSesion } from '../services/jurado.service'
 import { calcularTotal } from '../utils/scoring'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
 import { leerSesionJurado, limpiarSesionJurado } from '../utils/session'
@@ -104,8 +105,13 @@ export default function JuradoEvaluacion() {
 
   const salir = async () => {
     if (jurado) {
+      await marcarEnSesion(jurado.id, false)
+    }
+    try {
       const supabase = getSupabase()
-      await supabase.from('jurados').update({ en_sesion: false }).eq('id', jurado.id)
+      await supabase.auth.signOut()
+    } catch {
+      /* sin sesión de auth — continuar */
     }
     limpiarSesionJurado()
     navigate('/jurado', { replace: true })

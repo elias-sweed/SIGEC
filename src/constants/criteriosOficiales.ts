@@ -4,30 +4,16 @@ export interface CriterioOficial {
 }
 
 export const CRITERIOS_OFICIALES: Record<string, CriterioOficial[]> = {
-  preliminar: [
-    { nombre: 'Técnica de ejecución', puntaje_maximo: 30 },
-    { nombre: 'Interpretación artística', puntaje_maximo: 30 },
-    { nombre: 'Coreografía', puntaje_maximo: 25 },
-    { nombre: 'Presencia escénica', puntaje_maximo: 15 },
+  'PRIMERA ETAPA 04/09/26': [
+    { nombre: 'Presentación', puntaje_maximo: 30 },
+    { nombre: 'Coreografía', puntaje_maximo: 40 },
+    { nombre: 'Ronda de preguntas', puntaje_maximo: 30 },
   ],
-  eliminatoria: [
-    { nombre: 'Técnica de ejecución', puntaje_maximo: 30 },
-    { nombre: 'Interpretación artística', puntaje_maximo: 30 },
-    { nombre: 'Coreografía', puntaje_maximo: 25 },
-    { nombre: 'Presencia escénica', puntaje_maximo: 15 },
-  ],
-  semifinal: [
-    { nombre: 'Técnica de ejecución', puntaje_maximo: 35 },
-    { nombre: 'Interpretación artística', puntaje_maximo: 30 },
-    { nombre: 'Coreografía', puntaje_maximo: 20 },
-    { nombre: 'Presencia escénica', puntaje_maximo: 15 },
-  ],
-  final: [
+  'SEGUNDA ETAPA 18/09/26': [
     { nombre: 'Técnica de ejecución', puntaje_maximo: 40 },
     { nombre: 'Interpretación artística', puntaje_maximo: 30 },
-    { nombre: 'Coreografía', puntaje_maximo: 20 },
-    { nombre: 'Presencia escénica', puntaje_maximo: 10 },
+    { nombre: 'Presencia escénica', puntaje_maximo: 30 },
   ],
 }
 
-export const ETAPAS = ['preliminar', 'eliminatoria', 'semifinal', 'final'] as const
+export const ETAPAS = ['PRIMERA ETAPA 04/09/26', 'SEGUNDA ETAPA 18/09/26'] as const

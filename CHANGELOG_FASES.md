@@ -1,5 +1,24 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Dos etapas y edición/eliminación del evento
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Solo 2 etapas**: se reemplazaron las 4 etapas genéricas (preliminar/eliminatoria/semifinal/final) por:
+  - `PRIMERA ETAPA 04/09/26` (Presentación · Coreografía · Ronda de preguntas)
+  - `SEGUNDA ETAPA 18/09/26` (Elección y Coronación · Gran Final)
+  - Criterios oficiales actualizados para cada etapa.
+- **Editar evento**: botón "Editar" en la sección Evento para cambiar nombre y etapa de un certamen ya creado.
+- **Eliminar evento**: botón "Eliminar" con confirmación. Borra el evento y sus evaluaciones y `estado_evento` relacionado (candidatas, jurados y criterios se conservan).
+
+### Archivos modificados
+
+- `src/constants/criteriosOficiales.ts`
+- `src/pages/admin/Evento.tsx`
+
 ## Intermedio — Enlace del QR con token aleatorio
 
 Fecha: 01/09/2026

@@ -15,14 +15,14 @@ export function emailDeJurado(codigo: string): string {
 }
 
 /** URL de activación que codifica el QR (absoluta para escanear desde el móvil). */
-export function urlActivacion(codigo: string): string {
-  return `${window.location.origin}/jurado/activar?codigo=${encodeURIComponent(codigo)}`
+export function urlActivacion(token: string): string {
+  return `${window.location.origin}/jurado/activar?t=${encodeURIComponent(token)}`
 }
 
 /** Imagen QR que apunta a la URL de activación del jurado. */
-export function urlQR(codigo: string, size = 200): string {
+export function urlQR(token: string, size = 200): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(
-    urlActivacion(codigo),
+    urlActivacion(token),
   )}`
 }
 
@@ -35,6 +35,22 @@ export async function obtenerJuradoPorCodigo(codigo: string): Promise<Jurado | n
     .maybeSingle()
   if (error) logError('obtenerJuradoPorCodigo', error.message)
   return (data as Jurado | null) ?? null
+}
+
+/**
+ * Busca un jurado por su token de acceso (QR). Si el token no devuelve nada,
+ * intenta con el código directo para mantener compatibilidad con QRs antiguos.
+ */
+export async function obtenerJuradoPorToken(token: string): Promise<Jurado | null> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('jurados')
+    .select('*')
+    .eq('token_acceso', token.trim())
+    .maybeSingle()
+  if (!error && data) return data as Jurado
+
+  return obtenerJuradoPorCodigo(token)
 }
 
 /** Verifica que una columna exista en una tabla del esquema public (evita 400s). */

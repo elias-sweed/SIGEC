@@ -1,5 +1,26 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Enlace del QR con token aleatorio
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **El enlace del QR ahora usa un token largo y aleatorio** (32 caracteres) en vez de mostrar el código del jurado: `/jurado/activar?t=A7K2QX...` en lugar de `/jurado/activar?codigo=JUR-002`.
+- Cada jurado guarda su token en la columna `token_acceso`. Al crearlo se genera automáticamente.
+- Las páginas de activación y login leen el parámetro `t` (con compatibilidad al viejo `codigo`).
+- QR generado, PDF y tarjetas usan el token.
+- **Migración requerida**: `supabase/migrations/20260901100000_jurados_token_acceso.sql` agrega la columna y rellena tokens aleatorios de los jurados existentes.
+
+### Archivos modificados
+
+- `src/services/jurado.service.ts`, `src/utils/codigos.ts`, `src/types/database.ts`
+- `src/pages/JuradoLogin.tsx`, `src/pages/JuradoActivar.tsx`
+- `src/pages/admin/Jurados.tsx`, `src/components/admin/AccesosJurados.tsx`, `src/utils/impresion.ts`
+- `supabase/migrations/20260901100000_jurados_token_acceso.sql` (nuevo)
+- `supabase/SETUP_COMPLETO.sql`
+
 ## Intermedio — Códigos de jurado aleatorios y login admin centrado
 
 Fecha: 01/09/2026

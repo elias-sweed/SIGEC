@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getSupabase } from '../lib/supabase'
 import PasswordInput from '../components/form/PasswordInput'
-import { emailDeJurado, marcarEnSesion, obtenerJuradoPorCodigo } from '../services/jurado.service'
+import { emailDeJurado, marcarEnSesion, obtenerJuradoPorCodigo, obtenerJuradoPorToken } from '../services/jurado.service'
 import { estaActivadoLocal, guardarSesionJurado, leerSesionJurado } from '../utils/session'
 import { logConsulta, logError } from '../utils/devlog'
 import type { Evento, Jurado } from '../types/database'
@@ -14,7 +14,7 @@ export default function JuradoLogin() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
 
-  const [codigo, setCodigo] = useState((params.get('codigo') ?? '').toUpperCase())
+  const [codigo, setCodigo] = useState((params.get('t') ?? params.get('codigo') ?? '').toUpperCase())
   const [jurado, setJurado] = useState<Jurado | null>(null)
   const [password, setPassword] = useState('')
   const [evento, setEvento] = useState<Evento | null>(null)
@@ -24,7 +24,7 @@ export default function JuradoLogin() {
   const intentosRef = useRef(0)
 
   useEffect(() => {
-    const c = params.get('codigo')
+    const c = params.get('t') ?? params.get('codigo')
     if (c) setCodigo(c.toUpperCase())
   }, [params])
 
@@ -48,19 +48,19 @@ export default function JuradoLogin() {
     })()
   }, [navigate])
 
-  // Si el código viene en la URL (QR), se valida solo y salta a la contraseña,
+  // Si viene el parámetro en la URL (QR), se valida solo y salta a la contraseña,
   // sin que el jurado tenga que escribirlo.
   useEffect(() => {
-    const c = (params.get('codigo') ?? '').trim().toUpperCase()
+    const c = (params.get('t') ?? params.get('codigo') ?? '').trim().toUpperCase()
     if (!c || leerSesionJurado()) return
     let activo = true
     ;(async () => {
-      const j = await obtenerJuradoPorCodigo(c)
+      const j = await obtenerJuradoPorToken(c)
       if (!activo) return
       if (!j) return
-      if (!j.activado && !estaActivadoLocal(c)) {
+      if (!j.activado && !estaActivadoLocal(j.codigo)) {
         // Cuenta aún no creada: se va directo a activación.
-        navigate(`/jurado/activar?codigo=${c}`, { replace: true })
+        navigate(`/jurado/activar?t=${c}`, { replace: true })
         return
       }
       setJurado(j)

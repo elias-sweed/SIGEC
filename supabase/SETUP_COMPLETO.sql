@@ -89,6 +89,7 @@ alter table public.jurados add column if not exists en_sesion boolean not null d
 alter table public.jurados add column if not exists activado boolean not null default false;
 alter table public.jurados add column if not exists email_interno text;
 alter table public.jurados add column if not exists auth_uid uuid;
+alter table public.jurados add column if not exists token_acceso text;
 
 -- =============================================
 -- SIGEC — POLÍTICAS RLS PARA DESARROLLO

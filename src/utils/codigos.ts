@@ -12,3 +12,8 @@ function generarFragmento(longitud: number): string {
 export function generarCodigoJurado(): string {
   return `JUR-${generarFragmento(6)}`
 }
+
+/** Token largo y aleatorio para el enlace del QR (no revela el código del jurado). */
+export function generarTokenAcceso(): string {
+  return generarFragmento(32)
+}

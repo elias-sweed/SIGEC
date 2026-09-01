@@ -4,7 +4,7 @@ import Section from '../../components/admin/Section'
 import { IconoCheck, IconoLapiz, IconoPapelera } from '../../components/admin/Iconos'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
-import { generarCodigoJurado } from '../../utils/codigos'
+import { generarCodigoJurado, generarTokenAcceso } from '../../utils/codigos'
 import { logConsulta, logError } from '../../utils/devlog'
 
 export default function Jurados() {
@@ -51,6 +51,7 @@ export default function Jurados() {
     const { error } = await supabase.from('jurados').insert({
       nombre: nombre.trim(),
       codigo: siguienteCodigo,
+      token_acceso: generarTokenAcceso(),
     })
     if (error) {
       logError('agregar jurado', error.message)

@@ -22,8 +22,8 @@ export function imprimirTarjetasAcceso(eventoNombre: string, jurados: Jurado[]):
         </div>
         <div class="nombre">${j.nombre}</div>
         <div class="codigo">${j.codigo}</div>
-        <img src="${urlQR(j.codigo, 200)}" alt="QR ${j.codigo}" width="200" height="200" />
-        <div class="url">${window.location.origin}/jurado/activar?codigo=${j.codigo}</div>
+        <img src="${urlQR(j.token_acceso ?? j.codigo, 200)}" alt="QR ${j.codigo}" width="200" height="200" />
+        <div class="url">${window.location.origin}/jurado/activar?t=${j.token_acceso ?? j.codigo}</div>
       </div>`,
     )
     .join('')

@@ -58,12 +58,12 @@ export default function AccesosJurados({
               <p className="mt-1 truncate text-sm font-semibold text-white">{j.nombre}</p>
               <p className="font-mono text-sm font-bold text-gold-400">{j.codigo}</p>
               <img
-                src={urlQR(j.codigo, 180)}
+                src={urlQR(j.token_acceso ?? j.codigo, 180)}
                 alt={`QR de ${j.codigo}`}
                 className="mt-3 h-44 w-44 rounded-lg bg-white object-contain p-1.5"
               />
               <p className="mt-2 break-all text-[10px] leading-relaxed text-navy-400">
-                {urlActivacion(j.codigo)}
+                {urlActivacion(j.token_acceso ?? j.codigo)}
               </p>
               <span
                 className={`mt-3 rounded-full px-2.5 py-0.5 text-xs font-semibold ${

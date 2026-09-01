@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { getSupabase } from '../lib/supabase'
 import PasswordInput from '../components/form/PasswordInput'
-import { emailDeJurado, marcarActivado, obtenerJuradoPorCodigo } from '../services/jurado.service'
+import { emailDeJurado, marcarActivado, obtenerJuradoPorToken } from '../services/jurado.service'
 import { marcarActivadoLocal, estaActivadoLocal } from '../utils/session'
 import { logConsulta, logError } from '../utils/devlog'
 import type { Jurado } from '../types/database'
@@ -10,7 +10,7 @@ import type { Jurado } from '../types/database'
 export default function JuradoActivar() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const codigo = (params.get('codigo') ?? '').trim().toUpperCase()
+  const token = (params.get('t') ?? params.get('codigo') ?? '').trim().toUpperCase()
 
   const [jurado, setJurado] = useState<Jurado | null>(null)
   const [cargando, setCargando] = useState(true)
@@ -20,31 +20,31 @@ export default function JuradoActivar() {
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
-    if (!codigo) {
+    if (!token) {
       setCargando(false)
       return
     }
     ;(async () => {
-      const j = await obtenerJuradoPorCodigo(codigo)
+      const j = await obtenerJuradoPorToken(token)
       setJurado(j)
       setCargando(false)
     })()
-  }, [codigo])
+  }, [token])
 
   // Si el jurado ya está activado, el QR ya no es "primer acceso":
   // se va directo al login con la contraseña.
   useEffect(() => {
     if (!jurado || cargando) return
     if (jurado.activado || estaActivadoLocal(jurado.codigo)) {
-      navigate(`/jurado?codigo=${jurado.codigo}`, { replace: true })
+      navigate(`/jurado?t=${token}`, { replace: true })
     }
-  }, [jurado, cargando, navigate])
+  }, [jurado, cargando, navigate, token])
 
-  if (!codigo) {
+  if (!token) {
     return <Navigate to="/jurado" replace />
   }
 
-  const email = jurado ? emailDeJurado(jurado.codigo) : emailDeJurado(codigo)
+  const email = jurado ? emailDeJurado(jurado.codigo) : emailDeJurado(token)
 
   const activar = async () => {
     if (password.length < 6) {
@@ -70,8 +70,8 @@ export default function JuradoActivar() {
         mensaje.includes('existe')
       if (yaExiste && jurado) {
         await marcarActivado(jurado.id, email)
-        marcarActivadoLocal(codigo)
-        navigate(`/jurado?codigo=${codigo}`, { replace: true })
+        marcarActivadoLocal(jurado.codigo)
+        navigate(`/jurado?t=${token}`, { replace: true })
         return
       }
       logError('signUp', errSignUp.message)
@@ -82,9 +82,9 @@ export default function JuradoActivar() {
 
     if (jurado) {
       await marcarActivado(jurado.id, email, data.user?.id)
+      marcarActivadoLocal(jurado.codigo)
     }
-    marcarActivadoLocal(codigo)
-    navigate(`/jurado?codigo=${codigo}`, { replace: true })
+    navigate(`/jurado?t=${token}`, { replace: true })
   }
 
   return (

@@ -27,6 +27,7 @@ export default function MainLayout() {
     { label: 'Inicio', to: '/' },
     ...(admin ? [{ label: 'Centro de Control', to: '/panel' }] : []),
     { label: 'Pantalla Pública', to: '/pantalla' },
+    { label: 'Admin', to: '/admin' },
   ]
 
   return (
@@ -67,14 +68,7 @@ export default function MainLayout() {
               >
                 Cerrar sesión
               </button>
-            ) : (
-              <NavLink
-                to="/admin"
-                className="ml-1 rounded-full border border-gold-500/40 px-4 py-2 text-sm font-medium text-gold-400 transition hover:bg-gold-500/10"
-              >
-                Admin
-              </NavLink>
-            )}
+            ) : null}
           </nav>
         </div>
       </header>

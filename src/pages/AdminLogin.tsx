@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import PasswordInput from '../components/form/PasswordInput'
-import { esSuperadminAutenticado, emailSuperadmin, iniciarSesionSuperadmin } from '../lib/adminAuth'
+import { esSuperadminAutenticado, iniciarSesionSuperadmin } from '../lib/adminAuth'
 import { logError } from '../utils/devlog'
 
 export default function AdminLogin() {
@@ -75,7 +75,7 @@ export default function AdminLogin() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder={emailSuperadmin() || 'admin@ejemplo.com'}
+          placeholder="admin@ejemplo.com"
           className="mt-2 w-full rounded-xl border border-white/10 bg-navy-800 px-4 py-3.5 text-white placeholder:text-navy-500 focus:border-gold-500/50 focus:outline-none"
         />
 

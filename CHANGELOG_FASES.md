@@ -1,5 +1,29 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Dashboard del superadmin (sidebar)
+
+Fecha: 27/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Dashboard con sidebar**: el Centro de Control dejó de ser una sola página y ahora es un panel de administración con navegación lateral: Resumen, Evento, Candidatas, Jurados, Criterios, Conectados, Accesos (QR) y Evaluaciones.
+- **Modo admin aislado**: la zona `/panel` ya NO usa la barra pública (Inicio/Pantalla Pública). Es un layout propio de pantalla completa, oscuro, con contador de candidatas/activados/criterios en el pie y botón "Cerrar sesión". En móvil el sidebar se abre con un botón (menú overlay).
+- **Contexto de datos compartido** (`PanelDataContext`): carga evento/candidatas/jurados/criterios/evaluaciones una sola vez y todas las secciones comparten los datos con `recargar()`.
+- **Rutas por sección**: `/panel`, `/panel/evento`, `/panel/candidatas`, `/panel/jurados`, `/panel/criterios`, `/panel/conectados`, `/panel/accesos`, `/panel/evaluaciones`. Todo sigue protegido por AdminGuard y con login oculto en `/admin`.
+- **Componentes admin reutilizables**: `PanelHeader`, `Section`, `Iconos`, `AccesosJurados` y `EvaluacionesPanel` en `src/components/admin/`.
+
+### Archivos creados
+
+- `src/layouts/AdminLayout.tsx`
+- `src/context/PanelDataContext.tsx`
+- `src/components/admin/{PanelHeader,Section,Iconos,AccesosJurados,EvaluacionesPanel}.tsx`
+- `src/pages/admin/{Resumen,Evento,Candidatas,Jurados,Criterios,Conectados,Accesos,Evaluaciones}.tsx`
+
+Eliminados:
+
+- `src/pages/MasterPanel.tsx` (reemplazado por las secciones del dashboard)
+
 ## Intermedio — Login de Superadmin
 
 Fecha: 27/08/2026

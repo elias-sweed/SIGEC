@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** Login de superadmin: el dashboard `/panel` exige autenticarse en `/admin` con la cuenta de Supabase Auth (`danza@jimenezpimentel.edu.pe`), protegido por AdminGuard. El jurado evalúa a todas las candidatas y el Centro de Control muestra el panel "Evaluaciones por candidata".
+> **Estado actual:** Dashboard del superadmin completo con sidebar (Resumen, Evento, Candidatas, Jurados, Criterios, Conectados, Accesos QR y Evaluaciones). El acceso es solo vía `/admin` (oculto), protegido por AdminGuard. El local pública (`/`) solo muestra la portada y la Pantalla Pública; el jurado evalúa a todas las candidatas.
 
 ## Tecnologías
 
@@ -145,7 +145,14 @@ Preparando → Evaluando → Esperando Jurados → Resultados Listos → Publica
 | --- | --- | --- |
 | `/` | Inicio | Portada del sistema (sin acceso directo al jurado) |
 | `/admin` | Login superadmin | Solo el correo autorizado (`danza@jimenezpimentel.edu.pe`) puede entrar |
-| `/panel` | Centro de Control | Protegido por sesión de superadmin (AdminGuard) |
+| `/panel` | Dashboard admin | Protegido por sesión de superadmin (AdminGuard), con sidebar |
+| `/panel/evento` | Dashboard · Evento | Nombre y etapa del certamen |
+| `/panel/candidatas` | Dashboard · Candidatas | Registro de participantes |
+| `/panel/jurados` | Dashboard · Jurados | Registro con código JUR-XXX automático |
+| `/panel/criterios` | Dashboard · Criterios | Carga de criterios oficiales por etapa |
+| `/panel/conectados` | Dashboard · Conectados | Estado en vivo de los jurados |
+| `/panel/accesos` | Dashboard · Accesos QR | Tarjetas QR y PDF de acceso |
+| `/panel/evaluaciones` | Dashboard · Evaluaciones | Avance y puntajes por candidata |
 | `/jurado` | Inicio de sesión | Detecta `?codigo=` del QR; valida y pide contraseña |
 | `/jurado/activar` | Primer acceso | Activa la cuenta con contraseña (viene del QR) |
 | `/jurado/evaluacion` | Evaluación | Protegida por sesión: evalúa a todas las candidatas |

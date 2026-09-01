@@ -13,7 +13,7 @@ interface CandidataInfo {
 }
 
 export default function PublicScreen() {
-  const { eventoCandidato, candidataActual } = useCertamen()
+  const { eventoCandidato, candidataActual, candidatas, cargarEstado } = useCertamen()
   const [evento, setEvento] = useState<Evento | null>(eventoCandidato)
   const [candidata, setCandidata] = useState<CandidataInfo | null>(
     candidataActual
@@ -30,6 +30,18 @@ export default function PublicScreen() {
       setCandidata({ nombre: candidataActual.nombre, grado: candidataActual.grado, seccion: candidataActual.seccion })
     }
   }, [eventoCandidato, candidataActual])
+
+  // Auto-refresco: la pantalla se actualiza sola cada 8s durante la evaluación
+  useEffect(() => {
+    const intervalo = setInterval(async () => {
+      try {
+        await cargarEstado()
+      } catch (err) {
+        logError('PublicScreen auto-refresh', err instanceof Error ? err.message : String(err))
+      }
+    }, 8000)
+    return () => clearInterval(intervalo)
+  }, [cargarEstado])
 
   useEffect(() => {
     if (eventoCandidato && candidataActual) return
@@ -88,10 +100,10 @@ export default function PublicScreen() {
       <PageHeader
         eyebrow="Transmisión en vivo"
         title="Pantalla Pública"
-        description="Información del certamen proyectada para la audiencia."
+        description="Información del certamen proyectada para la audiencia. Se actualiza automáticamente."
       />
 
-      <div className="mx-auto mt-8 max-w-2xl space-y-8 text-center">
+      <div className="mx-auto mt-8 max-w-3xl space-y-8 text-center">
         {/* Logo / nombre evento */}
         <div className="space-y-2">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/20 text-3xl">
@@ -115,7 +127,7 @@ export default function PublicScreen() {
           <span
             className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold ring-1 transition-all duration-500 ${stateColors.bg} ${stateColors.text} ${stateColors.ring}`}
           >
-            <span className="h-2 w-2 rounded-full bg-current" />
+            <span className={`h-2 w-2 rounded-full bg-current ${estado === 'evaluando' ? 'animate-pulse' : ''}`} />
             {EVENT_STATE_LABELS[estado]}
           </span>
         </div>
@@ -127,20 +139,21 @@ export default function PublicScreen() {
               Resultados publicados
             </p>
             <div className="mt-6 text-navy-400">
-              <p className="text-sm">Los puntajes se mostrarán próximamente.</p>
+              <p className="text-sm">Los resultados ya están disponibles.</p>
+              <p className="mt-2 text-lg text-white">
+                ¡Felicitaciones a todas las finalistas del certamen!
+              </p>
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-10 transition-all duration-300">
+          <div className="rounded-2xl border border-gold-500/30 bg-gradient-to-b from-navy-900/90 to-navy-950/90 p-10 shadow-2xl shadow-gold-500/5 transition-all duration-500">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
               Candidata actual
             </p>
             {candidata ? (
               <>
-                <h3 className="mt-3 text-4xl font-bold text-white sm:text-5xl">
-                  {candidata.nombre}
-                </h3>
-                <p className="mt-2 text-lg text-navy-300">
+                <h3 className="mt-3 text-4xl font-bold text-white sm:text-6xl">{candidata.nombre}</h3>
+                <p className="mt-3 text-lg text-navy-300">
                   {candidata.grado} · Sección {candidata.seccion}
                 </p>
               </>
@@ -156,6 +169,37 @@ export default function PublicScreen() {
             Evaluación en curso
           </p>
         )}
+
+        {/* Lista de candidatas (cuando ya hay registro) */}
+        {candidatas.length > 0 && !isPublished && (
+          <div className="rounded-2xl border border-white/10 bg-navy-900/60 p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy-400">
+              Participantes del certamen
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {candidatas.map((c) => {
+                const activa = candidata?.nombre === c.nombre
+                return (
+                  <span
+                    key={c.id}
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-300 ${
+                      activa
+                        ? 'bg-gold-500 font-bold text-navy-950 shadow-lg shadow-gold-500/30'
+                        : 'bg-navy-800/60 text-navy-200'
+                    }`}
+                  >
+                    {c.nombre}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Pie de hora/sincronización */}
+        <p className="text-[11px] uppercase tracking-widest text-navy-600">
+          ● Actualización automática cada 8 segundos
+        </p>
       </div>
     </>
   )

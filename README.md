@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** Dashboard del superadmin completo con sidebar (Resumen, Evento, Candidatas, Jurados, Criterios, Conectados, Accesos QR y Evaluaciones). El acceso es solo vía `/admin` (oculto), protegido por AdminGuard. El local pública (`/`) solo muestra la portada y la Pantalla Pública; el jurado evalúa a todas las candidatas.
+> **Estado actual:** Portada renovada (muestra el nombre y estado del certamen, con accesos a Pantalla Pública y jurado; el admin queda oculto salvo sesión). La Pantalla Pública se auto-actualiza cada 8 s, resalta la candidata en curso y lista a todas las participantes.
 
 ## Tecnologías
 

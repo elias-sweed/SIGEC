@@ -1,5 +1,20 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Portada y Pantalla Pública mejoradas
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Home renovada**: muestra el nombre real del certamen (con destacado en dorado) y una pastilla de estado con color según el evento (preparando/evaluando/…). Incluye accesos a Pantalla Pública, Acceso del Jurado y, solo con sesión admin activa, el Centro de Control (el admin sigue oculto para el público). Tarjetas con efecto hover.
+- **Pantalla Pública mejorada**: tarjeta de candidata actual con borde y sombra dorada, indicador de evaluación en curso con pulso, **auto-refresco cada 8 segundos** (cambia sola cuando el jurado avanza), lista de todas las participantes con la activa resaltada en dorado, y mensaje de resultados en estado publicado.
+
+### Archivos modificados
+
+- `src/pages/Home.tsx`
+- `src/pages/PublicScreen.tsx`
+
 ## Intermedio — Dashboard del superadmin (sidebar)
 
 Fecha: 27/08/2026

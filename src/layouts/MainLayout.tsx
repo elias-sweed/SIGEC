@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { cerrarSesionSuperadmin, esSuperadminAutenticado } from '../lib/adminAuth'
 
 export default function MainLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [admin, setAdmin] = useState(false)
 
   useEffect(() => {
@@ -15,7 +16,7 @@ export default function MainLayout() {
     return () => {
       activo = false
     }
-  }, [])
+  }, [location.pathname])
 
   const cerrar = async () => {
     await cerrarSesionSuperadmin()
@@ -27,7 +28,6 @@ export default function MainLayout() {
     { label: 'Inicio', to: '/' },
     ...(admin ? [{ label: 'Centro de Control', to: '/panel' }] : []),
     { label: 'Pantalla Pública', to: '/pantalla' },
-    { label: 'Admin', to: '/admin' },
   ]
 
   return (
@@ -61,10 +61,26 @@ export default function MainLayout() {
                 {item.label}
               </NavLink>
             ))}
+          </nav>
+
+          <nav className="flex flex-wrap items-center gap-1.5 border-l border-white/10 pl-5">
+            <NavLink
+              to="/admin"
+              end
+              className={({ isActive }) =>
+                `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-gold-500 text-navy-950'
+                    : 'border border-gold-500/40 text-gold-400 hover:bg-gold-500/10'
+                }`
+              }
+            >
+              Admin
+            </NavLink>
             {admin ? (
               <button
                 onClick={cerrar}
-                className="ml-1 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-navy-200 transition hover:bg-white/10 hover:text-white"
+                className="ml-1 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-navy-200 transition hover:bg-red-500/10 hover:text-red-400"
               >
                 Cerrar sesión
               </button>

@@ -10,7 +10,7 @@ import {
 import { getSupabase } from '../lib/supabase'
 import { logFilas, logError } from '../utils/devlog'
 import { useCertamen } from './CertamenContext'
-import type { Candidata, Criterio, Evaluacion, EvaluacionDetalle, Evento, Jurado } from '../types/database'
+import type { Candidata, Criterio, Evaluacion, EvaluacionDetalle, Evento, Jurado, ReglamentoEtapa } from '../types/database'
 
 interface PanelData {
   evento: Evento | null
@@ -19,6 +19,7 @@ interface PanelData {
   criterios: Criterio[]
   evaluaciones: Evaluacion[]
   detalles: EvaluacionDetalle[]
+  reglamentos: ReglamentoEtapa[]
   recargar: () => Promise<void>
 }
 
@@ -33,17 +34,19 @@ export function PanelDataProvider({ children }: { children: ReactNode }) {
   const [criterios, setCriterios] = useState<Criterio[]>([])
   const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>([])
   const [detalles, setDetalles] = useState<EvaluacionDetalle[]>([])
+  const [reglamentos, setReglamentos] = useState<ReglamentoEtapa[]>([])
 
   const cargarDatos = useCallback(async () => {
     const supabase = getSupabase()
 
-    const [ev, ca, ju, cr, evals, dets] = await Promise.all([
+    const [ev, ca, ju, cr, evals, dets, regls] = await Promise.all([
       supabase.from('eventos').select('*').order('created_at').limit(1).maybeSingle(),
       supabase.from('candidatas').select('*').order('nombre'),
       supabase.from('jurados').select('*').order('codigo'),
       supabase.from('criterios').select('*').order('orden'),
       supabase.from('evaluaciones').select('*'),
       supabase.from('evaluacion_detalles').select('evaluacion_id, puntaje'),
+      supabase.from('reglamento_etapa').select('*'),
     ])
 
     if (ev.error) logError('eventos', ev.error.message)
@@ -55,6 +58,7 @@ export function PanelDataProvider({ children }: { children: ReactNode }) {
     setCriterios((cr.data ?? []) as Criterio[])
     setEvaluaciones((evals.data ?? []) as Evaluacion[])
     setDetalles((dets.data ?? []) as EvaluacionDetalle[])
+    setReglamentos((regls.data ?? []) as ReglamentoEtapa[])
 
     logFilas('panel: candidatas', ca.data ?? [])
     logFilas('panel: jurados', ju.data ?? [])
@@ -72,8 +76,8 @@ export function PanelDataProvider({ children }: { children: ReactNode }) {
   }, [cargarDatos, cargarEstado])
 
   const valor = useMemo<PanelData>(
-    () => ({ evento, candidatas, jurados, criterios, evaluaciones, detalles, recargar }),
-    [evento, candidatas, jurados, criterios, evaluaciones, detalles, recargar],
+    () => ({ evento, candidatas, jurados, criterios, evaluaciones, detalles, reglamentos, recargar }),
+    [evento, candidatas, jurados, criterios, evaluaciones, detalles, reglamentos, recargar],
   )
 
   return <PanelDataContext.Provider value={valor}>{children}</PanelDataContext.Provider>

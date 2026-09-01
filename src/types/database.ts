@@ -32,7 +32,15 @@ export interface Criterio {
   etapa: string
   nombre: string
   puntaje_maximo: number
+  indicadores: string | null
   orden: number
+}
+
+export interface ReglamentoEtapa {
+  id: string
+  etapa: string
+  contenido: string
+  updated_at: string
 }
 
 export interface Evaluacion {

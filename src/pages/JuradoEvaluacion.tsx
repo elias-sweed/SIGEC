@@ -356,6 +356,7 @@ export default function JuradoEvaluacion() {
                       label={cr.nombre}
                       value={puntaje}
                       max={cr.puntaje_maximo}
+                      descripcion={cr.indicadores ?? undefined}
                       onChange={(v) => handleSliderChange(cr.id, v)}
                     />
                   )

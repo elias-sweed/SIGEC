@@ -1,5 +1,26 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Reglamento oficial en BD (criterios + indicadores)
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Criterios reales de la 1ª etapa en la BD** (columna `indicadores` en `criterios`):
+  Presentación y porte 15 · Coreografía 15 · Dominio del tema 25 · Expresión y argumentación 25 · Actitud y carisma 10 · Participación de la barra 10 (**Total 100**), con sus indicadores oficiales.
+- **Tabla `reglamento_etapa`**: guarda el texto completo de disposiciones de cada etapa; se muestra en el panel (Criterios) cargado desde Supabase.
+- **El jurado ve los indicadores** de cada criterio mientras evalúa (ScoreSlider con descripción).
+- **Migración requerida**: `supabase/migrations/20260901110000_criterios_indicadores_reglamento.sql`.
+
+### Archivos modificados
+
+- `supabase/migrations/20260901110000_criterios_indicadores_reglamento.sql` (nuevo)
+- `supabase/SETUP_COMPLETO.sql`
+- `src/types/database.ts`, `src/constants/criteriosOficiales.ts`
+- `src/pages/admin/Criterios.tsx`, `src/context/PanelDataContext.tsx`
+- `src/pages/JuradoEvaluacion.tsx`, `src/components/event/ScoreSlider.tsx`
+
 ## Intermedio — Dos etapas y edición/eliminación del evento
 
 Fecha: 01/09/2026

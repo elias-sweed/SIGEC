@@ -33,8 +33,16 @@ create table if not exists public.criterios (
   etapa text not null,
   nombre text not null,
   puntaje_maximo numeric(5, 2) not null check (puntaje_maximo > 0),
+  indicadores text,
   orden integer not null check (orden > 0),
   unique (etapa, orden)
+);
+
+create table if not exists public.reglamento_etapa (
+  id uuid primary key default gen_random_uuid(),
+  etapa text not null unique,
+  contenido text not null,
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.evaluaciones (
@@ -90,6 +98,9 @@ alter table public.jurados add column if not exists activado boolean not null de
 alter table public.jurados add column if not exists email_interno text;
 alter table public.jurados add column if not exists auth_uid uuid;
 alter table public.jurados add column if not exists token_acceso text;
+
+-- 6b. Indicadores de criterios
+alter table public.criterios add column if not exists indicadores text;
 
 -- =============================================
 -- SIGEC — POLÍTICAS RLS PARA DESARROLLO

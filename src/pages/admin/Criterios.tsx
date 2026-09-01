@@ -7,7 +7,7 @@ import { logConsulta, logError } from '../../utils/devlog'
 import { CRITERIOS_OFICIALES } from '../../constants/criteriosOficiales'
 
 export default function Criterios() {
-  const { evento, criterios, recargar } = usePanelData()
+  const { evento, criterios, reglamentos, recargar } = usePanelData()
 
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -15,6 +15,7 @@ export default function Criterios() {
   const etapa = evento?.etapa ?? ''
   const criteriosEtapa = criterios.filter((c) => c.etapa === etapa)
   const oficiales = CRITERIOS_OFICIALES[etapa]
+  const reglamento = reglamentos.find((r) => r.etapa === etapa)?.contenido ?? null
 
   const cargar = async () => {
     if (!etapa || !oficiales) return
@@ -26,6 +27,7 @@ export default function Criterios() {
         etapa,
         nombre: c.nombre,
         puntaje_maximo: c.puntaje_maximo,
+        indicadores: c.indicadores,
         orden: i + 1,
       })),
       { onConflict: 'etapa,orden' },
@@ -52,11 +54,12 @@ export default function Criterios() {
           Primero crea el evento para definir la etapa.
         </p>
       ) : (
-        <Section
-          titulo="Criterios oficiales"
-          descripcion={`Etapa actual: ${etapa}`}
-          completado={criteriosEtapa.length > 0}
-        >
+        <>
+          <Section
+            titulo="Criterios oficiales"
+            descripcion={`Etapa actual: ${etapa}`}
+            completado={criteriosEtapa.length > 0}
+          >
           {error && <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
           <div className="rounded-lg border border-white/10 bg-navy-800/50 p-3 text-xs leading-relaxed text-navy-300">
             Los criterios oficiales para la etapa <strong className="text-gold-400">{etapa}</strong>{' '}
@@ -79,15 +82,22 @@ export default function Criterios() {
               {criteriosEtapa.map((c) => (
                 <li
                   key={c.id}
-                  className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
+                  className="rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
                 >
-                  <span className="text-white">
-                    <span className="text-navy-500">#{c.orden} </span>
-                    {c.nombre}
-                  </span>
-                  <span className="font-mono text-xs font-bold text-gold-400">
-                    {c.puntaje_maximo} pts
-                  </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-white">
+                      <span className="text-navy-500">#{c.orden} </span>
+                      {c.nombre}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs font-bold text-gold-400">
+                      {c.puntaje_maximo} pts
+                    </span>
+                  </div>
+                  {c.indicadores && (
+                    <p className="mt-1.5 border-t border-white/5 pt-1.5 text-xs leading-relaxed text-navy-400">
+                      {c.indicadores}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
@@ -95,6 +105,19 @@ export default function Criterios() {
             <p className="mt-4 text-center text-sm text-navy-500">Sin criterios cargados todavía.</p>
           )}
         </Section>
+
+        {reglamento && (
+          <Section
+            titulo={`Reglamento · ${etapa}`}
+            descripcion="Disposiciones oficiales de la etapa (cargado desde la base de datos)"
+            completado={!!reglamento}
+          >
+            <div className="whitespace-pre-line rounded-lg border border-white/10 bg-navy-800/40 p-4 text-sm leading-relaxed text-navy-200">
+              {reglamento}
+            </div>
+          </Section>
+        )}
+        </>
       )}
     </div>
   )

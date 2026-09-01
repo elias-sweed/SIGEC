@@ -417,7 +417,7 @@ export default function JuradoEvaluacion() {
               </div>
               <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-navy-800">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-all duration-500"
+                  className="h-full rounded-full bg-linear-to-r from-gold-600 to-gold-400 transition-all duration-500"
                   style={{ width: `${pctTotal}%` }}
                 />
               </div>

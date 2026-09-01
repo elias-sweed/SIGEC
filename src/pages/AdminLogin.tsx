@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import PasswordInput from '../components/form/PasswordInput'
+import Lightning from '../components/effects/Lightning'
 import { esSuperadminAutenticado, iniciarSesionSuperadmin } from '../lib/adminAuth'
 import { logError } from '../utils/devlog'
 
@@ -55,9 +56,14 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-navy-950 px-6 py-12">
-      <div className="mx-auto w-full max-w-md">
-      <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 shadow-2xl">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-navy-950 px-6 py-12">
+      {/* Fondo de rayos solo en el login del administrador */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60">
+        <Lightning hue={260} xOffset={0} speed={1.2} intensity={1.1} size={1.2} />
+      </div>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-navy-950/40 via-transparent to-navy-950" />
+      <div className="relative z-10 mx-auto w-full max-w-md">
+      <div className="rounded-2xl border border-white/10 bg-navy-900/80 p-8 shadow-2xl backdrop-blur-md">
         <div className="flex flex-col items-center text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500 text-3xl">
             🔐

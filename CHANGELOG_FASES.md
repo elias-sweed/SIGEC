@@ -1,5 +1,20 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Fondo de rayos en el login del administrador
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Componente `Lightning`** (WebGL, canvas) creado en `src/components/effects/Lightning.tsx` a partir del shader de rayos; sin dependencias externas.
+- **Solo en `AdminLogin`**: el rayo se dibuja de fondo a pantalla completa (opacity 60 %), con un degradado navy arriba/abajo para legibilidad y la tarjeta de login con `bg-navy-900/80` + `backdrop-blur`. El resto de la app no se ve afectado.
+
+### Archivos modificados
+
+- `src/components/effects/Lightning.tsx` (nuevo)
+- `src/pages/AdminLogin.tsx`
+
 ## Intermedio — Nueva interfaz de evaluación del jurado
 
 Fecha: 01/09/2026

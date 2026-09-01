@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { getSupabase } from '../lib/supabase'
 import PasswordInput from '../components/form/PasswordInput'
 import { emailDeJurado, marcarActivado, obtenerJuradoPorCodigo } from '../services/jurado.service'
-import { marcarActivadoLocal } from '../utils/session'
+import { marcarActivadoLocal, estaActivadoLocal } from '../utils/session'
 import { logConsulta, logError } from '../utils/devlog'
 import type { Jurado } from '../types/database'
 
@@ -30,6 +30,15 @@ export default function JuradoActivar() {
       setCargando(false)
     })()
   }, [codigo])
+
+  // Si el jurado ya está activado, el QR ya no es "primer acceso":
+  // se va directo al login con la contraseña.
+  useEffect(() => {
+    if (!jurado || cargando) return
+    if (jurado.activado || estaActivadoLocal(jurado.codigo)) {
+      navigate(`/jurado?codigo=${jurado.codigo}`, { replace: true })
+    }
+  }, [jurado, cargando, navigate])
 
   if (!codigo) {
     return <Navigate to="/jurado" replace />

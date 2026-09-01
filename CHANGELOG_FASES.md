@@ -1,5 +1,23 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Acceso por QR sin escribir el código
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **El QR lleva el código**: al escanear su QR, el jurado ya no teclea `JUR-001`. El código viaja en la URL y la app lo identifica sola.
+- **Primera vez (no activado)**: el QR abre directamente el formulario de "crear contraseña" (activación).
+- **Ya activado**: el QR abre directamente la pantalla de contraseña, mostrando el nombre y código del jurado detectados automáticamente.
+- **Jurado activado que reescanea su QR de activación**: en vez de volver a activar, se redirige a la pantalla de contraseña.
+- Se mantienen el acceso oculto y el bloqueo anti fuerza bruta de la fase anterior.
+
+### Archivos modificados
+
+- `src/pages/JuradoLogin.tsx`
+- `src/pages/JuradoActivar.tsx`
+
 ## Intermedio — Acceso del jurado oculto y blindado
 
 Fecha: 01/09/2026

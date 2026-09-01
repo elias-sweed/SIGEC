@@ -48,6 +48,29 @@ export default function JuradoLogin() {
     })()
   }, [navigate])
 
+  // Si el código viene en la URL (QR), se valida solo y salta a la contraseña,
+  // sin que el jurado tenga que escribirlo.
+  useEffect(() => {
+    const c = (params.get('codigo') ?? '').trim().toUpperCase()
+    if (!c || leerSesionJurado()) return
+    let activo = true
+    ;(async () => {
+      const j = await obtenerJuradoPorCodigo(c)
+      if (!activo) return
+      if (!j) return
+      if (!j.activado && !estaActivadoLocal(c)) {
+        // Cuenta aún no creada: se va directo a activación.
+        navigate(`/jurado/activar?codigo=${c}`, { replace: true })
+        return
+      }
+      setJurado(j)
+      setVerificando(false)
+    })()
+    return () => {
+      activo = false
+    }
+  }, [params, navigate])
+
   const verificarCodigo = async () => {
     const codigoLimpio = codigo.trim().toUpperCase()
     if (!codigoLimpio) {

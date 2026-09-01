@@ -31,6 +31,14 @@ Estado: Completada
 - `src/pages/admin/Resumen.tsx`, `Conectados.tsx`, `Candidatas.tsx`, `Jurados.tsx`, `Evento.tsx`, `Criterios.tsx`
 - `src/layouts/AdminLayout.tsx`
 
+### Sidebar premium
+
+- Enlace activo con gradiente dorado + barra indicadora lateral y glow.
+- Logo con aro dorado y resplandor; título "ECSA 2026" con gradiente de texto.
+- Nombre del evento como chip dorado.
+- Tarjetas de métricas (Candidatas / Activados / Criterios) con gradiente y sombra interior.
+- Cerrar sesión refinado (hover rojo suave); fondo del sidebar en gradiente con blur.
+
 ## Intermedio — Fondo Beams 3D en el contenido del panel
 
 Fecha: 01/09/2026

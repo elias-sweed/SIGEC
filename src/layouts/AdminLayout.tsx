@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { cerrarSesionSuperadmin } from '../lib/adminAuth'
 import { PanelDataProvider, usePanelData } from '../context/PanelDataContext'
@@ -104,11 +104,28 @@ function AdminLayoutContent() {
   const totalActivados = jurados.filter((j) => j.activado).length
 
   const enlaceClase = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
+    `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 ${
       colapsado ? 'justify-center px-0' : ''
     } ${
-      isActive ? 'bg-gold-500 text-navy-950' : 'text-navy-200 hover:bg-white/5 hover:text-white'
+      isActive
+        ? 'bg-gradient-to-r from-gold-500/25 via-gold-500/10 to-transparent text-gold-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-gold-500/40'
+        : 'text-navy-200 hover:bg-white/5 hover:text-white'
     }`
+
+  const linkInterior = (s: { ruta: string; etiqueta: string; icono: ReactNode; end?: boolean }, isActive: boolean) => (
+    <>
+      {!colapsado && (
+        <span
+          aria-hidden
+          className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-gold-300 to-gold-500 transition-opacity duration-200 ${
+            isActive ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+      )}
+      <span className="shrink-0">{s.icono}</span>
+      {!colapsado && <span className="truncate">{s.etiqueta}</span>}
+    </>
+  )
 
   const contenidoSidebar = (
     <div className="flex h-full flex-col">
@@ -117,12 +134,12 @@ function AdminLayoutContent() {
           colapsado ? 'flex-col px-0' : 'px-2'
         }`}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-navy-800/60 ring-1 ring-white/10">
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-b from-navy-700 to-navy-900 shadow-[0_0_18px_rgba(201,162,39,0.35)] ring-1 ring-gold-500/50">
           <img src={logo} alt="Logo del certamen" className="h-9 w-9 object-contain" />
         </span>
         {!colapsado && (
           <div className="min-w-0 leading-tight">
-            <span className="block truncate text-sm font-semibold tracking-wide text-white">
+            <span className="block truncate bg-gradient-to-r from-gold-200 via-gold-300 to-gold-500 bg-clip-text text-sm font-bold tracking-wide text-transparent">
               ECSA 2026
             </span>
             <span className="block truncate text-[11px] text-navy-400">Centro de Control</span>
@@ -131,7 +148,7 @@ function AdminLayoutContent() {
       </div>
 
       {!colapsado && (
-        <p className="truncate px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-500">
+        <p className="mx-2 mb-3 truncate rounded-lg border border-gold-500/20 bg-gold-500/5 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-gold-300/80">
           {evento?.nombre ?? 'Sin certamen'}
         </p>
       )}
@@ -146,8 +163,7 @@ function AdminLayoutContent() {
             onClick={() => setMobileAbierto(false)}
             title={colapsado ? s.etiqueta : undefined}
           >
-            <span className="shrink-0">{s.icono}</span>
-            {!colapsado && <span className="truncate">{s.etiqueta}</span>}
+            {({ isActive }) => linkInterior(s, isActive)}
           </NavLink>
         ))}
       </nav>
@@ -155,15 +171,15 @@ function AdminLayoutContent() {
       <div className={`space-y-3 border-t border-white/10 py-4 ${colapsado ? 'px-0' : 'px-2'}`}>
         {!colapsado && (
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-lg bg-navy-800/60 px-1 py-2">
-              <p className="text-lg font-bold leading-none text-gold-400">{candidatas.length}</p>
+            <div className="rounded-xl border border-white/10 bg-gradient-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <p className="text-lg font-bold leading-none text-gold-300">{candidatas.length}</p>
               <p className="mt-1 text-[10px] uppercase tracking-wider text-navy-400">Candidatas</p>
             </div>
-            <div className="rounded-lg bg-navy-800/60 px-1 py-2">
-              <p className="text-lg font-bold leading-none text-emerald-400">{totalActivados}</p>
+            <div className="rounded-xl border border-white/10 bg-gradient-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <p className="text-lg font-bold leading-none text-emerald-300">{totalActivados}</p>
               <p className="mt-1 text-[10px] uppercase tracking-wider text-navy-400">Activados</p>
             </div>
-            <div className="rounded-lg bg-navy-800/60 px-1 py-2">
+            <div className="rounded-xl border border-white/10 bg-gradient-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <p className="text-lg font-bold leading-none text-white">{criterios.length}</p>
               <p className="mt-1 text-[10px] uppercase tracking-wider text-navy-400">Criterios</p>
             </div>
@@ -173,7 +189,7 @@ function AdminLayoutContent() {
         <button
           onClick={cerrar}
           title={colapsado ? 'Cerrar sesión' : undefined}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3.5 py-2.5 text-sm font-medium text-navy-200 transition hover:bg-red-500/10 hover:text-red-400"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm font-medium text-navy-200 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4 shrink-0">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m-3 3l-3-3m3 3h-9" />
@@ -188,7 +204,7 @@ function AdminLayoutContent() {
     <div className="flex h-screen overflow-hidden bg-navy-950 text-white">
       {/* Sidebar escritorio (estático) */}
       <aside
-        className={`hidden shrink-0 border-r border-white/10 bg-navy-900 transition-all duration-300 lg:block ${
+        className={`relative hidden shrink-0 border-r border-white/10 bg-gradient-to-b from-navy-900 to-navy-950 backdrop-blur transition-all duration-300 lg:block ${
           colapsado ? 'w-16' : 'w-64'
         }`}
       >
@@ -199,7 +215,7 @@ function AdminLayoutContent() {
       {mobileAbierto && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileAbierto(false)} />
-          <aside className="absolute left-0 top-0 h-full w-64 border-r border-white/10 bg-navy-900">
+          <aside className="absolute left-0 top-0 h-full w-64 border-r border-white/10 bg-gradient-to-b from-navy-900 to-navy-950">
             {contenidoSidebar}
           </aside>
         </div>

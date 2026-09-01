@@ -64,23 +64,10 @@ export default function MainLayout() {
           </nav>
 
           <nav className="flex flex-wrap items-center gap-1.5 border-l border-white/10 pl-5">
-            <NavLink
-              to="/admin"
-              end
-              className={({ isActive }) =>
-                `rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-gold-500 text-navy-950'
-                    : 'border border-gold-500/40 text-gold-400 hover:bg-gold-500/10'
-                }`
-              }
-            >
-              Admin
-            </NavLink>
             {admin ? (
               <button
                 onClick={cerrar}
-                className="ml-1 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-navy-200 transition hover:bg-red-500/10 hover:text-red-400"
+                className="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-navy-200 transition hover:bg-red-500/10 hover:text-red-400"
               >
                 Cerrar sesión
               </button>

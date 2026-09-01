@@ -1,23 +1,38 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-
-const accesos = [
-  {
-    to: '/panel',
-    titulo: 'Centro de Control',
-    descripcion: 'Prepara el certamen, gestiona jurados y candidatas, e inicia la evaluación.',
-    icono: '⚙',
-    etiqueta: 'Administrar',
-  },
-  {
-    to: '/pantalla',
-    titulo: 'Pantalla Pública',
-    descripcion: 'Proyección del certamen para la audiencia.',
-    icono: '📺',
-    etiqueta: 'Ver',
-  },
-]
+import { esSuperadminAutenticado } from '../lib/adminAuth'
 
 export default function Home() {
+  const [admin, setAdmin] = useState(false)
+
+  useEffect(() => {
+    let activo = true
+    ;(async () => {
+      const ok = await esSuperadminAutenticado()
+      if (activo) setAdmin(ok)
+    })()
+    return () => {
+      activo = false
+    }
+  }, [])
+
+  const accesos = [
+    {
+      to: '/panel',
+      titulo: 'Centro de Control',
+      descripcion: 'Prepara el certamen, gestiona jurados y candidatas, e inicia la evaluación.',
+      icono: '⚙',
+      etiqueta: 'Administrar',
+    },
+    {
+      to: '/pantalla',
+      titulo: 'Pantalla Pública',
+      descripcion: 'Proyección del certamen para la audiencia.',
+      icono: '📺',
+      etiqueta: 'Ver',
+    },
+  ].filter((acceso) => (admin || acceso.to !== '/panel'))
+
   return (
     <div className="space-y-10 text-center">
       <div className="relative">

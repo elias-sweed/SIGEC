@@ -1,5 +1,19 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Logo del colegio en el login del admin
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- Reemplazado el emoji 🔐 por el logo de la institución (`src/assets/Logo/logo.png`) en la tarjeta de login del administrador, dentro de un contenedor redondeado.
+- El resto de la app sin cambios.
+
+### Archivos modificados
+
+- `src/pages/AdminLogin.tsx`
+
 ## Intermedio — Fondo de rayos en el login del administrador
 
 Fecha: 01/09/2026

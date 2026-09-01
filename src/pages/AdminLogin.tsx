@@ -4,6 +4,7 @@ import PasswordInput from '../components/form/PasswordInput'
 import Lightning from '../components/effects/Lightning'
 import { esSuperadminAutenticado, iniciarSesionSuperadmin } from '../lib/adminAuth'
 import { logError } from '../utils/devlog'
+import logo from '../assets/Logo/logo.png'
 
 export default function AdminLogin() {
   const navigate = useNavigate()
@@ -65,8 +66,8 @@ export default function AdminLogin() {
       <div className="relative z-10 mx-auto w-full max-w-md">
       <div className="rounded-2xl border border-white/10 bg-navy-900/80 p-8 shadow-2xl backdrop-blur-md">
         <div className="flex flex-col items-center text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500 text-3xl">
-            🔐
+          <span className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-navy-800/60">
+            <img src={logo} alt="Logo Jiménez Pimentel" className="h-full w-full object-contain" />
           </span>
           <p className="mt-4 text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
             Acceso restringido

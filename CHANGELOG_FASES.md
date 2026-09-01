@@ -1,5 +1,22 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Códigos de jurado aleatorios y login admin centrado
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Códigos de jurado aleatorios**: en vez de `JUR-001`, `JUR-002` (secuenciales y predecibles), cada jurado recibe un código único e impredecible tipo `JUR-A7K2QX` (6 caracteres, sin O/0/I/1/L para evitar confusiones al leerlos). Esto también hace impredecible el correo interno derivado (`jur-a7k2qx@gmail.com`), reforzando la seguridad del acceso.
+- **Tarjetas/QR**: el PDF y el QR usan automáticamente el código aleatorio de cada jurado (sin cambios en generación, solo cambia el origen del código).
+- **Login admin centrado**: la pantalla `/admin` ahora se muestra centrada vertical y horizontalmente (antes quedaba pegada arriba).
+
+### Archivos modificados
+
+- `src/utils/codigos.ts` (nuevo: generador de códigos)
+- `src/pages/admin/Jurados.tsx`
+- `src/pages/AdminLogin.tsx`
+
 ## Intermedio — Acceso por QR sin escribir el código
 
 Fecha: 01/09/2026

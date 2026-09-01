@@ -42,8 +42,10 @@ export default function AdminLogin() {
 
   if (verificando) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
-        <p className="text-sm text-navy-400">Verificando sesión…</p>
+      <div className="flex min-h-screen items-center justify-center bg-navy-950 px-6 py-12">
+        <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
+          <p className="text-sm text-navy-400">Verificando sesión…</p>
+        </div>
       </div>
     )
   }
@@ -53,7 +55,8 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-navy-950 px-6 py-12">
+      <div className="mx-auto w-full max-w-md">
       <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 shadow-2xl">
         <div className="flex flex-col items-center text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500 text-3xl">
@@ -106,6 +109,7 @@ export default function AdminLogin() {
         <p className="mt-5 text-center text-xs leading-relaxed text-navy-500">
           Solo el correo autorizado puede acceder. <Link to="/" className="text-gold-400 hover:underline">Volver al inicio</Link>
         </p>
+      </div>
       </div>
     </div>
   )

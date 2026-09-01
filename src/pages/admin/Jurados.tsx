@@ -4,6 +4,7 @@ import Section from '../../components/admin/Section'
 import { IconoCheck, IconoLapiz, IconoPapelera } from '../../components/admin/Iconos'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
+import { generarCodigoJurado } from '../../utils/codigos'
 import { logConsulta, logError } from '../../utils/devlog'
 
 export default function Jurados() {
@@ -38,13 +39,7 @@ export default function Jurados() {
     await recargar()
   }
 
-  const siguienteCodigo = useMemo(() => {
-    const maxN = jurados.reduce((max, j) => {
-      const n = parseInt(j.codigo.replace(/^JUR-/i, ''), 10)
-      return Number.isFinite(n) ? Math.max(max, n) : max
-    }, 0)
-    return `JUR-${String(maxN + 1).padStart(3, '0')}`
-  }, [jurados])
+  const siguienteCodigo = useMemo(() => generarCodigoJurado(), [jurados])
 
   const agregar = async () => {
     if (!nombre.trim()) {
@@ -83,7 +78,7 @@ export default function Jurados() {
       <PanelHeader
         eyebrow="Configuración"
         title="Jurados"
-        description="Registra a los jurados. Cada uno recibe un código automático (JUR-001…) que usarás en el QR de acceso."
+        description="Registra a los jurados. Cada uno recibe un código único y aleatorio que usarás en su QR de acceso."
       />
 
       <Section

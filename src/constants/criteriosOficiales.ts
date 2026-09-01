@@ -44,9 +44,47 @@ export const CRITERIOS_OFICIALES: Record<string, CriterioOficial[]> = {
     },
   ],
   'SEGUNDA ETAPA 18/09/26': [
-    { nombre: 'Técnica de ejecución', puntaje_maximo: 40, indicadores: 'Precisión, destreza y dominio técnico en la presentación final.' },
-    { nombre: 'Interpretación artística', puntaje_maximo: 30, indicadores: 'Expresión, emotividad y comunicación del mensaje artístico.' },
-    { nombre: 'Presencia escénica', puntaje_maximo: 30, indicadores: 'Carisma, seguridad y proyección frente al público durante la coronación.' },
+    {
+      nombre: 'Porte y elegancia en traje de gala',
+      puntaje_maximo: 15,
+      indicadores:
+        'Postura, presencia escénica, elegancia y manera de lucir el traje durante el recorrido.',
+    },
+    {
+      nombre: 'Seguridad y desenvolvimiento escénico',
+      puntaje_maximo: 15,
+      indicadores:
+        'Confianza, naturalidad, dominio del escenario y actitud durante la pasarela.',
+    },
+    {
+      nombre: 'Expresión corporal y comunicación no verbal',
+      puntaje_maximo: 10,
+      indicadores: 'Manejo de gestos, mirada, postura y movimientos acordes con la presentación.',
+    },
+    {
+      nombre: 'Claridad y coherencia de la respuesta',
+      puntaje_maximo: 15,
+      indicadores:
+        'Expresa sus ideas de manera ordenada, comprensible y directamente relacionada con la pregunta formulada.',
+    },
+    {
+      nombre: 'Capacidad de análisis y argumentación',
+      puntaje_maximo: 20,
+      indicadores:
+        'Fundamenta su opinión, demuestra criterio propio, reflexión y capacidad para sustentar sus ideas.',
+    },
+    {
+      nombre: 'Expresión oral y seguridad en la respuesta',
+      puntaje_maximo: 15,
+      indicadores:
+        'Fluidez, dicción, tono de voz, seguridad y espontaneidad al responder.',
+    },
+    {
+      nombre: 'Participación de la barra',
+      puntaje_maximo: 10,
+      indicadores:
+        'Organización, creatividad y entusiasmo de la barra, respetando las normas de convivencia.',
+    },
   ],
 }
 

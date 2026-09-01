@@ -1,5 +1,22 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Segunda etapa oficial en BD (Gran Final 18/09/26)
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Criterios reales de la 2ª etapa** (7 criterios, Total 100 pts) en BD con sus indicadores: Porte y elegancia 15 · Seguridad y desenvolvimiento escénico 15 · Expresión corporal 10 · Claridad y coherencia 15 · Capacidad de análisis y argumentación 20 · Expresión oral y seguridad 15 · Participación de la barra 10.
+- **Reglamento completo de la Gran Final** en `reglamento_etapa`: apertura y coreografía, desfile sport, talentos (máx. 3 min), traje de gala, ronda de preguntas (9 temas), elección y coronación, títulos, premios y disposiciones finales.
+- Los criterios anteriores de la 2ª etapa (Técnica/Interpretación/Presencia) quedan reemplazados al ejecutar la migración.
+- **Migración requerida**: `supabase/migrations/20260901120000_segunda_etapa_oficial.sql`.
+
+### Archivos modificados
+
+- `supabase/migrations/20260901120000_segunda_etapa_oficial.sql` (nuevo)
+- `src/constants/criteriosOficiales.ts` (7 criterios de etapa 2 con indicadores)
+
 ## Intermedio — Reglamento oficial en BD (criterios + indicadores)
 
 Fecha: 01/09/2026

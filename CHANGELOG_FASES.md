@@ -1,5 +1,19 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Logo y siglas del certamen en el panel
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- En `AdminApp`, la "S" del sidebar fue reemplazada por el **logo de la institución**.
+- El texto "SIGEC" ahora muestra **ECSA 2026** (siglas de Elección · Coronación · Señorita · Aniversario del concurso oficial).
+
+### Archivos modificados
+
+- `src/layouts/AdminLayout.tsx`
+
 ## Intermedio — Logo del colegio en el login del admin
 
 Fecha: 01/09/2026

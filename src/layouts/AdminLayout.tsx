@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { cerrarSesionSuperadmin } from '../lib/adminAuth'
 import { PanelDataProvider, usePanelData } from '../context/PanelDataContext'
+import logo from '../assets/Logo/logo.png'
 
 interface SeccionItem {
   ruta: string
@@ -114,13 +115,13 @@ function AdminLayoutContent() {
           colapsado ? 'flex-col px-0' : 'px-2'
         }`}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold-500 text-lg font-bold text-navy-950">
-          S
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-navy-800/60 ring-1 ring-white/10">
+          <img src={logo} alt="Logo del certamen" className="h-9 w-9 object-contain" />
         </span>
         {!colapsado && (
           <div className="min-w-0 leading-tight">
-            <span className="block truncate text-base font-semibold tracking-wide text-white">
-              SIGEC
+            <span className="block truncate text-sm font-semibold tracking-wide text-white">
+              ECSA 2026
             </span>
             <span className="block truncate text-[11px] text-navy-400">Centro de Control</span>
           </div>

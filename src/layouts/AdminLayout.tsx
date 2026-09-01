@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { cerrarSesionSuperadmin } from '../lib/adminAuth'
 import { PanelDataProvider, usePanelData } from '../context/PanelDataContext'
 import logo from '../assets/Logo/logo.png'
+
+const Beams = lazy(() => import('../components/effects/Beams'))
 
 interface SeccionItem {
   ruta: string
@@ -204,8 +206,26 @@ function AdminLayoutContent() {
       )}
 
       {/* Columna principal con scroll propio */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between gap-3 border-b border-white/10 bg-navy-950/80 px-4 py-3 backdrop-blur">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Fondo de beams para el contenido del panel */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 z-0 bg-navy-950">
+          <Suspense fallback={null}>
+            <Beams
+              beamWidth={3}
+              beamHeight={30}
+              beamNumber={20}
+              lightColor="#ffffff"
+              speed={2}
+              noiseIntensity={1.75}
+              scale={0.2}
+              rotation={30}
+              beamColor="#000000"
+              backgroundColor="#06070f"
+            />
+          </Suspense>
+        </div>
+
+        <header className="relative z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-navy-950/80 px-4 py-3 backdrop-blur">
           <span className="hidden truncate text-sm font-semibold text-white sm:block">
             {evento?.nombre ?? 'Centro de Control'}
           </span>
@@ -242,7 +262,7 @@ function AdminLayoutContent() {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-8">
+        <main className="relative z-10 min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-8">
           <Outlet />
         </main>
       </div>

@@ -1,5 +1,23 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Fondo Beams 3D en el contenido del panel
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Dependencias nuevas**: `three`, `@react-three/fiber`, `@react-three/drei` (solo se usan en el panel).
+- **Componente `Beams`** (`src/components/effects/Beams.tsx`): fondo 3D de haces de luz metálicos animados (WebGL).
+- El panel (modo admin) muestra el fondo de beams detrás del contenido; las tarjetas semitransparentes dejan ver el efecto.
+- **Lazy loading**: `Beams` se carga con `React.lazy`, por lo que el bundle de three (~890 kB) solo se descarga al entrar al panel; el resto de la app conserva su tamaño.
+
+### Archivos modificados
+
+- `src/components/effects/Beams.tsx` (nuevo)
+- `src/layouts/AdminLayout.tsx`
+- `package.json` / `package-lock.json`
+
 ## Intermedio — Logo y siglas del certamen en el panel
 
 Fecha: 01/09/2026

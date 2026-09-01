@@ -15,6 +15,16 @@ interface DetalleState {
   puntaje: number
 }
 
+function iniciales(nombre: string): string {
+  return nombre
+    .trim()
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
 export default function JuradoEvaluacion() {
   const { candidatas, eventoCandidato: evento, estadoEvento } = useCertamen()
   const navigate = useNavigate()
@@ -225,20 +235,27 @@ export default function JuradoEvaluacion() {
   }
 
   const evaluando = estadoEvento?.estado === 'evaluando'
+  const total = calcularTotal(detalles)
+  const pctEvaluadas = candidatas.length > 0 ? (evaluadasIds.size / candidatas.length) * 100 : 0
+  const pctTotal = Math.min(100, total)
 
   return (
-    <div className="space-y-4">
-      {/* Encabezado de sesión */}
-      <header className="rounded-2xl border border-white/10 bg-navy-900/70 p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-500 text-lg">
+    <div className="min-h-screen bg-navy-950 pb-28">
+      {/* Encabezado compacto */}
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-navy-950/95 px-4 py-3 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-500 text-base">
               🏆
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{jurado.nombre}</p>
-              <p className="font-mono text-xs font-bold text-gold-400">{jurado.codigo}</p>
+              <p className="font-mono text-[10px] font-bold text-gold-400">{jurado.codigo}</p>
             </div>
+          </div>
+          <div className="hidden min-w-0 sm:block">
+            <p className="text-center text-[10px] uppercase tracking-widest text-navy-500">Etapa</p>
+            <p className="truncate text-xs font-semibold text-gold-400">{evento?.etapa ?? '—'}</p>
           </div>
           <button
             onClick={salir}
@@ -247,154 +264,198 @@ export default function JuradoEvaluacion() {
             Salir
           </button>
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-4 text-sm">
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-navy-500">Etapa</p>
-            <p className="font-semibold text-gold-400">{evento?.etapa ?? '—'}</p>
-          </div>
-        </div>
       </header>
 
-      {!evaluando ? (
-        <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
-          <p className="text-lg font-semibold text-navy-300">
-            Estado actual:{' '}
-            <span className="text-gold-400">
-              {estadoEvento ? (EVENT_STATE_LABELS[estadoEvento.estado as EventState] ?? estadoEvento.estado) : 'Preparando'}
-            </span>
-          </p>
-          <p className="mt-3 text-sm text-navy-500">
-            El administrador debe iniciar la evaluación desde el Centro de Control. Esta pantalla se
-            habilitará automáticamente cuando comience.{' '}
-            {evento && `Etapa: ${evento.etapa}`}
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Selector de candidata */}
-          {!candidataSel ? (
-            <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
-                Selecciona la candidata a evaluar
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-semibold text-emerald-400">
-                  ● Ya evaluada — toca para corregir
+      <main className="mx-auto max-w-5xl px-4 pt-4">
+        {!evaluando ? (
+          <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
+            <p className="text-lg font-semibold text-navy-300">
+              Estado actual:{' '}
+              <span className="text-gold-400">
+                {estadoEvento ? (EVENT_STATE_LABELS[estadoEvento.estado as EventState] ?? estadoEvento.estado) : 'Preparando'}
+              </span>
+            </p>
+            <p className="mt-3 text-sm text-navy-500">
+              El administrador debe iniciar la evaluación desde el Centro de Control. Esta pantalla se
+              habilitará automáticamente cuando comience.{' '}
+              {evento && `Etapa: ${evento.etapa}`}
+            </p>
+          </div>
+        ) : !candidataSel ? (
+          <>
+            {/* Progreso general */}
+            <div className="mb-4 rounded-2xl border border-white/10 bg-navy-900/70 p-4">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold uppercase tracking-widest text-gold-400">
+                  Selecciona la candidata a evaluar
+                </span>
+                <span className="tabular-nums font-bold text-navy-200">
+                  {evaluadasIds.size} / {candidatas.length} evaluadas
                 </span>
               </div>
-              {candidatas.length === 0 ? (
-                <p className="mt-4 text-sm text-navy-500">Sin candidatas registradas.</p>
-              ) : (
-                <div className="mt-4 grid gap-2">
-                  {candidatas.map((c) => {
-                    const evaluada = evaluadasIds.has(c.id)
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => setCandidataSel(c)}
-                        className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-navy-800">
+                <div
+                  className="h-full rounded-full bg-gold-500 transition-all duration-500"
+                  style={{ width: `${pctEvaluadas}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 font-semibold text-emerald-400">
+                  ✔ Evaluada — toca para corregir
+                </span>
+              </div>
+            </div>
+
+            {/* Cuadrícula de candidatas */}
+            {candidatas.length === 0 ? (
+              <p className="mt-4 text-center text-sm text-navy-500">Sin candidatas registradas.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {candidatas.map((c) => {
+                  const evaluada = evaluadasIds.has(c.id)
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setCandidataSel(c)}
+                      className={`group relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition ${
+                        evaluada
+                          ? 'border-emerald-500/30 bg-emerald-500/10 hover:border-emerald-500/50 hover:bg-emerald-500/15'
+                          : 'border-white/10 bg-navy-800/50 hover:border-gold-500/40 hover:bg-navy-800'
+                      }`}
+                    >
+                      {evaluada && (
+                        <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-navy-950">
+                          ✓
+                        </span>
+                      )}
+                      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gold-500/20 text-sm font-bold text-gold-400">
+                        {iniciales(c.nombre)}
+                      </span>
+                      <span className="w-full truncate text-sm font-semibold text-white">
+                        {c.nombre}
+                      </span>
+                      <span className="text-[11px] text-navy-400">
+                        {c.grado} · Sección {c.seccion}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
                           evaluada
-                            ? 'border-emerald-500/30 bg-emerald-500/10 hover:border-emerald-500/50 hover:bg-emerald-500/15'
-                            : 'border-white/10 bg-navy-800/50 hover:border-gold-500/40 hover:bg-navy-800'
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-navy-600/40 text-navy-300'
                         }`}
                       >
-                        <span className="font-semibold text-white">{c.nombre}</span>
-                        <span className="flex items-center gap-2">
-                          <span className="text-sm text-navy-300">
-                            {c.grado} · Sección {c.seccion}
-                          </span>
-                          {evaluada ? (
-                            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
-                              ✔ Evaluado · Corregir
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-navy-600/40 px-2.5 py-0.5 text-xs font-semibold text-navy-300">
-                              Evaluar
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Candidata actual */}
-              <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 text-center transition-all duration-300">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
-                  Evaluando
-                </p>
-                <h2 className="mt-1 text-3xl font-bold text-white sm:text-4xl">
-                  {candidataSel.nombre}
-                </h2>
-                <p className="mt-1 text-sm text-navy-300">
-                  {candidataSel.grado} · Sección {candidataSel.seccion}
-                </p>
-                <button
-                  onClick={() => {
-                    setCandidataSel(null)
-                    setDetalles([])
-                    setEnviado(false)
-                  }}
-                  className="mt-3 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-navy-300 transition hover:bg-navy-800 hover:text-white"
-                >
-                  ← Cambiar candidata
-                </button>
-              </div>
-
-              {/* Sliders */}
-              <div className="space-y-3">
-                {criterios.map((cr) => {
-                  const det = detalles.find((d) => d.criterio_id === cr.id)
-                  const puntaje = det?.puntaje ?? 0
-
-                  return (
-                    <ScoreSlider
-                      key={cr.id}
-                      label={cr.nombre}
-                      value={puntaje}
-                      max={cr.puntaje_maximo}
-                      descripcion={cr.indicadores ?? undefined}
-                      onChange={(v) => handleSliderChange(cr.id, v)}
-                    />
+                        {evaluada ? 'Evaluado · Corregir' : 'Evaluar'}
+                      </span>
+                    </button>
                   )
                 })}
               </div>
-
-              {/* Total */}
-              <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy-400">Total</p>
-                <p className="mt-2 text-5xl font-bold text-gold-400">{calcularTotal(detalles)}</p>
-                <p className="mt-1 text-sm text-navy-500">puntos</p>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Banner de candidata */}
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-navy-900/70 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-500/20 text-sm font-bold text-gold-400">
+                  {iniciales(candidataSel.nombre)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-white">{candidataSel.nombre}</p>
+                  <p className="text-xs text-navy-400">
+                    {candidataSel.grado} · Sección {candidataSel.seccion}
+                  </p>
+                </div>
               </div>
-
-              {error && (
-                <p className="rounded-lg bg-red-500/10 px-4 py-2 text-center text-sm text-red-400">
-                  {error}
-                </p>
-              )}
-
-              {/* Botón Enviar */}
               <button
-                onClick={handleGuardar}
-                disabled={saving || enviado}
-                className={`w-full rounded-2xl py-4 text-lg font-bold transition-all duration-300 ${
-                  enviado
-                    ? 'cursor-default bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30'
-                    : 'bg-gold-500 text-navy-900 hover:bg-gold-400 active:scale-[0.98]'
-                } disabled:opacity-70`}
+                onClick={() => {
+                  setCandidataSel(null)
+                  setDetalles([])
+                  setEnviado(false)
+                }}
+                className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-navy-300 transition hover:bg-navy-800 hover:text-white"
               >
-                {enviado
-                  ? '✓ Evaluación enviada'
-                  : saving
-                    ? 'Guardando…'
-                    : 'Guardar evaluación'}
+                ← Cambiar
               </button>
-            </>
-          )}
-        </>
+            </div>
+
+            {/* Grid 3 columnas de criterios */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {criterios.map((cr, i) => {
+                const det = detalles.find((d) => d.criterio_id === cr.id)
+                const puntaje = det?.puntaje ?? 0
+
+                return (
+                  <ScoreSlider
+                    key={cr.id}
+                    index={i + 1}
+                    label={cr.nombre}
+                    value={puntaje}
+                    max={cr.puntaje_maximo}
+                    descripcion={cr.indicadores ?? undefined}
+                    onChange={(v) => handleSliderChange(cr.id, v)}
+                  />
+                )
+              })}
+            </div>
+
+            {/* Total */}
+            <div className="mt-4 rounded-2xl border border-white/10 bg-navy-900/70 p-5">
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-navy-400">
+                    Puntaje total
+                  </p>
+                  <p className="mt-1 text-sm text-navy-500">
+                    {enviado ? 'Evaluación guardada — puedes corregir el puntaje' : 'Ajusta cada criterio con + / −'}
+                  </p>
+                </div>
+                <p className="text-right text-4xl font-bold tabular-nums leading-none text-gold-400">
+                  {total}
+                  <span className="ml-1 text-base font-semibold text-navy-500">/ 100</span>
+                </p>
+              </div>
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-navy-800">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-all duration-500"
+                  style={{ width: `${pctTotal}%` }}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className="mt-3 rounded-lg bg-red-500/10 px-4 py-2 text-center text-sm text-red-400">
+                {error}
+              </p>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Barra fija inferior (solo mientras se evalúa) */}
+      {candidataSel && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-navy-950/95 px-4 py-3 backdrop-blur"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="mx-auto flex max-w-5xl items-center gap-4">
+            <div className="flex min-w-0 flex-1 items-baseline gap-2">
+              <span className="text-2xl font-bold tabular-nums text-gold-400">{total}</span>
+              <span className="text-sm text-navy-500">/ 100 pts</span>
+            </div>
+            <button
+              onClick={handleGuardar}
+              disabled={saving || enviado}
+              className={`rounded-xl px-6 py-3 text-sm font-bold transition-all duration-300 ${
+                enviado
+                  ? 'cursor-default bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30'
+                  : 'bg-gold-500 text-navy-900 hover:bg-gold-400 active:scale-[0.98]'
+              } disabled:opacity-70`}
+            >
+              {enviado ? '✓ Evaluación guardada' : saving ? 'Guardando…' : 'Guardar evaluación'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

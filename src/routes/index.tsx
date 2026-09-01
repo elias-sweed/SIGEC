@@ -34,9 +34,11 @@ export default function AppRoutes() {
       <Route element={<JuradoLayout />}>
         <Route path="/jurado" element={<JuradoLogin />} />
         <Route path="/jurado/activar" element={<JuradoActivar />} />
-        <Route element={<JuradoGuard />}>
-          <Route path="/jurado/evaluacion" element={<JuradoEvaluacion />} />
-        </Route>
+      </Route>
+
+      {/* Evaluación: a ancho completo (no usa el contenedor centrado) */}
+      <Route element={<JuradoGuard />}>
+        <Route path="/jurado/evaluacion" element={<JuradoEvaluacion />} />
       </Route>
 
       {/* Zona del superadmin (login oculto + dashboard con sidebar) */}

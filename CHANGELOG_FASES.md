@@ -1,5 +1,28 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Nueva interfaz de evaluación del jurado
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Ruta de evaluación a ancho completo** (`/jurado/evaluacion`), fuera del contenedor centrado `max-w-md` del JuradoLayout.
+- **Selector de candidatas en cuadrícula**: tarjetas 2–4 columnas con avatar de iniciales, nombre, grado/sección, badge de estado (Evaluar / Evaluado · Corregir) y contador "X / N evaluadas" con barra de progreso.
+- **Criterios en grid 3 columnas** (1 col en móvil, 2 en tablet, 3 en desktop) como tarjetas numeradas:
+  - badge ①②③, nombre, máximo de pts, indicador (2 líneas máx).
+  - valor grande en dorado, barra de avance por criterio y controles **+ / −** (paso 0.5) para ajuste fino.
+- **Total con gauge**: barra de 100 pts degradada dorada + valor grande (en tarjeta y en la barra fija inferior).
+- **Barra inferior sticky** (safe-area para móviles) con total en vivo y botón "Guardar evaluación" (dorado → verde "Evaluación guardada").
+- Cabecera compacta sticky con nombre/código del jurado, etapa y Salir.
+- `ScoreSlider` reescrito como tarjeta de criterio del grid.
+
+### Archivos modificados
+
+- `src/components/event/ScoreSlider.tsx` (reescrito)
+- `src/pages/JuradoEvaluacion.tsx` (reescrito)
+- `src/routes/index.tsx` (evaluación fuera de JuradoLayout)
+
 ## Intermedio — Segunda etapa oficial en BD (Gran Final 18/09/26)
 
 Fecha: 01/09/2026

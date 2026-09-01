@@ -1,5 +1,37 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Login de Superadmin
+
+Fecha: 27/08/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Login de superadministrador**: nueva ruta `/admin` con formulario que valida contra Supabase Auth (`signInWithPassword`).
+- **Acceso restringido al dashboard**: la ruta `/panel` (Centro de Control) ahora está protegida por `AdminGuard`; sin sesión redirige a `/admin`.
+- **Email único e inmutable**: solo el correo configurado en `VITE_SUPERADMIN_EMAIL` puede entrar (por defecto `danza@jimenezpimentel.edu.pe`). La cuenta se gestiona solo en Supabase Auth (Authentication → Users), no desde la app.
+- **Sesión persistente**: el superadmin se mantiene logueado al recargar (sesión de Supabase Auth).
+- **Navegación dinámica**: "Centro de Control" solo aparece en el menú si hay sesión activa; botón "Cerrar sesión" / enlace "Admin" según el estado.
+- **Cerrar sesión**: botón que llama a `signOut` y vuelve al inicio.
+
+### Archivos creados
+
+- `src/lib/adminAuth.ts`
+- `src/pages/AdminLogin.tsx`
+- `src/components/AdminGuard.tsx`
+
+Archivos modificados:
+
+- `src/routes/index.tsx`
+- `src/layouts/MainLayout.tsx`
+- `.env` / `.env.example` (`VITE_SUPERADMIN_EMAIL`)
+- `README.md` / `CHANGELOG_FASES.md`
+
+### Configuración requerida
+
+- La cuenta de superadmin debe existir en Supabase Auth (Authentication → Users).
+- Definir `VITE_SUPERADMIN_EMAIL` en `.env` (ya configurado).
+
 ## Intermedio — Evaluación de todas las candidatas
 
 Fecha: 27/08/2026

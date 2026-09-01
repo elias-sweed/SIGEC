@@ -2,7 +2,7 @@
 
 **SIGEC** (*Sistema Integral de Gestión y Evaluación del Certamen*) es una aplicación web para administrar certámenes de danza: centraliza la organización del evento, la evaluación por parte del jurado y la difusión pública de los resultados.
 
-> **Estado actual:** El jurado evalúa a **todas las candidatas** (elige cuál en su pantalla) y el Centro de Control muestra el panel "Evaluaciones por candidata" con puntajes por jurado y progreso.
+> **Estado actual:** Login de superadmin: el dashboard `/panel` exige autenticarse en `/admin` con la cuenta de Supabase Auth (`danza@jimenezpimentel.edu.pe`), protegido por AdminGuard. El jurado evalúa a todas las candidatas y el Centro de Control muestra el panel "Evaluaciones por candidata".
 
 ## Tecnologías
 
@@ -144,12 +144,21 @@ Preparando → Evaluando → Esperando Jurados → Resultados Listos → Publica
 | Ruta | Vista | Descripción |
 | --- | --- | --- |
 | `/` | Inicio | Portada del sistema (sin acceso directo al jurado) |
-| `/panel` | Centro de Control | Asistente: evento, candidatas, jurados, criterios e iniciar |
+| `/admin` | Login superadmin | Solo el correo autorizado (`danza@jimenezpimentel.edu.pe`) puede entrar |
+| `/panel` | Centro de Control | Protegido por sesión de superadmin (AdminGuard) |
 | `/jurado` | Inicio de sesión | Detecta `?codigo=` del QR; valida y pide contraseña |
 | `/jurado/activar` | Primer acceso | Activa la cuenta con contraseña (viene del QR) |
-| `/jurado/evaluacion` | Evaluación | Protegida por sesión: evalúa a la candidata activa |
+| `/jurado/evaluacion` | Evaluación | Protegida por sesión: evalúa a todas las candidatas |
 | `/pantalla` | Pantalla Pública | Proyección estilo escenario |
 | Cualquier otra | 404 | Página no encontrada |
+
+### Flujo de acceso del superadmin
+
+```
+/dashboard(/panel) ── sin sesión ──▶ /admin ── email + contraseña (Supabase Auth) ──▶ /panel
+                                        │
+                                        └── solo VITE_SUPERADMIN_EMAIL → acceso
+```
 
 ## Flujo de acceso del jurado
 

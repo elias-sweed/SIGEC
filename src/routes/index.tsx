@@ -4,10 +4,12 @@ import JuradoLayout from '../layouts/JuradoLayout'
 import Home from '../pages/Home'
 import MasterPanel from '../pages/MasterPanel'
 import PublicScreen from '../pages/PublicScreen'
+import AdminLogin from '../pages/AdminLogin'
 import JuradoLogin from '../pages/JuradoLogin'
 import JuradoActivar from '../pages/JuradoActivar'
 import JuradoEvaluacion from '../pages/JuradoEvaluacion'
 import JuradoGuard from '../components/JuradoGuard'
+import AdminGuard from '../components/AdminGuard'
 import NotFound from '../pages/NotFound'
 
 export default function AppRoutes() {
@@ -16,7 +18,10 @@ export default function AppRoutes() {
       {/* Administración y pantalla pública */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
-        <Route path="/panel" element={<MasterPanel />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route element={<AdminGuard />}>
+          <Route path="/panel" element={<MasterPanel />} />
+        </Route>
         <Route path="/pantalla" element={<PublicScreen />} />
         <Route path="*" element={<NotFound />} />
       </Route>

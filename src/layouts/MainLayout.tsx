@@ -1,12 +1,34 @@
-import { NavLink, Outlet } from 'react-router-dom'
-
-const navigation = [
-  { label: 'Inicio', to: '/' },
-  { label: 'Centro de Control', to: '/panel' },
-  { label: 'Pantalla Pública', to: '/pantalla' },
-]
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { cerrarSesionSuperadmin, esSuperadminAutenticado } from '../lib/adminAuth'
 
 export default function MainLayout() {
+  const navigate = useNavigate()
+  const [admin, setAdmin] = useState(false)
+
+  useEffect(() => {
+    let activo = true
+    ;(async () => {
+      const ok = await esSuperadminAutenticado()
+      if (activo) setAdmin(ok)
+    })()
+    return () => {
+      activo = false
+    }
+  }, [])
+
+  const cerrar = async () => {
+    await cerrarSesionSuperadmin()
+    setAdmin(false)
+    navigate('/')
+  }
+
+  const navigation = [
+    { label: 'Inicio', to: '/' },
+    ...(admin ? [{ label: 'Centro de Control', to: '/panel' }] : []),
+    { label: 'Pantalla Pública', to: '/pantalla' },
+  ]
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b border-white/10 bg-navy-950/85 backdrop-blur">
@@ -38,6 +60,21 @@ export default function MainLayout() {
                 {item.label}
               </NavLink>
             ))}
+            {admin ? (
+              <button
+                onClick={cerrar}
+                className="ml-1 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-navy-200 transition hover:bg-white/10 hover:text-white"
+              >
+                Cerrar sesión
+              </button>
+            ) : (
+              <NavLink
+                to="/admin"
+                className="ml-1 rounded-full border border-gold-500/40 px-4 py-2 text-sm font-medium text-gold-400 transition hover:bg-gold-500/10"
+              >
+                Admin
+              </NavLink>
+            )}
           </nav>
         </div>
       </header>

@@ -93,25 +93,25 @@ export default function Jurados() {
             placeholder="Nombre del jurado"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            className="flex-1 rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
+            className="input-panel flex-1"
           />
-          <div className="flex items-center rounded-lg border border-gold-500/30 bg-gold-500/10 px-3 text-xs font-bold text-gold-400">
+          <div className="flex items-center rounded-xl border border-gold-500/30 bg-gold-500/10 px-3 text-xs font-bold text-gold-300">
             {siguienteCodigo}
           </div>
         </div>
         <button
           onClick={agregar}
-          className="mt-2 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
+          className="btn-gold mt-3 w-full"
         >
           Agregar jurado
         </button>
 
         {jurados.length > 0 && (
-          <ul className="mt-4 max-h-80 space-y-1 overflow-y-auto">
+          <ul className="mt-4 max-h-80 space-y-1.5 overflow-y-auto">
             {jurados.map((j) => (
               <li
                 key={j.id}
-                className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
+                className="fila-panel text-sm"
               >
                 {editandoId === j.id ? (
                   <div className="flex flex-1 items-center gap-2">
@@ -134,9 +134,7 @@ export default function Jurados() {
                     <span className="font-mono text-xs font-bold text-gold-400">{j.codigo}</span>
                     <span className="ml-2 text-white">{j.nombre}</span>
                     <span
-                      className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        j.activado ? 'bg-emerald-500/15 text-emerald-400' : 'bg-navy-600/40 text-navy-400'
-                      }`}
+                      className={`chip ${j.activado ? 'chip-ok' : 'chip-muted'}`}
                     >
                       {j.activado ? '✔ Activado' : 'Pendiente'}
                     </span>

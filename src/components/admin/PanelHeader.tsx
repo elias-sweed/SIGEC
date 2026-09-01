@@ -6,11 +6,14 @@ interface PanelHeaderProps {
 
 export default function PanelHeader({ eyebrow, title, description }: PanelHeaderProps) {
   return (
-    <div className="mb-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gold-400">{eyebrow}</p>
-      <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">{title}</h1>
-      <p className="mt-2 text-sm leading-relaxed text-navy-300">{description}</p>
-      <div className="mt-4 h-1 w-14 rounded-full bg-gold-500/70" />
+    <div className="mb-8">
+      <div className="panel-overline text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-300/90">
+        {eyebrow}
+      </div>
+      <h1 className="mt-2.5 bg-gradient-to-br from-white via-gold-100 to-gold-400 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
+        {title}
+      </h1>
+      <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-navy-200/90">{description}</p>
     </div>
   )
 }

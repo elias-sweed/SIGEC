@@ -29,15 +29,163 @@
 }
 
 @layer components {
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-gold-500 px-6 py-3 text-sm font-semibold text-navy-950 transition-colors hover:bg-gold-400;
+  /* ==== Premium panel ==== */
+  .panel-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(10, 21, 40, 0.45);
+    backdrop-filter: blur(14px);
+    box-shadow:
+      0 12px 40px -12px rgba(0, 0, 0, 0.8),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
-  .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-navy-400/40 px-6 py-3 text-sm font-semibold text-navy-100 transition-colors hover:border-gold-400 hover:text-gold-300;
+  .panel-card::before {
+    content: "";
+    position: absolute;
+    inset-inline: 3rem;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(223, 191, 98, 0.75), transparent);
+    pointer-events: none;
   }
 
-  .card-panel {
-    @apply block rounded-xl border border-white/10 bg-navy-900/70 p-6 transition-colors hover:border-gold-500/50;
+  .panel-overline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .panel-overline::before {
+    content: "";
+    width: 1.75rem;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(223, 191, 98, 0.9));
+  }
+
+  .btn-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    background: linear-gradient(180deg, #dfbf62 0%, #c9a227 45%, #ab8620 100%);
+    padding: 0.6rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #070f1d;
+    transition: all 0.2s ease;
+    box-shadow: 0 6px 20px -6px rgba(201, 162, 39, 0.55);
+  }
+  .btn-gold:hover {
+    background: linear-gradient(180deg, #ecd68f 0%, #dfbf62 45%, #c9a227 100%);
+    transform: translateY(-1px);
+  }
+  .btn-gold:active {
+    transform: scale(0.98);
+  }
+  .btn-gold:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    transform: none;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #b7c8e0;
+    transition: all 0.2s ease;
+  }
+  .btn-ghost:hover {
+    border-color: rgba(223, 191, 98, 0.4);
+    color: #dfbf62;
+    background: rgba(223, 191, 98, 0.06);
+  }
+
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(244, 63, 94, 0.35);
+    background: rgba(244, 63, 94, 0.08);
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #fda4af;
+    transition: all 0.2s ease;
+  }
+  .btn-danger:hover {
+    background: rgba(244, 63, 94, 0.18);
+    border-color: rgba(244, 63, 94, 0.55);
+  }
+
+  .input-panel {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(11, 23, 42, 0.6);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: #fff;
+    transition: all 0.2s ease;
+  }
+  .input-panel::placeholder {
+    color: rgba(143, 165, 201, 0.6);
+  }
+  .input-panel:focus {
+    outline: none;
+    border-color: rgba(223, 191, 98, 0.55);
+    box-shadow: 0 0 0 3px rgba(223, 191, 98, 0.15);
+  }
+
+  .fila-panel {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(13, 26, 46, 0.55);
+    padding: 0.65rem 0.9rem;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .fila-panel:hover {
+    border-color: rgba(223, 191, 98, 0.25);
+    background: rgba(13, 26, 46, 0.75);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 9999px;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+  .chip-ok {
+    background: rgba(16, 185, 129, 0.14);
+    color: #6ee7b7;
+    box-shadow: inset 0 0 0 1px rgba(110, 231, 183, 0.25);
+  }
+  .chip-muted {
+    background: rgba(65, 95, 146, 0.25);
+    color: #8ba5c9;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+  .chip-gold {
+    background: rgba(223, 191, 98, 0.12);
+    color: #ecd68f;
+    box-shadow: inset 0 0 0 1px rgba(223, 191, 98, 0.3);
   }
 }

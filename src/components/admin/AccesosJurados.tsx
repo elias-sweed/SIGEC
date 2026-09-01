@@ -20,23 +20,23 @@ export default function AccesosJurados({
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
+    <div className="panel-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-300">
           Accesos para jurados
         </p>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setMostrando((v) => !v)}
             disabled={jurados.length === 0}
-            className="rounded-lg bg-gold-500 px-4 py-2 text-xs font-semibold text-navy-900 transition hover:bg-gold-400 disabled:opacity-40"
+            className="btn-gold"
           >
             {mostrando ? 'Ocultar tarjetas' : 'Generar accesos para jurados'}
           </button>
           <button
             onClick={generarPdf}
             disabled={jurados.length === 0}
-            className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-navy-200 transition hover:bg-navy-800 hover:text-white disabled:opacity-40"
+            className="btn-ghost"
           >
             Descargar PDF
           </button>
@@ -44,7 +44,7 @@ export default function AccesosJurados({
       </div>
 
       {jurados.length === 0 && (
-        <p className="mt-4 text-sm text-navy-500">Registra jurados primero para generar sus accesos.</p>
+        <p className="mt-4 text-sm text-navy-400/80">Registra jurados primero para generar sus accesos.</p>
       )}
 
       {mostrando && jurados.length > 0 && (
@@ -52,23 +52,21 @@ export default function AccesosJurados({
           {jurados.map((j) => (
             <div
               key={j.id}
-              className="flex flex-col items-center rounded-xl border border-white/10 bg-navy-800/60 p-4 text-center"
+              className="flex flex-col items-center rounded-2xl border border-white/10 bg-navy-900/50 p-4 text-center backdrop-blur-sm"
             >
               <p className="text-[10px] uppercase tracking-widest text-navy-400">Acceso del jurado</p>
               <p className="mt-1 truncate text-sm font-semibold text-white">{j.nombre}</p>
-              <p className="font-mono text-sm font-bold text-gold-400">{j.codigo}</p>
+              <p className="font-mono text-sm font-bold text-gold-300">{j.codigo}</p>
               <img
                 src={urlQR(j.token_acceso ?? j.codigo, 180)}
                 alt={`QR de ${j.codigo}`}
-                className="mt-3 h-44 w-44 rounded-lg bg-white object-contain p-1.5"
+                className="mt-3 h-44 w-44 rounded-xl bg-white object-contain p-1.5 shadow-lg shadow-black/40"
               />
               <p className="mt-2 break-all text-[10px] leading-relaxed text-navy-400">
                 {urlActivacion(j.token_acceso ?? j.codigo)}
               </p>
               <span
-                className={`mt-3 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  j.activado ? 'bg-emerald-500/15 text-emerald-400' : 'bg-navy-600/40 text-navy-400'
-                }`}
+                className={`chip mt-3 ${j.activado ? 'chip-ok' : 'chip-muted'}`}
               >
                 {j.activado ? '✔ Activado' : 'Pendiente de activación'}
               </span>
@@ -78,7 +76,7 @@ export default function AccesosJurados({
       )}
 
       {avisoPdf && (
-        <p className="mt-4 rounded-lg bg-navy-800/50 px-3 py-2 text-xs text-navy-300">{avisoPdf}</p>
+        <p className="mt-4 rounded-xl bg-navy-800/50 px-3 py-2 text-xs text-navy-300">{avisoPdf}</p>
       )}
     </div>
   )

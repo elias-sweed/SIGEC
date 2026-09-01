@@ -173,7 +173,7 @@ export default function Evento() {
                 placeholder="Nombre del certamen"
                 value={editandoNombre}
                 onChange={(e) => setEditandoNombre(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
+                className="input-panel"
               />
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-navy-400">Etapa:</span>
@@ -195,13 +195,13 @@ export default function Evento() {
               <div className="flex gap-2">
                 <button
                   onClick={guardarEdicion}
-                  className="flex-1 rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
+                  className="btn-gold flex-1"
                 >
                   Guardar cambios
                 </button>
                 <button
                   onClick={() => setModoEdicion(false)}
-                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-navy-200 transition hover:bg-navy-800"
+                  className="btn-ghost"
                 >
                   Cancelar
                 </button>
@@ -214,7 +214,7 @@ export default function Evento() {
               placeholder="Nombre del certamen (ej: Señorita Jiménez Pimentel 2026)"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
+              className="input-panel"
             />
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-navy-400">Etapa:</span>
@@ -235,7 +235,7 @@ export default function Evento() {
             {error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
             <button
               onClick={crear}
-              className="w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
+              className="btn-gold w-full"
             >
               Crear evento
             </button>

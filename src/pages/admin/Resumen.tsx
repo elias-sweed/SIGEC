@@ -115,18 +115,21 @@ export default function Resumen() {
 
       {/* Banner de evaluación en curso */}
       {evaluando && (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-6 transition-all duration-500">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400">
+        <div className="panel-card relative overflow-hidden p-6 transition-all duration-500">
+          <span
+            aria-hidden
+            className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-emerald-500/20 blur-2xl"
+          />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-emerald-300">
             Evaluación en curso
           </p>
           <p className="mt-2 text-lg font-bold text-white">{evento?.nombre ?? 'Certamen'}</p>
           <p className="mt-1 text-sm text-navy-200">
-            Candidata activa:{' '}
-            <strong className="text-white">{candidataActual?.nombre ?? '—'}</strong>
+            Candidata activa: <strong className="text-white">{candidataActual?.nombre ?? '—'}</strong>
           </p>
           <Link
             to="/jurado"
-            className="mt-4 inline-block rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
+            className="btn-gold mt-4"
           >
             Abrir acceso del jurado →
           </Link>
@@ -152,8 +155,8 @@ export default function Resumen() {
             {checklist.map((item) => (
               <li
                 key={item.clave}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ${
-                  item.ok ? 'bg-emerald-500/10 text-emerald-300' : 'bg-navy-800/60 text-navy-300'
+                className={`fila-panel text-sm font-medium ${
+                  item.ok ? 'text-emerald-200' : 'text-navy-300'
                 }`}
               >
                 <span
@@ -164,7 +167,7 @@ export default function Resumen() {
                   ✔
                 </span>
                 {item.label}
-                <span className="ml-auto text-xs uppercase opacity-70">
+                <span className={`ml-auto text-[10px] uppercase ${item.ok ? 'text-emerald-400' : 'text-navy-500'}`}>
                   {item.ok ? 'Listo' : 'Pendiente'}
                 </span>
               </li>
@@ -173,15 +176,15 @@ export default function Resumen() {
           <button
             onClick={reiniciarCertamen}
             disabled={reiniciando}
-            className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+            className="btn-danger shrink-0"
           >
             {reiniciando ? 'Reiniciando…' : 'Reiniciar Certamen'}
           </button>
         </div>
 
-        <div className="mt-6 border-t border-white/5 pt-5">
+        <div className="mt-6 border-t border-white/10 pt-5">
           {evaluando ? (
-            <p className="text-center text-sm font-semibold text-emerald-400">
+            <p className="text-center text-sm font-semibold text-emerald-300">
               ✓ Certamen iniciado — la evaluación ya está activa.
             </p>
           ) : (
@@ -189,12 +192,12 @@ export default function Resumen() {
               <button
                 onClick={iniciarEvaluacion}
                 disabled={!completo || iniciando}
-                className="w-full rounded-2xl bg-gold-500 py-4 text-lg font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
+                className="btn-gold w-full py-4 text-base"
               >
                 {iniciando ? 'Iniciando…' : 'Iniciar Evaluación'}
               </button>
               {!completo && (
-                <p className="mt-3 text-center text-xs text-navy-400">
+                <p className="mt-3 text-center text-xs text-navy-300/70">
                   Completa todos los pasos para habilitar el inicio.
                 </p>
               )}
@@ -210,27 +213,16 @@ export default function Resumen() {
         completado={jurados.length > 0}
       >
         {jurados.length === 0 ? (
-          <p className="text-sm text-navy-500">Sin jurados registrados todavía.</p>
+          <p className="text-sm text-navy-400/80">Sin jurados registrados todavía.</p>
         ) : (
-          <ul className="mt-4 space-y-2">
+          <ul className="space-y-2">
             {jurados.map((j) => (
-              <li
-                key={j.id}
-                className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2.5 text-sm"
-              >
-                <span className="font-mono text-xs font-bold text-gold-400">{j.codigo}</span>
-                <span className="flex-1 truncate px-3 text-left text-white">{j.nombre}</span>
+              <li key={j.id} className="fila-panel text-sm">
+                <span className="font-mono text-xs font-bold text-gold-300">{j.codigo}</span>
+                <span className="flex-1 truncate text-left text-white">{j.nombre}</span>
                 <div className="flex shrink-0 items-center gap-2">
-                  {j.en_sesion && (
-                    <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
-                      ● En sesión
-                    </span>
-                  )}
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      j.activado ? 'bg-emerald-500/15 text-emerald-400' : 'bg-navy-600/40 text-navy-400'
-                    }`}
-                  >
+                  {j.en_sesion && <span className="chip chip-ok">● En sesión</span>}
+                  <span className={`chip ${j.activado ? 'chip-ok' : 'chip-muted'}`}>
                     {j.activado ? '✔ Activado' : 'Pendiente'}
                   </span>
                 </div>

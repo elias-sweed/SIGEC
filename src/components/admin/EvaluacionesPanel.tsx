@@ -41,22 +41,22 @@ export default function EvaluacionesPanel({
   const totalJurados = jurados.length
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gold-400">
+    <div className="panel-card p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-300">
           Evaluaciones por candidata
         </p>
-        <span className="text-xs text-navy-500">Refresca con el botón Recargar</span>
+        <span className="text-xs text-navy-400">Refresca con el botón Recargar</span>
         <button
           onClick={onRecargar}
-          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-navy-200 transition hover:bg-navy-800 hover:text-white"
+          className="btn-ghost"
         >
           ↻ Recargar
         </button>
       </div>
 
       {candidatas.length === 0 ? (
-        <p className="mt-4 text-sm text-navy-500">Sin candidatas registradas.</p>
+        <p className="mt-4 text-sm text-navy-400/80">Sin candidatas registradas.</p>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
@@ -73,17 +73,17 @@ export default function EvaluacionesPanel({
             </thead>
             <tbody>
               {mapa.map((m) => (
-                <tr key={m.candidata.id} className="border-t border-navy-700/40">
-                  <td className="py-2.5 pr-3">
+                <tr key={m.candidata.id} className="border-t border-white/10 transition-colors hover:bg-white/[0.03]">
+                  <td className="py-3 pr-3">
                     <span className="text-white">{m.candidata.nombre}</span>
                     <span className="text-navy-500"> · {m.candidata.grado}</span>
                   </td>
                   {jurados.map((j) => {
                     const fila = m.porJurado.find((p) => p.jurado.id === j.id)
                     return (
-                      <td key={j.id} className="py-2.5 pr-3 text-center">
+                      <td key={j.id} className="py-3 pr-3 text-center">
                         {fila ? (
-                          <span className="font-mono text-xs font-bold text-gold-400">
+                          <span className="font-mono text-xs font-bold text-gold-300">
                             {fila.promedio}
                           </span>
                         ) : (
@@ -92,12 +92,10 @@ export default function EvaluacionesPanel({
                       </td>
                     )
                   })}
-                  <td className="py-2.5 text-center">
+                  <td className="py-3 text-center">
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        totalJurados > 0 && m.totalevaluado >= totalJurados
-                          ? 'bg-emerald-500/15 text-emerald-400'
-                          : 'bg-navy-600/40 text-navy-400'
+                      className={`chip ${
+                        totalJurados > 0 && m.totalevaluado >= totalJurados ? 'chip-ok' : 'chip-muted'
                       }`}
                     >
                       {m.totalevaluado}/{totalJurados}

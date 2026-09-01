@@ -99,34 +99,34 @@ export default function Candidatas() {
             placeholder="Nombre completo"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            className="rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
+            className="input-panel"
           />
           <input
             placeholder="Grado"
             value={grado}
             onChange={(e) => setGrado(e.target.value)}
-            className="rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
+            className="input-panel"
           />
           <input
             placeholder="Sección"
             value={seccion}
             onChange={(e) => setSeccion(e.target.value)}
-            className="rounded-lg border border-white/10 bg-navy-800 px-3 py-2 text-sm text-white placeholder:text-navy-500"
+            className="input-panel"
           />
         </div>
         <button
           onClick={agregar}
-          className="mt-2 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400"
+          className="btn-gold mt-3 w-full"
         >
           Agregar candidata
         </button>
 
         {candidatas.length > 0 && (
-          <ul className="mt-4 max-h-80 space-y-1 overflow-y-auto">
+          <ul className="mt-4 max-h-80 space-y-1.5 overflow-y-auto">
             {candidatas.map((c) => (
               <li
                 key={c.id}
-                className="flex items-center justify-between rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
+                className="fila-panel text-sm"
               >
                 {editandoId === c.id ? (
                   <div className="flex flex-1 flex-wrap items-center gap-2">

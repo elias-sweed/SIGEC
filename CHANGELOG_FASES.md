@@ -1,5 +1,36 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Rediseño premium del contenido del panel
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Sistema de diseño (add en `global.css`)
+
+- `.panel-card`: tarjeta glass con blur, borde sutil y línea dorada superior (brilla sobre el fondo de beams).
+- `.btn-gold`: botón con gradiente dorado, sombra cálida y micro-interacciones.
+- `.btn-ghost` / `.btn-danger`: botones secundarios y destructivos refinados.
+- `.input-panel`: campos con focus glow dorado.
+- `.fila-panel`: filas de lista con hover dorado.
+- `.chip` + `.chip-ok/.chip-muted/.chip-gold`: píldoras de estado.
+
+### Páginas y componentes actualizados
+
+- `PanelHeader`: eyebrow con línea dorada, título con gradiente de texto (blanco → dorado).
+- `Section`: chip "✔ Listo / Pendiente" reemplaza el círculo.
+- `Resumen`: banner de evaluación con glow, checklist con filas premium, botones de acción rediseñados.
+- `Conectados`, `Candidatas`, `Jurados`, `Evento`, `Criterios`: filas e inputs = `.fila-panel`/`.input-panel`, botones `.btn-gold`/`.btn-ghost`.
+- `EvaluacionesPanel`: tabla con hover suave y chips de progreso.
+- `AccesosJurados`: tarjetas QR con blur + sombras.
+- `AdminLayout`: línea dorada superior en la barra del header.
+
+### Archivos modificados
+
+- `src/styles/global.css`
+- `src/components/admin/PanelHeader.tsx`, `Section.tsx`, `EvaluacionesPanel.tsx`, `AccesosJurados.tsx`
+- `src/pages/admin/Resumen.tsx`, `Conectados.tsx`, `Candidatas.tsx`, `Jurados.tsx`, `Evento.tsx`, `Criterios.tsx`
+- `src/layouts/AdminLayout.tsx`
+
 ## Intermedio — Fondo Beams 3D en el contenido del panel
 
 Fecha: 01/09/2026

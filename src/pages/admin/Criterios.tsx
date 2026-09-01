@@ -61,8 +61,8 @@ export default function Criterios() {
             completado={criteriosEtapa.length > 0}
           >
           {error && <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
-          <div className="rounded-lg border border-white/10 bg-navy-800/50 p-3 text-xs leading-relaxed text-navy-300">
-            Los criterios oficiales para la etapa <strong className="text-gold-400">{etapa}</strong>{' '}
+          <div className="rounded-xl border border-white/10 bg-navy-800/40 p-3 text-xs leading-relaxed text-navy-300">
+            Los criterios oficiales para la etapa <strong className="text-gold-300">{etapa}</strong>{' '}
             se insertarán en la base de datos.
           </div>
           <button
@@ -72,29 +72,29 @@ export default function Criterios() {
               (criteriosEtapa.length > 0 &&
                 !criterios.some((c) => c.etapa === etapa && c.orden === oficiales?.length))
             }
-            className="mt-3 w-full rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-navy-900 transition hover:bg-gold-400 disabled:opacity-40"
+            className="btn-gold mt-3 w-full"
           >
             {cargando ? 'Cargando…' : 'Cargar criterios oficiales'}
           </button>
 
           {criteriosEtapa.length > 0 ? (
-            <ul className="mt-4 space-y-1">
+            <ul className="mt-4 space-y-1.5">
               {criteriosEtapa.map((c) => (
                 <li
                   key={c.id}
-                  className="rounded-lg bg-navy-800/50 px-3 py-2 text-sm"
+                  className="fila-panel text-sm"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-white">
                       <span className="text-navy-500">#{c.orden} </span>
                       {c.nombre}
                     </span>
-                    <span className="shrink-0 font-mono text-xs font-bold text-gold-400">
+                    <span className="shrink-0 font-mono text-xs font-bold text-gold-300">
                       {c.puntaje_maximo} pts
                     </span>
                   </div>
                   {c.indicadores && (
-                    <p className="mt-1.5 border-t border-white/5 pt-1.5 text-xs leading-relaxed text-navy-400">
+                    <p className="mt-1.5 border-t border-white/10 pt-1.5 text-xs leading-relaxed text-navy-400">
                       {c.indicadores}
                     </p>
                   )}
@@ -102,7 +102,7 @@ export default function Criterios() {
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-center text-sm text-navy-500">Sin criterios cargados todavía.</p>
+            <p className="mt-4 text-center text-sm text-navy-400/80">Sin criterios cargados todavía.</p>
           )}
         </Section>
 
@@ -112,7 +112,7 @@ export default function Criterios() {
             descripcion="Disposiciones oficiales de la etapa (cargado desde la base de datos)"
             completado={!!reglamento}
           >
-            <div className="whitespace-pre-line rounded-lg border border-white/10 bg-navy-800/40 p-4 text-sm leading-relaxed text-navy-200">
+            <div className="whitespace-pre-line rounded-xl border border-white/10 bg-navy-800/40 p-4 text-sm leading-relaxed text-navy-200">
               {reglamento}
             </div>
           </Section>

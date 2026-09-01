@@ -7,21 +7,23 @@ interface SectionProps {
 
 export default function Section({ titulo, descripcion, completado, children }: SectionProps) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-navy-900/70 p-6">
-      <div className="flex items-center gap-3">
+    <section className="panel-card p-6">
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-white">{titulo}</h3>
-          <p className="truncate text-xs text-navy-400">{descripcion}</p>
+          <h3 className="text-base font-semibold text-white">{titulo}</h3>
+          <p className="mt-0.5 truncate text-xs text-navy-300/80">{descripcion}</p>
         </div>
         <span
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
-            completado ? 'bg-emerald-500/15 text-emerald-400' : 'border border-navy-600 text-transparent'
+          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold ${
+            completado
+              ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/25'
+              : 'bg-navy-700/40 text-navy-300 ring-1 ring-white/10'
           }`}
         >
-          ✔
+          {completado ? '✔ Listo' : 'Pendiente'}
         </span>
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-5">{children}</div>
     </section>
   )
 }

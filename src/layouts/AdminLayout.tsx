@@ -226,6 +226,10 @@ function AdminLayoutContent() {
         </div>
 
         <header className="relative z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-navy-950/80 px-4 py-3 backdrop-blur">
+          <span
+            aria-hidden
+            className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-gold-500/50 to-transparent"
+          />
           <span className="hidden truncate text-sm font-semibold text-white sm:block">
             {evento?.nombre ?? 'Centro de Control'}
           </span>

@@ -43,13 +43,6 @@ export default function Home() {
       icono: '📺',
       etiqueta: 'Ver el escenario',
     },
-    {
-      to: '/jurado',
-      titulo: 'Acceso del Jurado',
-      descripcion: 'Ingresa con tu código QR para activar tu cuenta y evaluar.',
-      icono: '🎖',
-      etiqueta: 'Soy jurado',
-    },
   ]
 
   return (

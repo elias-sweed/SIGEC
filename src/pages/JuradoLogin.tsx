@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getSupabase } from '../lib/supabase'
 import PasswordInput from '../components/form/PasswordInput'
@@ -6,6 +6,9 @@ import { emailDeJurado, marcarEnSesion, obtenerJuradoPorCodigo } from '../servic
 import { estaActivadoLocal, guardarSesionJurado, leerSesionJurado } from '../utils/session'
 import { logConsulta, logError } from '../utils/devlog'
 import type { Evento, Jurado } from '../types/database'
+
+const MAX_INTENTOS = 5
+const ESPERA_MS = 60_000
 
 export default function JuradoLogin() {
   const navigate = useNavigate()
@@ -17,6 +20,8 @@ export default function JuradoLogin() {
   const [evento, setEvento] = useState<Evento | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [verificando, setVerificando] = useState(false)
+  const [bloqueado, setBloqueado] = useState(false)
+  const intentosRef = useRef(0)
 
   useEffect(() => {
     const c = params.get('codigo')
@@ -54,7 +59,12 @@ export default function JuradoLogin() {
 
     const j = await obtenerJuradoPorCodigo(codigoLimpio)
     if (!j) {
-      setError('Código no válido.')
+      const quedoBloqueado = bloquear()
+      setError(
+        quedoBloqueado
+          ? 'Demasiados intentos. Espera un momento y vuelve a intentar.'
+          : 'Código o contraseña incorrectos.',
+      )
       setVerificando(false)
       return
     }
@@ -69,6 +79,10 @@ export default function JuradoLogin() {
   }
 
   const ingresar = async () => {
+    if (bloqueado) {
+      setError('Demasiados intentos. Espera un momento y vuelve a intentar.')
+      return
+    }
     if (!jurado || !password) {
       setError('Ingresa tu contraseña')
       return
@@ -85,10 +99,13 @@ export default function JuradoLogin() {
       logError('JuradoLogin signIn', errAuth.message)
       const msg = errAuth.message.toLowerCase()
       const esConfirmacion = msg.includes('confirm') || msg.includes('not_confirmed')
+      const quedoBloqueado = bloquear()
       setError(
         esConfirmacion
           ? 'Confirma la activación en el panel antes de ingresar.'
-          : 'Contraseña incorrecta. Intenta de nuevo.',
+          : quedoBloqueado
+            ? 'Demasiados intentos. Espera un momento y vuelve a intentar.'
+            : 'Contraseña incorrecta. Intenta de nuevo.',
       )
       setVerificando(false)
       return
@@ -99,6 +116,17 @@ export default function JuradoLogin() {
     logConsulta(`JuradoLogin: sesión iniciada para ${jurado.codigo}`)
 
     navigate('/jurado/evaluacion', { replace: true })
+  }
+
+  const bloquear = (): boolean => {
+    intentosRef.current += 1
+    if (intentosRef.current >= MAX_INTENTOS) {
+      setBloqueado(true)
+      intentosRef.current = 0
+      setTimeout(() => setBloqueado(false), ESPERA_MS)
+      return true
+    }
+    return false
   }
 
   const volver = () => {
@@ -131,7 +159,7 @@ export default function JuradoLogin() {
             value={codigo}
             onChange={(e) => setCodigo(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === 'Enter' && verificarCodigo()}
-            placeholder="JUR-001"
+            placeholder="Ingresa tu código"
             className="mt-2 w-full rounded-xl border border-white/10 bg-navy-800 px-4 py-4 text-center font-mono text-2xl font-bold uppercase tracking-[0.2em] text-white placeholder:text-navy-500 focus:border-gold-500/50 focus:outline-none"
           />
 
@@ -143,14 +171,14 @@ export default function JuradoLogin() {
 
           <button
             onClick={verificarCodigo}
-            disabled={verificando}
+            disabled={verificando || bloqueado}
             className="mt-4 w-full rounded-xl bg-gold-500 py-4 text-base font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98] disabled:opacity-50"
           >
             {verificando ? 'Validando…' : 'Continuar'}
           </button>
 
           <p className="mt-5 text-center text-xs leading-relaxed text-navy-500">
-            Escanea tu QR o ingresa tu código para acceder.
+            Solo con tu código QR podrás acceder. Tu acceso está protegido.
           </p>
         </>
       ) : (
@@ -179,7 +207,7 @@ export default function JuradoLogin() {
 
           <button
             onClick={ingresar}
-            disabled={verificando}
+            disabled={verificando || bloqueado}
             className="mt-4 w-full rounded-xl bg-gold-500 py-4 text-base font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98] disabled:opacity-50"
           >
             {verificando ? 'Ingresando…' : 'Ingresar'}

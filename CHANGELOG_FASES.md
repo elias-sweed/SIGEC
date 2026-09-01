@@ -1,5 +1,22 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Acceso del jurado oculto y blindado
+
+Fecha: 01/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Acceso del jurado oculto**: se eliminó el enlace "Acceso del Jurado" de la portada (`Home.tsx`). Como el admin, el login del jurado ya no es alcanzable desde la interfaz pública: solo se llega escaneando el QR (o desde el panel admin).
+- **Anti fuerza bruta**: tras 5 intentos fallidos de código o contraseña se bloquea el acceso durante 60 segundos.
+- **Mensajes neutros**: el error de código ya no confirma si existe ("Código o contraseña incorrectos"), y el placeholder del código ya no revela el formato por defecto (antes era `JUR-001`).
+- La contraseña sigue siendo la llave real: saber el código solo identifica al jurado; la entrada requiere la contraseña que el jurado definió al activar (validada por Supabase Auth).
+
+### Archivos modificados
+
+- `src/pages/Home.tsx`
+- `src/pages/JuradoLogin.tsx`
+
 ## Intermedio — Portada y Pantalla Pública mejoradas
 
 Fecha: 01/09/2026

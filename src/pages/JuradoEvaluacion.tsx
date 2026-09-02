@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
 import { marcarEnSesion } from '../services/jurado.service'
-import { calcularTotal } from '../utils/scoring'
+import { calcularTotales } from '../utils/scoring'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
 import { leerSesionJurado, limpiarSesionJurado } from '../utils/session'
 import ScoreSlider from '../components/event/ScoreSlider'
@@ -235,7 +235,10 @@ export default function JuradoEvaluacion() {
   }
 
   const evaluando = estadoEvento?.estado === 'evaluando'
-  const total = calcularTotal(detalles)
+  const desempateIds = new Set(
+    criterios.filter((c) => c.es_desempate).map((c) => c.id),
+  )
+  const { base: total, desempate: totalDesempate } = calcularTotales(detalles, desempateIds)
   const pctEvaluadas = candidatas.length > 0 ? (evaluadasIds.size / candidatas.length) * 100 : 0
   const pctTotal = Math.min(100, total)
 
@@ -379,25 +382,61 @@ export default function JuradoEvaluacion() {
               </button>
             </div>
 
-            {/* Grid 3 columnas de criterios */}
+            {/* Rúbrica: criterios base (suman 100) */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {criterios.map((cr, i) => {
-                const det = detalles.find((d) => d.criterio_id === cr.id)
-                const puntaje = det?.puntaje ?? 0
+              {criterios
+                .filter((cr) => !cr.es_desempate)
+                .map((cr, i) => {
+                  const det = detalles.find((d) => d.criterio_id === cr.id)
+                  const puntaje = det?.puntaje ?? 0
 
-                return (
-                  <ScoreSlider
-                    key={cr.id}
-                    index={i + 1}
-                    label={cr.nombre}
-                    value={puntaje}
-                    max={cr.puntaje_maximo}
-                    descripcion={cr.indicadores ?? undefined}
-                    onChange={(v) => handleSliderChange(cr.id, v)}
-                  />
-                )
-              })}
+                  return (
+                    <ScoreSlider
+                      key={cr.id}
+                      index={i + 1}
+                      label={cr.nombre}
+                      value={puntaje}
+                      max={cr.puntaje_maximo}
+                      descripcion={cr.indicadores ?? undefined}
+                      onChange={(v) => handleSliderChange(cr.id, v)}
+                    />
+                  )
+                })}
             </div>
+
+            {/* Desempate: se evalúa igual pero los puntos van aparte */}
+            {criterios.some((cr) => cr.es_desempate) && (
+              <div className="mt-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold-300">
+                    Criterios de desempate
+                  </p>
+                  <span className="h-px flex-1 bg-gradient-to-r from-gold-500/40 to-transparent" />
+                  <p className="text-[11px] text-navy-500">Solo rompen empates, no suman a la nota base</p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {criterios
+                    .filter((cr) => cr.es_desempate)
+                    .map((cr, i) => {
+                      const det = detalles.find((d) => d.criterio_id === cr.id)
+                      const puntaje = det?.puntaje ?? 0
+
+                      return (
+                        <ScoreSlider
+                          key={cr.id}
+                          index={i + 1}
+                          label={cr.nombre}
+                          value={puntaje}
+                          max={cr.puntaje_maximo}
+                          descripcion={cr.indicadores ?? undefined}
+                          desempate
+                          onChange={(v) => handleSliderChange(cr.id, v)}
+                        />
+                      )
+                    })}
+                </div>
+              </div>
+            )}
 
             {/* Total */}
             <div className="mt-4 rounded-2xl border border-white/10 bg-navy-900/70 p-5">
@@ -410,10 +449,17 @@ export default function JuradoEvaluacion() {
                     {enviado ? 'Evaluación guardada — puedes corregir el puntaje' : 'Ajusta cada criterio con + / −'}
                   </p>
                 </div>
-                <p className="text-right text-4xl font-bold tabular-nums leading-none text-gold-400">
-                  {total}
-                  <span className="ml-1 text-base font-semibold text-navy-500">/ 100</span>
-                </p>
+                <div className="text-right">
+                  <p className="text-4xl font-bold tabular-nums leading-none text-gold-400">
+                    {total}
+                    <span className="ml-1 text-base font-semibold text-navy-500">/ 100</span>
+                  </p>
+                  {totalDesempate > 0 && (
+                    <p className="mt-1.5 text-xs font-bold text-gold-300">
+                      +{totalDesempate} pts desempate
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-navy-800">
                 <div
@@ -442,6 +488,11 @@ export default function JuradoEvaluacion() {
             <div className="flex min-w-0 flex-1 items-baseline gap-2">
               <span className="text-2xl font-bold tabular-nums text-gold-400">{total}</span>
               <span className="text-sm text-navy-500">/ 100 pts</span>
+              {totalDesempate > 0 && (
+                <span className="rounded-full bg-gold-500/10 px-2 py-0.5 text-[11px] font-bold text-gold-300 shadow-[inset_0_0_0_1px_rgba(223,191,98,0.3)]">
+                  +{totalDesempate} desempate
+                </span>
+              )}
             </div>
             <button
               onClick={handleGuardar}

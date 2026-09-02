@@ -33,6 +33,7 @@ export interface Criterio {
   nombre: string
   puntaje_maximo: number
   indicadores: string | null
+  es_desempate: boolean
   orden: number
 }
 

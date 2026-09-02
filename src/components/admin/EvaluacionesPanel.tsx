@@ -1,35 +1,45 @@
-import type { Candidata, Evaluacion, EvaluacionDetalle, Jurado } from '../../types/database'
+import type { Candidata, Criterio, Evaluacion, EvaluacionDetalle, Jurado } from '../../types/database'
 
 interface EvaluacionesPorCandidata {
   candidata: Candidata
   totalevaluado: number
-  porJurado: { jurado: Jurado; promedio: number }[]
+  porJurado: { jurado: Jurado; promedio: number; desempate: number }[]
 }
 
 export default function EvaluacionesPanel({
   candidatas,
   jurados,
+  criterios,
   evaluaciones,
   detalles,
   onRecargar,
 }: {
   candidatas: Candidata[]
   jurados: Jurado[]
+  criterios: Criterio[]
   evaluaciones: Evaluacion[]
   detalles: EvaluacionDetalle[]
   onRecargar: () => Promise<void>
 }) {
+  const desempateIds = new Set(
+    criterios.filter((c) => c.es_desempate).map((c) => c.id),
+  )
+  const hayDesempate = desempateIds.size > 0
+
   const mapa: EvaluacionesPorCandidata[] = candidatas.map((c) => {
     const evalsDeCandidata = evaluaciones.filter((ev) => ev.candidata_id === c.id)
     const porJurado = evalsDeCandidata
       .map((ev) => {
-        const dets = detalles
-          .filter((d) => d.evaluacion_id === ev.id)
-          .reduce((acc, d) => acc + Number(d.puntaje), 0)
+        let base = 0
+        let desempate = 0
+        for (const d of detalles.filter((d) => d.evaluacion_id === ev.id)) {
+          if (desempateIds.has(d.criterio_id ?? '')) desempate += Number(d.puntaje)
+          else base += Number(d.puntaje)
+        }
         const jurado = jurados.find((j) => j.id === ev.jurado_id)
-        return { jurado, promedio: dets }
+        return { jurado, promedio: base, desempate }
       })
-      .filter((x) => x.jurado) as { jurado: Jurado; promedio: number }[]
+      .filter((x) => x.jurado) as { jurado: Jurado; promedio: number; desempate: number }[]
 
     return {
       candidata: c,
@@ -66,6 +76,11 @@ export default function EvaluacionesPanel({
                 {jurados.map((j) => (
                   <th key={j.id} className="pb-2 pr-3 text-center font-semibold">
                     {j.codigo}
+                    {hayDesempate && (
+                      <span className="block text-[9px] font-bold text-gold-300/70">
+                        +desempate
+                      </span>
+                    )}
                   </th>
                 ))}
                 <th className="pb-2 text-center font-semibold">Progreso</th>
@@ -83,9 +98,16 @@ export default function EvaluacionesPanel({
                     return (
                       <td key={j.id} className="py-3 pr-3 text-center">
                         {fila ? (
-                          <span className="font-mono text-xs font-bold text-gold-300">
-                            {fila.promedio}
-                          </span>
+                          <div className="flex flex-col items-center">
+                            <span className="font-mono text-xs font-bold text-gold-300">
+                              {fila.promedio}
+                            </span>
+                            {hayDesempate && (
+                              <span className="font-mono text-[10px] text-gold-400/70">
+                                +{fila.desempate}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-navy-600">—</span>
                         )}

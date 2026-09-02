@@ -7,28 +7,64 @@ import { logConsulta, logError } from '../../utils/devlog'
 import { CRITERIOS_OFICIALES } from '../../constants/criteriosOficiales'
 import type { Criterio } from '../../types/database'
 
+const PUNTOS_RUBRICA = 100
+
+function claseEstadoChip(tipo: 'ok' | 'warn' | 'danger' | 'gold'): string {
+  const base = 'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold'
+  if (tipo === 'ok') return `${base} bg-emerald-500/15 text-emerald-300 shadow-[inset_0_0_0_1px_rgba(110,231,183,0.3)]`
+  if (tipo === 'warn') return `${base} bg-amber-500/10 text-amber-300 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.35)]`
+  if (tipo === 'danger') return `${base} bg-red-500/10 text-red-300 shadow-[inset_0_0_0_1px_rgba(248,113,113,0.35)]`
+  return `${base} bg-gold-500/10 text-gold-300 shadow-[inset_0_0_0_1px_rgba(223,191,98,0.3)]`
+}
+
 function FormularioCriterio({
   criterio,
+  totalBase,
   guardando,
   error,
   onGuardar,
   onCancelar,
 }: {
   criterio: Criterio | null
+  totalBase: number
   guardando: boolean
   error: string | null
-  onGuardar: (datos: { nombre: string; puntaje_maximo: number; indicadores: string }) => void
+  onGuardar: (datos: {
+    nombre: string
+    puntaje_maximo: number
+    indicadores: string
+    es_desempate: boolean
+  }) => void
   onCancelar: () => void
 }) {
   const [nombre, setNombre] = useState(criterio?.nombre ?? '')
   const [puntaje, setPuntaje] = useState(criterio ? String(criterio.puntaje_maximo) : '')
   const [indicadores, setIndicadores] = useState(criterio?.indicadores ?? '')
+  const [esDesempate, setEsDesempate] = useState(criterio?.es_desempate ?? false)
+
+  const p = Number(puntaje)
+  const puntosValidos = puntaje.trim() !== '' && Number.isFinite(p) && p >= 0
+
+  const baseSin =
+    totalBase - (criterio && !criterio.es_desempate ? criterio.puntaje_maximo : 0)
+
+  const previewBase = esDesempate ? baseSin : baseSin + (puntosValidos ? p : 0)
+  const previewEstado =
+    previewBase === PUNTOS_RUBRICA
+      ? 'ok'
+      : previewBase > PUNTOS_RUBRICA
+        ? 'danger'
+        : 'warn'
 
   const enviar = () => {
-    const p = Number(puntaje)
     if (!nombre.trim()) return
-    if (!puntaje.trim() || !Number.isFinite(p) || p < 0) return
-    onGuardar({ nombre: nombre.trim(), puntaje_maximo: p, indicadores: indicadores.trim() })
+    if (!puntosValidos) return
+    onGuardar({
+      nombre: nombre.trim(),
+      puntaje_maximo: p,
+      indicadores: indicadores.trim(),
+      es_desempate: esDesempate,
+    })
   }
 
   return (
@@ -39,7 +75,7 @@ function FormularioCriterio({
           {criterio ? 'Editar criterio' : 'Nuevo criterio'}
         </p>
         <h3 className="mt-2 text-xl font-bold text-white">
-          {criterio ? criterio.nombre : 'Agregar a la tabla de puntajes'}
+          {criterio ? criterio.nombre : 'Agregar a la rúbrica'}
         </h3>
 
         <div className="mt-5 space-y-4">
@@ -81,6 +117,55 @@ function FormularioCriterio({
               className="input-panel resize-none leading-relaxed"
             />
           </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-navy-800/40 px-3.5 py-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-navy-400">
+                Criterio de desempate
+              </p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-navy-500">
+                No cuenta dentro de los {PUNTOS_RUBRICA} pts: sus puntos van aparte y se usan solo
+                para romper empates.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={esDesempate}
+              onClick={() => setEsDesempate((v) => !v)}
+              className={`h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${
+                esDesempate ? 'bg-gold-500/70' : 'bg-navy-600/60'
+              }`}
+            >
+              <span
+                className={`block h-5 w-5 rounded-full transition-transform ${
+                  esDesempate ? 'translate-x-5 bg-gold-300' : 'translate-x-0 bg-navy-300'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div
+            className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-sm ${
+              previewEstado === 'ok'
+                ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300'
+                : previewEstado === 'danger'
+                  ? 'border-red-500/30 bg-red-500/5 text-red-300'
+                  : 'border-amber-500/30 bg-amber-500/5 text-amber-300'
+            }`}
+          >
+            <span className="font-semibold">
+              {previewEstado === 'ok'
+                ? 'Queda en 100 pts — rúbrica cerrada'
+                : previewEstado === 'warn'
+                  ? `Faltan ${PUNTOS_RUBRICA - previewBase} pts para completar la rúbrica`
+                  : `Sobran ${previewBase - PUNTOS_RUBRICA} pts sobre la rúbrica`}
+            </span>
+            <span className="font-mono font-bold tabular-nums">
+              {previewBase}
+              <span className="opacity-60">/100</span>
+            </span>
+          </div>
         </div>
 
         {error && (
@@ -91,7 +176,11 @@ function FormularioCriterio({
           <button onClick={onCancelar} className="btn-ghost">
             Cancelar
           </button>
-          <button onClick={enviar} disabled={guardando} className="btn-gold">
+          <button
+            onClick={enviar}
+            disabled={guardando || !nombre.trim() || !puntosValidos}
+            className="btn-gold"
+          >
             {guardando ? 'Guardando…' : criterio ? 'Guardar cambios' : 'Agregar criterio'}
           </button>
         </div>
@@ -114,9 +203,19 @@ export default function Criterios() {
   const criteriosEtapa = [...criterios.filter((c) => c.etapa === etapa)].sort(
     (a, b) => a.orden - b.orden,
   )
+  const criteriosBase = criteriosEtapa.filter((c) => !c.es_desempate)
+  const criteriosDesempate = criteriosEtapa.filter((c) => c.es_desempate)
+  const totalBase = criteriosBase.reduce((suma, c) => suma + c.puntaje_maximo, 0)
+  const totalDesempate = criteriosDesempate.reduce((suma, c) => suma + c.puntaje_maximo, 0)
   const oficiales = CRITERIOS_OFICIALES[etapa]
   const reglamento = reglamentos.find((r) => r.etapa === etapa)?.contenido ?? null
-  const totalPuntos = criteriosEtapa.reduce((suma, c) => suma + c.puntaje_maximo, 0)
+
+  const estadoTexto =
+    totalBase === PUNTOS_RUBRICA
+      ? 'Rúbrica completa · 100 pts'
+      : totalBase < PUNTOS_RUBRICA
+        ? `Faltan ${PUNTOS_RUBRICA - totalBase} pts · va ${totalBase}/100`
+        : `Sobran ${totalBase - PUNTOS_RUBRICA} pts · va ${totalBase}/100`
 
   const abrirNuevo = () => {
     setError(null)
@@ -157,7 +256,12 @@ export default function Criterios() {
     await recargar()
   }
 
-  const guardar = async (datos: { nombre: string; puntaje_maximo: number; indicadores: string }) => {
+  const guardar = async (datos: {
+    nombre: string
+    puntaje_maximo: number
+    indicadores: string
+    es_desempate: boolean
+  }) => {
     if (!etapa) return
     setGuardando(true)
     setError(null)
@@ -171,6 +275,7 @@ export default function Criterios() {
           nombre: datos.nombre,
           puntaje_maximo: datos.puntaje_maximo,
           indicadores: datos.indicadores,
+          es_desempate: datos.es_desempate,
         })
         .eq('id', criterioEditar.id)
         .eq('etapa', etapa)
@@ -189,6 +294,7 @@ export default function Criterios() {
         nombre: datos.nombre,
         puntaje_maximo: datos.puntaje_maximo,
         indicadores: datos.indicadores,
+        es_desempate: datos.es_desempate,
         orden,
       })
       if (error) {
@@ -202,6 +308,25 @@ export default function Criterios() {
     setGuardando(false)
     setFormAbierto(false)
     setCriterioEditar(null)
+    await recargar()
+  }
+
+  const alternarDesempate = async (c: Criterio) => {
+    setGuardando(true)
+    setError(null)
+    const supabase = getSupabase()
+    logConsulta(`Panel: marcar criterio "${c.id}" como desempate=${!c.es_desempate}`)
+    const { error } = await supabase
+      .from('criterios')
+      .update({ es_desempate: !c.es_desempate })
+      .eq('id', c.id)
+    if (error) {
+      logError('marcar desempate', error.message)
+      setError(error.message)
+      setGuardando(false)
+      return
+    }
+    setGuardando(false)
     await recargar()
   }
 
@@ -227,7 +352,7 @@ export default function Criterios() {
       <PanelHeader
         eyebrow="Configuración"
         title="Criterios de evaluación"
-        description="Administra la rúbrica oficial: agrega, edita o elimina criterios según la etapa del certamen."
+        description="Administra la rúbrica oficial: agrega, edita o elimina criterios. Los criterios de desempate no cuentan dentro de los 100 pts."
       />
 
       {!etapa ? (
@@ -242,18 +367,14 @@ export default function Criterios() {
             completado={criteriosEtapa.length > 0}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-navy-400">
-                {criteriosEtapa.length} criterio{criteriosEtapa.length === 1 ? '' : 's'} definidos
-                {criteriosEtapa.length > 0 && (
-                  <>
-                    {' '}·{' '}
-                    <span className="font-mono font-semibold text-gold-300">
-                      {totalPuntos}
-                    </span>{' '}
-                    pts en total
-                  </>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={claseEstadoChip(totalBase === 100 ? 'ok' : totalBase < 100 ? 'warn' : 'danger')}>
+                  {estadoTexto}
+                </span>
+                {totalDesempate > 0 && (
+                  <span className={claseEstadoChip('gold')}>Desempate +{totalDesempate} pts</span>
                 )}
-              </p>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {oficiales && (
                   <button
@@ -274,6 +395,12 @@ export default function Criterios() {
               </div>
             </div>
 
+            <p className="mt-2 text-xs text-navy-400">
+              {criteriosEtapa.length} criterio{criteriosEtapa.length === 1 ? '' : 's'} en total ·{' '}
+              {criteriosBase.length} en rubrica ·{' '}
+              {criteriosDesempate.length} de desempate
+            </p>
+
             {error && (
               <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>
             )}
@@ -287,24 +414,35 @@ export default function Criterios() {
                         <th className="w-14 px-4 py-3 font-semibold">#</th>
                         <th className="px-4 py-3 font-semibold">Criterio</th>
                         <th className="w-24 px-4 py-3 text-center font-semibold">Puntaje</th>
-                        <th className="w-28 px-4 py-3 text-right font-semibold">Acciones</th>
+                        <th className="w-40 px-4 py-3 text-right font-semibold">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {criteriosEtapa.map((c, i) => (
                         <tr
                           key={c.id}
-                          className={`border-t border-white/[0.07] transition-colors hover:bg-gold-500/[0.04] ${
-                            i % 2 === 1 ? 'bg-white/[0.015]' : ''
-                          }`}
+                          className={`border-t transition-colors hover:bg-gold-500/[0.04] ${
+                            c.es_desempate ? 'border-gold-500/20 bg-gold-500/[0.04]' : 'border-white/[0.07]'
+                          } ${i % 2 === 1 ? 'bg-white/[0.015]' : ''}`}
                         >
                           <td className="px-4 py-3 align-top">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-navy-800/70 font-mono text-xs font-bold text-gold-300 ring-1 ring-gold-500/25">
+                            <span
+                              className={`inline-flex h-7 w-7 items-center justify-center rounded-lg font-mono text-xs font-bold ring-1 ${
+                                c.es_desempate
+                                  ? 'bg-gold-500/10 text-gold-300 ring-gold-500/30'
+                                  : 'bg-navy-800/70 text-gold-300 ring-gold-500/25'
+                              }`}
+                            >
                               {c.orden}
                             </span>
                           </td>
                           <td className="px-4 py-3 align-top">
-                            <p className="font-semibold text-white">{c.nombre}</p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-white">{c.nombre}</p>
+                              {c.es_desempate && (
+                                <span className={claseEstadoChip('gold')}>Desempate</span>
+                              )}
+                            </div>
                             {c.indicadores && (
                               <p className="mt-1 text-xs leading-relaxed text-navy-400">
                                 {c.indicadores}
@@ -312,12 +450,32 @@ export default function Criterios() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-center align-top">
-                            <span className="font-mono text-sm font-bold tabular-nums text-gold-300">
+                            <span
+                              className={`font-mono text-sm font-bold tabular-nums ${
+                                c.es_desempate ? 'text-gold-300' : 'text-gold-300'
+                              }`}
+                            >
                               {c.puntaje_maximo}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right align-top">
-                            <div className="inline-flex gap-1.5">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                onClick={() => alternarDesempate(c)}
+                                disabled={guardando}
+                                title={
+                                  c.es_desempate
+                                    ? 'Quitar de desempate (cuenta en la rúbrica)'
+                                    : 'Marcar como desempate (no cuenta en los 100 pts)'
+                                }
+                                className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
+                                  c.es_desempate
+                                    ? 'border-gold-500/40 bg-gold-500/10 text-gold-300 hover:bg-gold-500/20 disabled:opacity-40'
+                                    : 'border-white/10 bg-white/[0.03] text-navy-300 hover:border-gold-500/30 hover:text-gold-300 disabled:opacity-40'
+                                }`}
+                              >
+                                Desempate
+                              </button>
                               <button
                                 onClick={() => abrirEditar(c)}
                                 title="Editar criterio"
@@ -343,11 +501,18 @@ export default function Criterios() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t border-gold-500/20 bg-white/[0.02]">
-                        <td colSpan={2} className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-navy-400">
-                          Total rúbrica
+                        <td colSpan={2} className="px-4 py-3">
+                          <span className="text-xs font-semibold uppercase tracking-widest text-navy-400">
+                            Total rúbrica
+                          </span>
+                          {totalDesempate > 0 && (
+                            <span className="ml-2 text-[11px] font-semibold text-gold-300">
+                              +{totalDesempate} pts desempate
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center font-mono text-sm font-bold tabular-nums text-gold-300">
-                          {totalPuntos}
+                          {totalBase}
                         </td>
                         <td className="px-4 py-3" />
                       </tr>
@@ -382,6 +547,7 @@ export default function Criterios() {
       {formAbierto && (
         <FormularioCriterio
           criterio={criterioEditar}
+          totalBase={totalBase}
           guardando={guardando}
           error={error}
           onGuardar={guardar}
@@ -403,8 +569,11 @@ export default function Criterios() {
             <p className="mt-3 text-sm leading-relaxed text-navy-300">
               Se eliminará{' '}
               <strong className="text-white">"{confirmarEliminar.nombre}"</strong> de la etapa{' '}
-              <strong className="text-gold-300">{confirmarEliminar.etapa}</strong>. Las evaluaciones
-              ya guardadas con este criterio no se verán afectadas.
+              <strong className="text-gold-300">{confirmarEliminar.etapa}</strong>{' '}
+              {confirmarEliminar.es_desempate && (
+                <span className="text-gold-300">(criterio de desempate)</span>
+              )}
+              . Las evaluaciones ya guardadas con este criterio no se verán afectadas.
             </p>
             {error && (
               <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>

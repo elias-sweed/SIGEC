@@ -34,6 +34,7 @@ create table if not exists public.criterios (
   nombre text not null,
   puntaje_maximo numeric(5, 2) not null check (puntaje_maximo > 0),
   indicadores text,
+  es_desempate boolean not null default false,
   orden integer not null check (orden > 0),
   unique (etapa, orden)
 );

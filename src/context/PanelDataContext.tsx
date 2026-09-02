@@ -45,7 +45,7 @@ export function PanelDataProvider({ children }: { children: ReactNode }) {
       supabase.from('jurados').select('*').order('codigo'),
       supabase.from('criterios').select('*').order('orden'),
       supabase.from('evaluaciones').select('*'),
-      supabase.from('evaluacion_detalles').select('evaluacion_id, puntaje'),
+      supabase.from('evaluacion_detalles').select('evaluacion_id, criterio_id, puntaje'),
       supabase.from('reglamento_etapa').select('*'),
     ])
 

@@ -51,7 +51,7 @@ export default function Home() {
       <div className="relative">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-[-7rem] mx-auto h-[460px] max-w-4xl bg-[radial-gradient(closest-side,rgba(201,162,39,0.18),transparent)]"
+          className="pointer-events-none absolute inset-x-0 -top-28 mx-auto h-115 max-w-4xl bg-[radial-gradient(closest-side,rgba(201,162,39,0.18),transparent)]"
         />
         <p className="relative mb-3 text-sm font-semibold uppercase tracking-[0.3em] text-gold-400">
           Certamen de Danza

@@ -1,5 +1,43 @@
 # CHANGELOG SIGEC
 
+## Intermedio — Rúbrica de 100 pts controlada y criterios de desempate
+
+Fecha: 02/09/2026
+Estado: Completada
+
+### Control de los 100 pts
+
+- La sección "Criterios" ahora muestra el **estado de la rúbrica** en vivo:
+  - verde "Rúbrica completa · 100 pts" si el total base es exactamente 100;
+  - ámbar "Faltan X pts · va Y/100" si está por debajo;
+  - rojo "Sobran X pts · va Y/100" si se pasa.
+- En el modal de agregar/editar hay una **preview en vivo** del total resultante con el mismo aviso (verde/ámbar/rojo) antes de guardar.
+
+### Criterios de desempate (nueva columna `es_desempate`)
+
+- Los criterios marcados como desempate **no cuentan dentro de los 100 pts**: sus puntos van aparte y solo sirven para romper empates en la nota base.
+- Panel admin:
+  - Botón "Desempate" por fila para activar/desactivar el modo (fila con nimbado dorado + chip "Desempate").
+  - Total rúbrica (base) y "+X pts desempate" separados en el pie de la tabla.
+- Jurado:
+  - Los criterios de desempate se muestran en una **sección aparte** ("Criterios de desempate", tarjetas con badge dorado).
+  - El total base va sobre 100; el desempate se muestra como "+X pts desempate" (tarjeta de total y barra inferior).
+- Admin — Evaluaciones:
+  - Cada celda de jurado muestra la nota base (sobre 100) y debajo el "+X" de desempate.
+
+### Archivos
+
+- `supabase/migrations/20260902100000_criterios_desempate.sql` (nueva) — `alter table criterios add column es_desempate ...`
+- `supabase/SETUP_COMPLETO.sql` — columna `es_desempate` en `create table criterios`.
+- `src/types/database.ts` — `Criterio.es_desempate`.
+- `src/utils/scoring.ts` — `calcularTotales()` (base/desempate).
+- `src/pages/admin/Criterios.tsx` — avisos de rúbrica + toggle desempate + preview.
+- `src/pages/JuradoEvaluacion.tsx` y `src/components/event/ScoreSlider.tsx` — sección y badge de desempate.
+- `src/components/admin/EvaluacionesPanel.tsx` y `src/pages/admin/Evaluaciones.tsx` — columna desempate.
+- `src/context/PanelDataContext.tsx` — ahora selecciona `criterio_id` en `evaluacion_detalles`.
+
+> Pendiente: ejecutar la migración `20260902100000_criterios_desempate.sql` en Supabase SQL Editor.
+
 ## Intermedio — CRUD de criterios en el panel
 
 Fecha: 02/09/2026

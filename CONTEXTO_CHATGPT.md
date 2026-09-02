@@ -293,13 +293,12 @@ export function validarPuntaje(puntaje, puntajeMaximo): boolean
 ## 12. Pendientes conocidos / sugeridos para la siguiente fase
 
 **Bugs / deuda técnica (revisar primero):**
-1. ⚠️ **Update de evaluación existente con columna inexistente `updated_at`** en `evaluaciones` (bloquea "corregir" puntajes ya guardados). Arreglar: agregar la columna en una migración o quitar el campo del update.
-2. `calcularPromedioJurados` está definido pero sin uso; servicios `evaluation.service.ts` / `criteria.service.ts` existen pero el flujo real usa llamadas inline con `getSupabase()` (no borrarlos sin confirmar, pero hay que unificar o eliminar).
+1. ~~Update de evaluación existente con columna inexistente~~ → **corregido** (ver sección 7, punto 3).
+2. Los servicios `evaluation.service.ts` / `criteria.service.ts` existen pero el flujo real usa llamadas inline con `getSupabase()` (no borrarlos sin confirmar, pero hay que unificar o eliminar).
 
 **Funciones todavía no implementadas (candidatas a la siguiente fase):**
-- Puntaje **promedio por candidata** (media de jurados) y **ranking** ordenado.
-- Determinación automática de la **ganadora** y manejo de **empates** con el desempate (ya se calcula el `+desempate` por separado).
-- Pantalla pública (`/pantalla`) con **resultados reales** en vez del estado genérico "Resultados publicados".
+- ~~Puntaje **promedio por candidata** y **ranking** ordenado~~ → **implementado** en `src/components/admin/RankingPanel.tsx` (promedio descendente; empates se rompen con el `+desempate` y, si persisten, se muestran como "Decisión del Jurado" sin romper automáticamente).
+- Determinación automática de la **ganadora** declarada (coronación) y pantalla pública con **resultados reales**.
 - Cierre de sesión con expiración o intentos adicionales; login por contraseña ya funciona.
 - **RLS / políticas por rol** para producción (hoy todo deshabilitado; RLS off).
 - Verificar si la configuración de Supabase tiene la confirmación de email desactivada y, si se quiere, restringir `auth` (email confirm) para jurados.
@@ -308,6 +307,7 @@ export function validarPuntaje(puntaje, puntajeMaximo): boolean
 
 ## 13. Historial de entregas recientes (commits)
 
+- `b129607` — Parte 0 y 1: migración `20260902150000_evaluaciones_updated_at.sql` (columna `updated_at` + trigger) y Consola de Operación en el dashboard (reloj, control de estados, navegación de candidata).
 - `eddbe82` — Fondo Beams 3D en el contenido del panel (lazy).
 - `c9e0b10` — Rediseño premium del panel (glass cards, botones dorados, chips).
 - `7463ad7` — Sidebar premium (logo, "ECSA 2026", métricas glass).

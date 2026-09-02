@@ -68,7 +68,7 @@ function iniciales(nombre: string): string {
 }
 
 export default function Resumen() {
-  const { evento, candidatas, jurados, criterios, recargar } = usePanelData()
+  const { evento, candidatas, jurados, criterios, evaluaciones, recargar } = usePanelData()
   const { estadoEvento, candidataActual, actualizarCandidata } = useCertamen()
 
   const [error, setError] = useState<string | null>(null)
@@ -85,6 +85,20 @@ export default function Resumen() {
   const estadoActual = (evento?.estado as EventState) || 'preparando'
   const criteriosEtapa = criterios.filter((c) => c.etapa === etapa)
 
+  // Auto-refresco: la consola se actualiza sola mientras la evaluación está activa,
+  // para que el progreso de jurados y el botón "Cerrar Evaluación" se habiliten solos.
+  useEffect(() => {
+    if (estadoActual !== 'evaluando') return
+    const intervalo = setInterval(async () => {
+      try {
+        await recargar()
+      } catch {
+        /* sin acciones: reintenta en el siguiente ciclo */
+      }
+    }, 10000)
+    return () => clearInterval(intervalo)
+  }, [estadoActual, recargar])
+
   const checklist: ItemChecklist[] = [
     { clave: 'evento', label: 'Evento creado', ok: !!evento },
     { clave: 'candidatas', label: 'Candidatas registradas', ok: candidatas.length > 0 },
@@ -92,6 +106,15 @@ export default function Resumen() {
     { clave: 'criterios', label: 'Criterios oficiales cargados', ok: criteriosEtapa.length > 0 },
   ]
   const completo = checklist.every((i) => i.ok)
+
+  const respondieronIds = new Set(
+    evaluaciones
+      .filter((ev) => ev.evento_id === evento?.id && ev.estado === 'completada')
+      .map((ev) => ev.jurado_id),
+  )
+  const respondidos = jurados.filter((j) => respondieronIds.has(j.id)).length
+  const respondieronTodos = jurados.length > 0 && respondidos === jurados.length
+  const pctRespondidos = jurados.length > 0 ? (respondidos / jurados.length) * 100 : 0
 
   const idx = candidatas.findIndex((c) => c.id === candidataActual?.id)
   const posicion = idx >= 0 ? idx + 1 : null
@@ -202,8 +225,10 @@ export default function Resumen() {
     {
       estado: 'resultados_listos',
       etiqueta: 'Cerrar Evaluación',
-      detalle: 'Cierra las notas y deja listo el cómputo',
-      deshabilitado: estadoActual !== 'evaluando' || operando,
+      detalle: respondieronTodos
+        ? 'Cierra las notas y deja listo el cómputo'
+        : `Esperando a los jurados (${respondidos}/${jurados.length})`,
+      deshabilitado: estadoActual !== 'evaluando' || !respondieronTodos || operando,
       accion: () => void cambiarEstado('resultados_listos', false),
     },
     {
@@ -305,6 +330,46 @@ export default function Resumen() {
               )
             })}
           </div>
+        </div>
+
+        {/* Zona 2b: progreso real de jurados */}
+        <div className="mt-7 border-t border-white/10 pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-navy-300">
+              Progreso de jurados
+            </p>
+            <p className="text-xs font-bold tabular-nums text-gold-300">
+              {respondidos} / {jurados.length} respondieron
+            </p>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-navy-800">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                respondieronTodos ? 'bg-emerald-500' : 'bg-gold-500'
+              }`}
+              style={{ width: `${pctRespondidos}%` }}
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {jurados.length === 0 ? (
+              <p className="text-xs text-navy-400/80">Registra jurados antes de iniciar.</p>
+            ) : (
+              jurados.map((j) => {
+                const respondio = respondieronIds.has(j.id)
+                return (
+                  <span key={j.id} className={`chip ${respondio ? 'chip-ok' : 'chip-muted'}`}>
+                    <span className="font-mono">{j.codigo}</span>{' '}
+                    {respondio ? '✓' : '⏳'}
+                  </span>
+                )
+              })
+            )}
+          </div>
+          {estadoActual === 'evaluando' && !respondieronTodos && (
+            <p className="mt-3 text-[11px] text-navy-400">
+              “Cerrar Evaluación” se habilitará automáticamente cuando todos los jurados respondan.
+            </p>
+          )}
         </div>
 
         {/* Zona 3: candidata actual + navegación rápida */}

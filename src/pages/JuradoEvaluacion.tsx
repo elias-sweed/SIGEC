@@ -7,7 +7,6 @@ import { calcularTotales } from '../utils/scoring'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
 import { leerSesionJurado, limpiarSesionJurado } from '../utils/session'
 import ScoreSlider from '../components/event/ScoreSlider'
-import { EVENT_STATE_LABELS, type EventState } from '../constants/eventStates'
 import type { Candidata, Criterio, Jurado } from '../types/database'
 
 interface DetalleState {
@@ -153,6 +152,19 @@ export default function JuradoEvaluacion() {
 
     const supabase = getSupabase()
 
+    // Guardia: si el administrador cerró la ronda, no se guardan cambios
+    const { data: guardia } = await supabase
+      .from('estado_evento')
+      .select('estado')
+      .eq('evento_id', evento.id)
+      .limit(1)
+      .maybeSingle()
+    if (guardia && guardia.estado !== 'evaluando') {
+      setError('Evaluación cerrada por el administrador. No se guardaron cambios.')
+      setSaving(false)
+      return
+    }
+
     logConsulta('Jurado: buscar evaluación existente')
     const { data: existente } = await supabase
       .from('evaluaciones')
@@ -235,6 +247,9 @@ export default function JuradoEvaluacion() {
   }
 
   const evaluando = estadoEvento?.estado === 'evaluando'
+  const estadoJurado = estadoEvento?.estado ?? 'preparando'
+  const cerrada = estadoJurado === 'resultados_listos' || estadoJurado === 'esperando_jurados'
+  const publicada = estadoJurado === 'publicado'
   const desempateIds = new Set(
     criterios.filter((c) => c.es_desempate).map((c) => c.id),
   )
@@ -273,15 +288,21 @@ export default function JuradoEvaluacion() {
         {!evaluando ? (
           <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
             <p className="text-lg font-semibold text-navy-300">
-              Estado actual:{' '}
-              <span className="text-gold-400">
-                {estadoEvento ? (EVENT_STATE_LABELS[estadoEvento.estado as EventState] ?? estadoEvento.estado) : 'Preparando'}
-              </span>
+              {publicada ? (
+                <>Resultados <span className="text-purple-400">publicados</span></>
+              ) : cerrada ? (
+                <>Evaluación <span className="text-amber-400">cerrada</span></>
+              ) : (
+                <>A la espera de la <span className="text-gold-400">evaluación</span></>
+              )}
             </p>
             <p className="mt-3 text-sm text-navy-500">
-              El administrador debe iniciar la evaluación desde el Centro de Control. Esta pantalla se
-              habilitará automáticamente cuando comience.{' '}
-              {evento && `Etapa: ${evento.etapa}`}
+              {publicada
+                ? 'El certamen concluyó y los resultados fueron publicados en la pantalla pública. No se pueden modificar puntajes.'
+                : cerrada
+                  ? 'La ronda fue cerrada desde el Panel Maestro. Ya no se pueden modificar los puntajes; para reabrir, el administrador debe iniciar nuevamente la evaluación.'
+                  : 'El administrador debe iniciar la evaluación desde el Centro de Control. Esta pantalla se habilitará automáticamente cuando comience.'}
+              {evento && ` Etapa: ${evento.etapa}`}
             </p>
           </div>
         ) : !candidataSel ? (
@@ -478,8 +499,8 @@ export default function JuradoEvaluacion() {
         )}
       </main>
 
-      {/* Barra fija inferior (solo mientras se evalúa) */}
-      {candidataSel && (
+      {/* Barra fija inferior (solo mientras la evaluación está abierta) */}
+      {evaluando && candidataSel && (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-navy-950/95 px-4 py-3 backdrop-blur"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}

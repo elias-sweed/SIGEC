@@ -7,6 +7,8 @@ import { useCertamen } from '../../context/CertamenContext'
 import { getSupabase } from '../../lib/supabase'
 import { resetCertamen } from '../../services/reset.service'
 import { logConsulta, logError } from '../../utils/devlog'
+import { registrarAccion } from '../../utils/auditLog'
+import { generarActaOficial } from '../../utils/actaPdf'
 import { EVENT_STATE_LABELS, EVENT_STATE_COLORS, type EventState } from '../../constants/eventStates'
 
 interface ItemChecklist {
@@ -68,7 +70,7 @@ function iniciales(nombre: string): string {
 }
 
 export default function Resumen() {
-  const { evento, candidatas, jurados, criterios, evaluaciones, recargar } = usePanelData()
+  const { evento, candidatas, jurados, criterios, evaluaciones, detalles, recargar } = usePanelData()
   const { estadoEvento, candidataActual, actualizarCandidata } = useCertamen()
 
   const [error, setError] = useState<string | null>(null)
@@ -109,7 +111,9 @@ export default function Resumen() {
 
   const respondieronIds = new Set(
     evaluaciones
-      .filter((ev) => ev.evento_id === evento?.id && ev.estado === 'completada')
+      .filter(
+        (ev) => ev.evento_id === evento?.id && ev.estado === 'completada' && !ev.es_ensayo,
+      )
       .map((ev) => ev.jurado_id),
   )
   const respondidos = jurados.filter((j) => respondieronIds.has(j.id)).length
@@ -194,6 +198,13 @@ export default function Resumen() {
 
     await recargar()
     setOperando(false)
+    const labels: Record<string, string> = {
+      preparando: 'Reinicio a preparando',
+      evaluando: 'Inicio de evaluación',
+      resultados_listos: 'Cierre de evaluación',
+      publicado: 'Publicación de resultados',
+    }
+    await registrarAccion('Operador', `estado_${nuevo}`, labels[nuevo] ?? nuevo)
   }
 
   const navegarCandidata = async (direccion: -1 | 1) => {
@@ -202,9 +213,77 @@ export default function Resumen() {
     if (!destino) return
     try {
       await actualizarCandidata(destino.id)
+      await registrarAccion('Operador', 'cambiar_candidata', `Candidata: ${destino.nombre}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
+  }
+
+  const cambiarEscena = async (escena: string) => {
+    if (!evento) return
+    setOperando(true)
+    setError(null)
+    const supabase = getSupabase()
+
+    if (estadoEvento) {
+      const { error } = await supabase
+        .from('estado_evento')
+        .update({ pantalla_escena: escena, updated_at: new Date().toISOString() })
+        .eq('evento_id', evento.id)
+      if (error) {
+        setError(error.message)
+        setOperando(false)
+        return
+      }
+    }
+    await recargar()
+    setOperando(false)
+    await registrarAccion('Operador', 'cambiar_escena', `Pantalla: ${escena}`)
+  }
+
+  const toggleModoEnsayo = async () => {
+    if (!evento || !estadoEvento) return
+    setOperando(true)
+    setError(null)
+    const nuevo = !estadoEvento.modo_ensayo
+    const { error } = await getSupabase()
+      .from('estado_evento')
+      .update({ modo_ensayo: nuevo, updated_at: new Date().toISOString() })
+      .eq('evento_id', evento.id)
+    if (error) {
+      setError(error.message)
+      setOperando(false)
+      return
+    }
+    await recargar()
+    setOperando(false)
+    await registrarAccion(
+      'Operador',
+      'toggle_ensayo',
+      nuevo ? 'Modo ensayo activado' : 'Modo ensayo desactivado',
+    )
+  }
+
+  const handleGenerarActa = async () => {
+    if (!evento) return
+    setOperando(true)
+    setError(null)
+    try {
+      await generarActaOficial({
+        eventoNombre: evento.nombre,
+        etapa,
+        fecha: new Date(),
+        candidatas,
+        jurados,
+        criterios,
+        evaluaciones,
+        detalles,
+      })
+      await registrarAccion('Operador', 'generar_acta', `Acta: ${evento.nombre} — ${etapa}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+    setOperando(false)
   }
 
   const botones: BotonConsola[] = [
@@ -414,6 +493,63 @@ export default function Resumen() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Zona 4: pantalla pública (escenas) + modo ensayo + acta */}
+        <div className="mt-7 border-t border-white/10 pt-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-navy-300">
+            Pantalla pública
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { id: 'inicio', etiqueta: 'Inicio del evento' },
+              { id: 'evaluacion', etiqueta: 'Candidata en evaluación' },
+              { id: 'esperando', etiqueta: 'Esperando jurados' },
+              { id: 'resultados', etiqueta: 'Resultados' },
+            ].map((esc) => {
+              const activo = estadoEvento?.pantalla_escena === esc.id
+              return (
+                <button
+                  key={esc.id}
+                  onClick={() => void cambiarEscena(esc.id)}
+                  disabled={operando}
+                  className={`rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 disabled:opacity-50 ${
+                    activo
+                      ? 'border-gold-400/70 bg-gold-500/20 text-gold-200 ring-1 ring-gold-400/40'
+                      : 'border-white/10 bg-navy-800/40 text-navy-200 hover:border-gold-500/40 hover:text-white'
+                  }`}
+                >
+                  {esc.etiqueta}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <button
+              onClick={() => void toggleModoEnsayo()}
+              disabled={!estadoEvento || operando}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition-all duration-200 disabled:opacity-50 ${
+                estadoEvento?.modo_ensayo
+                  ? 'border-amber-400/70 bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/40'
+                  : 'border-white/10 bg-navy-800/40 text-navy-200 hover:text-white'
+              }`}
+            >
+              {estadoEvento?.modo_ensayo ? '◉ Modo Ensayo ACTIVO' : '○ Modo Ensayo'}
+            </button>
+            <button
+              onClick={() => void handleGenerarActa()}
+              disabled={!evento || operando}
+              className="btn-gold"
+            >
+              Generar Acta Oficial
+            </button>
+          </div>
+          {estadoEvento?.modo_ensayo && (
+            <p className="mt-3 text-[11px] text-amber-300/80">
+              Las evaluaciones realizadas en modo ensayo quedan marcadas como simuladas y no afectan los resultados oficiales ni el ranking.
+            </p>
+          )}
         </div>
       </section>
 

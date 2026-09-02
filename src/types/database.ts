@@ -50,6 +50,7 @@ export interface Evaluacion {
   candidata_id: string
   jurado_id: string
   estado: string
+  es_ensayo: boolean
   created_at: string
   updated_at: string
 }
@@ -64,4 +65,12 @@ export interface EvaluacionDetalle {
 
 export interface EvaluacionConDetalles extends Evaluacion {
   evaluacion_detalles: EvaluacionDetalle[]
+}
+
+export interface Auditoria {
+  id: string
+  usuario: string
+  accion: string
+  descripcion: string | null
+  created_at: string
 }

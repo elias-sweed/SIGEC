@@ -52,6 +52,7 @@ create table if not exists public.evaluaciones (
   candidata_id uuid not null references public.candidatas (id) on delete cascade,
   jurado_id uuid not null references public.jurados (id) on delete cascade,
   estado text not null default 'pendiente',
+  es_ensayo boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (evento_id, candidata_id, jurado_id)
@@ -73,6 +74,8 @@ create table if not exists public.estado_evento (
   evento_id uuid not null unique references public.eventos (id),
   candidata_actual_id uuid references public.candidatas (id),
   estado text not null default 'inactivo',
+  pantalla_escena text not null default 'inicio',
+  modo_ensayo boolean not null default false,
   updated_at timestamptz not null default now()
 );
 
@@ -122,6 +125,17 @@ create trigger evaluaciones_touch_updated_at
   before update on public.evaluaciones
   for each row
   execute function public.touch_updated_at();
+
+-- 7. Tabla de auditoría
+create table if not exists public.auditoria (
+  id uuid primary key default gen_random_uuid(),
+  usuario text not null,
+  accion text not null,
+  descripcion text,
+  created_at timestamptz not null default now()
+);
+create index if not exists auditoria_created_at_idx on public.auditoria (created_at desc);
+alter table public.auditoria disable row level security;
 
 -- =============================================
 -- SIGEC — POLÍTICAS RLS PARA DESARROLLO

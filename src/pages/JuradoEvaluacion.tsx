@@ -28,6 +28,7 @@ export default function JuradoEvaluacion() {
   const { candidatas, eventoCandidato: evento, estadoEvento } = useCertamen()
   const navigate = useNavigate()
   const sesion = leerSesionJurado()
+  const esEnsayo = estadoEvento?.modo_ensayo === true
 
   const [jurado, setJurado] = useState<Jurado | null>(null)
   const [candidataSel, setCandidataSel] = useState<Candidata | null>(null)
@@ -198,6 +199,7 @@ export default function JuradoEvaluacion() {
           candidata_id: candidataSel.id,
           jurado_id: jurado.id,
           estado: 'completada',
+          es_ensayo: esEnsayo,
         })
         .select('id')
         .single()

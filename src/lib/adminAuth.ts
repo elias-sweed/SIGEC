@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase'
+import { registrarAccion } from '../utils/auditLog'
 
 const SUPERADMIN_EMAIL = (import.meta.env.VITE_SUPERADMIN_EMAIL ?? '').toLowerCase()
 
@@ -54,6 +55,8 @@ export async function iniciarSesionSuperadmin(
   if (error) {
     return { ok: false, error: 'Credenciales incorrectas. Verifica tu contraseña.' }
   }
+
+  void registrarAccion(emailLimpio, 'inicio_sesion', 'Inicio de sesión del administrador')
 
   return { ok: true, session: data.session }
 }

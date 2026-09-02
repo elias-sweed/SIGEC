@@ -5,6 +5,7 @@ import PasswordInput from '../components/form/PasswordInput'
 import { emailDeJurado, marcarEnSesion, obtenerJuradoPorCodigo, obtenerJuradoPorToken } from '../services/jurado.service'
 import { estaActivadoLocal, guardarSesionJurado, leerSesionJurado } from '../utils/session'
 import { logConsulta, logError } from '../utils/devlog'
+import { registrarAccion } from '../utils/auditLog'
 import type { Evento, Jurado } from '../types/database'
 
 const MAX_INTENTOS = 5
@@ -137,6 +138,7 @@ export default function JuradoLogin() {
     guardarSesionJurado(jurado.id, jurado.codigo)
     await marcarEnSesion(jurado.id, true)
     logConsulta(`JuradoLogin: sesión iniciada para ${jurado.codigo}`)
+    void registrarAccion(jurado.codigo, 'inicio_sesion', `Inicio de sesión del jurado ${jurado.nombre}`)
 
     navigate('/jurado/evaluacion', { replace: true })
   }

@@ -138,6 +138,7 @@ Importante: la rúbrica por etapa tiene estos criterios; los de **desempate** (`
 | candidata_id | uuid not null FK → candidatas (cascade) |
 | jurado_id | uuid not null FK → jurados (cascade) |
 | estado | text not null default 'pendiente' |
+| es_ensayo | boolean not null default false (evaluaciones en modo ensayo/simuladas) |
 | created_at | timestamptz default now() |
 | updated_at | timestamptz not null default now() (auto via trigger) |
 | | **unique (evento_id, candidata_id, jurado_id)** |
@@ -152,14 +153,25 @@ Importante: la rúbrica por etapa tiene estos criterios; los de **desempate** (`
 | created_at | timestamptz default now() |
 | | **unique (evaluacion_id, criterio_id)** |
 
-**`estado_evento`** (fuente de verdad de la candidata activa / fase de la pantalla pública)
+**`estado_evento`** (fuente de verdad de la candidata activa / escena de la pantalla pública)
 | columna | tipo |
 |---|---|
 | id | uuid PK |
 | evento_id | uuid not null **unique** FK → eventos |
 | candidata_actual_id | uuid null FK → candidatas |
 | estado | text not null default 'inactivo' |
+| pantalla_escena | text not null default 'inicio' (`inicio`\|`evaluacion`\|`esperando`\|`resultados`) |
+| modo_ensayo | boolean not null default false |
 | updated_at | timestamptz default now() |
+
+### `auditoria` (registro de acciones del operador/jurados)
+| columna | tipo |
+|---|---|
+| id | uuid PK |
+| usuario | text not null (email admin o código de jurado) |
+| accion | text not null (p. ej. `inicio_sesion`, `estado_evaluando`, `cambiar_candidata`, `cambiar_escena`, `toggle_ensayo`, `generar_acta`) |
+| descripcion | text null |
+| created_at | timestamptz default now() |
 
 ### Índices
 `evaluaciones_evento_idx`, `evaluaciones_candidata_idx`, `evaluaciones_jurado_idx`, `criterios_etapa_idx`, `evaluacion_detalles_evaluacion_idx`, `evaluacion_detalles_criterio_idx`, `estado_evento_evento_idx`.
@@ -184,6 +196,9 @@ Deshabilitado en todas las tablas (desarrollo) mediante `alter table ... disable
 | `20260901120000_segunda_etapa_oficial.sql` | Seed oficial 2ª etapa (7 criterios + reglamento) | **Verificar / aplicar** |
 | `20260902100000_criterios_desempate.sql` | `criterios.es_desempate` (`alter table ... add column if not exists es_desempate boolean not null default false`) | **Pendiente** |
 | `20260902150000_evaluaciones_updated_at.sql` | `evaluaciones.updated_at` (default now) + trigger `touch_updated_at` que la actualiza automáticamente en cada UPDATE | **Pendiente de aplicar** |
+| `20260902160000_estado_evento_escena_ensayo.sql` | `estado_evento.pantalla_escena` (default `inicio`), `estado_evento.modo_ensayo` (boolean default false) | **Pendiente de aplicar** |
+| `20260902170000_auditoria.sql` | Tabla `auditoria` (usuario, accion, descripcion, created_at) | **Pendiente de aplicar** |
+| `20260902180000_evaluaciones_ensayo.sql` | `evaluaciones.es_ensayo` (boolean default false) para marcar simulaciones | **Pendiente de aplicar** |
 
 > Si se llega al proyecto "frío", la forma más segura es pegar todo `supabase/SETUP_COMPLETO.sql`
 > en Supabase SQL Editor (es idempotente: usa `if not exists`) y luego las migraciones nuevas
@@ -298,7 +313,11 @@ export function validarPuntaje(puntaje, puntajeMaximo): boolean
 
 **Funciones todavía no implementadas (candidatas a la siguiente fase):**
 - ~~Puntaje **promedio por candidata** y **ranking** ordenado~~ → **implementado** en `src/components/admin/RankingPanel.tsx` (promedio descendente; empates se rompen con el `+desempate` y, si persisten, se muestran como "Decisión del Jurado" sin romper automáticamente).
-- Determinación automática de la **ganadora** declarada (coronación) y pantalla pública con **resultados reales**.
+- ~~Pantalla pública por escenas~~ → **implementado**: `PublicScreen.tsx` con 4 escenas (`inicio`, `evaluacion`, `esperando`, `resultados`) que el Panel Maestro cambia con `estado_evento.pantalla_escena` (NO automáticamente). La escena `resultados` muestra podio 1º/2º/3º animado (sin tablas técnicas), usando promedio (sin evaluaciones de ensayo).
+- ~~Acta Oficial PDF~~ → **implementado** en `src/utils/actaPdf.ts` (logo, evento, fecha, lista, promedio, jurados, ganadora) vía **jspdf** + **jspdf-autotable** (nuevas dependencias); botón "Generar Acta Oficial" en la consola.
+- ~~Registro de acciones~~ → **implementado**: tabla `auditoria` + `src/utils/auditLog.ts`; se registran inicio de sesión (admin/jurado), inicio del evento, cambio de candidata, cierre de evaluación, publicación, cambio de escena y generación de acta. NO se registra el movimiento de sliders.
+- ~~Modo Ensayo~~ → **implementado**: interruptor en la consola (`estado_evento.modo_ensayo`); las evaluaciones guardadas en modo ensayo se marcan `es_ensayo=true` y no afectan el ranking ni el progreso de jurados ni el acta.
+- Determinación automática de la **ganadora** declarada (coronación) explícita y estructura de podio con decisión del jurado (los empates no resueltos quedan como "Decisión del Jurado").
 - Cierre de sesión con expiración o intentos adicionales; login por contraseña ya funciona.
 - **RLS / políticas por rol** para producción (hoy todo deshabilitado; RLS off).
 - Verificar si la configuración de Supabase tiene la confirmación de email desactivada y, si se quiere, restringir `auth` (email confirm) para jurados.
@@ -307,6 +326,7 @@ export function validarPuntaje(puntaje, puntajeMaximo): boolean
 
 ## 13. Historial de entregas recientes (commits)
 
+- `714484a` — Partes 2-4: progreso real de jurados + auto-habilitar Cerrar Evaluación, bloqueo de ronda cerrada, ranking automático con desempate y decisión del jurado.
 - `b129607` — Parte 0 y 1: migración `20260902150000_evaluaciones_updated_at.sql` (columna `updated_at` + trigger) y Consola de Operación en el dashboard (reloj, control de estados, navegación de candidata).
 - `eddbe82` — Fondo Beams 3D en el contenido del panel (lazy).
 - `c9e0b10` — Rediseño premium del panel (glass cards, botones dorados, chips).

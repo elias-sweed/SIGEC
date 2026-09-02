@@ -28,6 +28,26 @@
   }
 }
 
+/* ─── Animaciones ────────────────────────────────────── */
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out both;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @layer components {
   /* ==== Premium panel ==== */
   .panel-card {

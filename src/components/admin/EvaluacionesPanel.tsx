@@ -27,7 +27,9 @@ export default function EvaluacionesPanel({
   const hayDesempate = desempateIds.size > 0
 
   const mapa: EvaluacionesPorCandidata[] = candidatas.map((c) => {
-    const evalsDeCandidata = evaluaciones.filter((ev) => ev.candidata_id === c.id)
+    const evalsDeCandidata = evaluaciones.filter(
+      (ev) => ev.candidata_id === c.id && !ev.es_ensayo,
+    )
     const porJurado = evalsDeCandidata
       .map((ev) => {
         let base = 0

@@ -16,6 +16,8 @@ export interface EstadoEvento {
   evento_id: string
   candidata_actual_id: string | null
   estado: string
+  pantalla_escena: string
+  modo_ensayo: boolean
   updated_at: string
 }
 

@@ -211,7 +211,7 @@ export default function PublicScreen() {
   }, [escena, candidatas])
 
   return (
-    <div className="flex min-h-[calc(100vh-140px)] flex-col items-center justify-center px-4 py-10 text-center">
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10 text-center">
       {escena === 'inicio' && <EscenaInicio evento={evento} />}
       {escena === 'evaluacion' && <EscenaEvaluacion candidata={candidata} evento={evento} />}
       {escena === 'esperando' && <EscenaEsperando candidata={candidata} />}

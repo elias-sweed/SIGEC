@@ -23,12 +23,14 @@ import Evaluaciones from '../pages/admin/Evaluaciones'
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Administración y pantalla pública */}
+      {/* Administración */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
-        <Route path="/pantalla" element={<PublicScreen />} />
         <Route path="*" element={<NotFound />} />
       </Route>
+
+      {/* Pantalla pública: standalone a pantalla completa (sin header ni footer) */}
+      <Route path="/pantalla" element={<PublicScreen />} />
 
       {/* Zona privada del jurado (sin navegación de administración) */}
       <Route element={<JuradoLayout />}>

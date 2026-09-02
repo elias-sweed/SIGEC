@@ -168,7 +168,7 @@ export default function JuradoEvaluacion() {
       logConsulta(`Jurado: actualizar evaluación existente ${evaluacionId}`)
       const { error: evalError } = await supabase
         .from('evaluaciones')
-        .update({ estado: 'completada', updated_at: new Date().toISOString() })
+        .update({ estado: 'completada' })
         .eq('id', evaluacionId)
 
       if (evalError) {

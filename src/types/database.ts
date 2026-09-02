@@ -51,6 +51,7 @@ export interface Evaluacion {
   jurado_id: string
   estado: string
   created_at: string
+  updated_at: string
 }
 
 export interface EvaluacionDetalle {

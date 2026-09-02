@@ -53,6 +53,7 @@ create table if not exists public.evaluaciones (
   jurado_id uuid not null references public.jurados (id) on delete cascade,
   estado text not null default 'pendiente',
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique (evento_id, candidata_id, jurado_id)
 );
 
@@ -102,6 +103,25 @@ alter table public.jurados add column if not exists token_acceso text;
 
 -- 6b. Indicadores de criterios
 alter table public.criterios add column if not exists indicadores text;
+
+-- 6c. updated_at automático en evaluaciones (corrige error 400 del update)
+alter table public.evaluaciones add column if not exists updated_at timestamptz not null default now();
+create or replace function public.touch_updated_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+drop trigger if exists evaluaciones_touch_updated_at on public.evaluaciones;
+create trigger evaluaciones_touch_updated_at
+  before update on public.evaluaciones
+  for each row
+  execute function public.touch_updated_at();
 
 -- =============================================
 -- SIGEC — POLÍTICAS RLS PARA DESARROLLO

@@ -166,52 +166,31 @@ export default function JuradoEvaluacion() {
       return
     }
 
-    logConsulta('Jurado: buscar evaluación existente')
-    const { data: existente } = await supabase
+    logConsulta('Jurado: upsert de evaluación (atómico)')
+    // El UPSERT elimina la race condition de "buscar → insertar": si dos pestañas
+    // guardan a la vez, Supabase inserta o actualiza sin violar UNIQUE.
+    const { data: nuevaEval, error: evalError } = await supabase
       .from('evaluaciones')
-      .select('id')
-      .eq('candidata_id', candidataSel.id)
-      .eq('jurado_id', jurado.id)
-      .maybeSingle()
-
-    let evaluacionId: string
-
-    if (existente) {
-      evaluacionId = existente.id
-      logConsulta(`Jurado: actualizar evaluación existente ${evaluacionId}`)
-      const { error: evalError } = await supabase
-        .from('evaluaciones')
-        .update({ estado: 'completada' })
-        .eq('id', evaluacionId)
-
-      if (evalError) {
-        logError('Jurado actualizar evaluación', evalError.message)
-        setError(evalError.message)
-        setSaving(false)
-        return
-      }
-    } else {
-      logConsulta('Jurado: insertar nueva evaluación')
-      const { data: nuevaEval, error: evalError } = await supabase
-        .from('evaluaciones')
-        .insert({
+      .upsert(
+        {
           evento_id: evento.id,
           candidata_id: candidataSel.id,
           jurado_id: jurado.id,
           estado: 'completada',
           es_ensayo: esEnsayo,
-        })
-        .select('id')
-        .single()
+        },
+        { onConflict: 'evento_id,candidata_id,jurado_id' },
+      )
+      .select('id')
+      .single()
 
-      if (evalError || !nuevaEval) {
-        logError('Jurado insertar evaluación', evalError?.message ?? 'No data')
-        setError(evalError?.message ?? 'Error al insertar evaluación')
-        setSaving(false)
-        return
-      }
-      evaluacionId = nuevaEval.id
+    if (evalError || !nuevaEval) {
+      logError('Jurado upsert evaluación', evalError?.message ?? 'No data')
+      setError(evalError?.message ?? 'Error al guardar la evaluación')
+      setSaving(false)
+      return
     }
+    const evaluacionId = nuevaEval.id
 
     logConsulta(`Jurado: upsert ${detalles.length} detalles`)
     const { error: detallesError } = await supabase.from('evaluacion_detalles').upsert(

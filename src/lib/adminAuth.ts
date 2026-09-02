@@ -66,3 +66,18 @@ export async function cerrarSesionSuperadmin(): Promise<void> {
   const supabase = getSupabase()
   await supabase.auth.signOut()
 }
+
+/**
+ * Verifica la contraseña del superadmin sin cambiar la sesión activa.
+ * Se usa como confirmación para acciones destructivas (p. ej. reiniciar el certamen).
+ * Devuelve true solo si las credenciales del superadmin son correctas.
+ */
+export async function verificarContrasenaSuperadmin(password: string): Promise<boolean> {
+  if (!SUPERADMIN_EMAIL) return false
+  const supabase = getSupabase()
+  const { error } = await supabase.auth.signInWithPassword({
+    email: SUPERADMIN_EMAIL,
+    password,
+  })
+  return !error
+}

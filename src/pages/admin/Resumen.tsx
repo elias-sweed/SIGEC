@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
 import QRIngresoModal from '../../components/admin/QRIngresoModal'
+import ReiniciarCertamenModal from '../../components/admin/ReiniciarCertamenModal'
 import { usePanelData } from '../../context/PanelDataContext'
 import { useCertamen } from '../../context/CertamenContext'
 import { getSupabase } from '../../lib/supabase'
@@ -10,6 +11,8 @@ import { resetCertamen } from '../../services/reset.service'
 import { logConsulta, logError } from '../../utils/devlog'
 import { registrarAccion } from '../../utils/auditLog'
 import { generarActaOficial } from '../../utils/actaPdf'
+import { exportarResultadosExcel } from '../../utils/exportExcel'
+import { descargarRespaldoJSON } from '../../utils/respaldo'
 import { EVENT_STATE_LABELS, EVENT_STATE_COLORS, type EventState } from '../../constants/eventStates'
 
 interface ItemChecklist {
@@ -78,6 +81,8 @@ export default function Resumen() {
   const [operando, setOperando] = useState(false)
   const [reiniciando, setReiniciando] = useState(false)
   const [qrAbierto, setQrAbierto] = useState(false)
+  const [resetAbierto, setResetAbierto] = useState(false)
+  const [exportando, setExportando] = useState(false)
   const [ahora, setAhora] = useState(() => new Date())
 
   useEffect(() => {
@@ -311,15 +316,44 @@ export default function Resumen() {
   const stateColors = EVENT_STATE_COLORS[estadoActual]
   const estadoLabel = EVENT_STATE_LABELS[estadoActual] ?? estadoActual
 
-  const reiniciarCertamen = async () => {
-    if (!window.confirm('¿Seguro que quieres ELIMINAR todos los datos del certamen? Esta acción no se puede deshacer.')) {
-      return
+  const handleExportarExcel = async () => {
+    if (!evento) return
+    setExportando(true)
+    setError(null)
+    try {
+      exportarResultadosExcel({
+        eventoNombre: evento.nombre,
+        etapa,
+        candidatas,
+        jurados,
+        criterios,
+        evaluaciones,
+        detalles,
+      })
+      await registrarAccion('Operador', 'exportar_excel', `Resultados exportados (${evento.nombre} — ${etapa})`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     }
+    setExportando(false)
+  }
+
+  const handleDescargarRespaldo = async () => {
+    try {
+      await descargarRespaldoJSON()
+      await registrarAccion('Operador', 'descargar_respaldo', 'Respaldo JSON descargado')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  const reiniciarCertamen = async () => {
     setReiniciando(true)
     setError(null)
+    setResetAbierto(false)
     try {
       await resetCertamen()
       await recargar()
+      await registrarAccion('Operador', 'reiniciar_certamen', 'Certamen reiniciado (todos los datos eliminados)')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -532,6 +566,13 @@ export default function Resumen() {
               {estadoEvento?.modo_ensayo ? '◉ Modo Ensayo ACTIVO' : '○ Modo Ensayo'}
             </button>
             <button
+              onClick={() => void handleExportarExcel()}
+              disabled={!evento || operando || exportando}
+              className="btn-ghost"
+            >
+              {exportando ? 'Exportando…' : 'Exportar a Excel'}
+            </button>
+            <button
               onClick={() => void handleGenerarActa()}
               disabled={!evento || operando}
               className="btn-gold"
@@ -576,13 +617,22 @@ export default function Resumen() {
               </li>
             ))}
           </ul>
-          <button
-            onClick={reiniciarCertamen}
-            disabled={reiniciando}
-            className="btn-danger shrink-0"
-          >
-            {reiniciando ? 'Reiniciando…' : 'Reiniciar Certamen'}
-          </button>
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+            <button
+              onClick={() => void handleDescargarRespaldo()}
+              disabled={operando}
+              className="btn-ghost shrink-0"
+            >
+              Descargar Respaldo
+            </button>
+            <button
+              onClick={() => setResetAbierto(true)}
+              disabled={reiniciando || operando}
+              className="btn-danger shrink-0"
+            >
+              {reiniciando ? 'Reiniciando…' : 'Reiniciar Certamen'}
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 border-t border-white/10 pt-5">
@@ -634,6 +684,12 @@ export default function Resumen() {
         evento={evento?.nombre}
         abierto={qrAbierto}
         onCerrar={() => setQrAbierto(false)}
+      />
+
+      <ReiniciarCertamenModal
+        abierto={resetAbierto}
+        onCerrar={() => setResetAbierto(false)}
+        onConfirmar={reiniciarCertamen}
       />
     </div>
   )

@@ -159,12 +159,13 @@ export default function PublicScreen() {
   // Cargar ranking para escena de resultados
   useEffect(() => {
     if (escena !== 'resultados') return
+    if (!evento?.id) return
 
     ;(async () => {
       try {
         const supabase = getSupabase()
         const [evalsRes, detsRes, crRes] = await Promise.all([
-          supabase.from('evaluaciones').select('*'),
+          supabase.from('evaluaciones').select('*').eq('evento_id', evento.id),
           supabase.from('evaluacion_detalles').select('evaluacion_id, criterio_id, puntaje'),
           supabase.from('criterios').select('*'),
         ])
@@ -197,7 +198,7 @@ export default function PublicScreen() {
         logError('PublicScreen podium', err instanceof Error ? err.message : String(err))
       }
     })()
-  }, [escena, candidatas])
+  }, [escena, candidatas, evento?.id])
 
   return (
     <div className="flex min-h-screen flex-col">

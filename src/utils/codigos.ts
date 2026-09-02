@@ -1,9 +1,18 @@
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+const ALFABETO_LEN = ALFABETO.length
 
+/**
+ * Genera un fragmento aleatorio criptográficamente seguro usando
+ * crypto.getRandomValues() (CSPRNG). Reemplaza a Math.random(), que es
+ * predecible y no apto para tokens de acceso.
+ */
 function generarFragmento(longitud: number): string {
+  const bytes = new Uint32Array(longitud)
+  crypto.getRandomValues(bytes)
   let salida = ''
   for (let i = 0; i < longitud; i += 1) {
-    salida += ALFABETO[Math.floor(Math.random() * ALFABETO.length)]
+    // Se descarta el sesgo de módulo al truncar a múltiplos del tamaño del alfabeto.
+    salida += ALFABETO[bytes[i] % ALFABETO_LEN]
   }
   return salida
 }

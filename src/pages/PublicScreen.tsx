@@ -34,7 +34,7 @@ export default function PublicScreen() {
   const { eventoCandidato, candidataActual, candidatas, cargarEstado } = useCertamen()
   const [evento, setEvento] = useState<Evento | null>(eventoCandidato)
   const [candidata, setCandidata] = useState<CandidataInfo | null>(null)
-  const [escena, setEscena] = useState<string>('inicio')
+  const [estadoEv, setEstadoEv] = useState<string>('preparando')
   const [podio, setPodio] = useState<PodioItem[]>([])
   const [escenaRefresco, setEscenaRefresco] = useState(0)
 
@@ -57,9 +57,9 @@ export default function PublicScreen() {
     setEscenaRefresco((n) => n + 1)
   })
 
-  // Releer la escena desde estado_evento cuando cambia en vivo
+  // Leer evento, candidata y estado desde estado_evento cuando cambia en vivo
   useEffect(() => {
-    const cargarEscena = async () => {
+    const cargarEstadoEv = async () => {
       try {
         const supabase = getSupabase()
         const { data } = await supabase
@@ -71,11 +71,10 @@ export default function PublicScreen() {
         if (data) {
           const est = data as {
             estado: string
-            pantalla_escena: string
             candidata_actual_id: string | null
             evento_id: string
           }
-          setEscena(est.pantalla_escena || 'inicio')
+          setEstadoEv(est.estado || 'preparando')
           if (est.evento_id && !evento) {
             const { data: evRaw } = await supabase
               .from('eventos')
@@ -97,10 +96,10 @@ export default function PublicScreen() {
         /* sin cambios */
       }
     }
-    cargarEscena()
+    cargarEstadoEv()
   }, [candidataActual, cargarEstado, escenaRefresco, evento])
 
-  // Cargar estado_evento si el contexto no lo trae
+  // Cargar estado_evento si el contexto no lo trae (primer arranque)
   useEffect(() => {
     if (eventoCandidato && candidataActual) return
 
@@ -121,9 +120,8 @@ export default function PublicScreen() {
           evento_id: string
           candidata_actual_id: string | null
           estado: string
-          pantalla_escena: string
         }
-        setEscena(est.pantalla_escena || 'inicio')
+        setEstadoEv(est.estado || 'preparando')
 
         if (est.evento_id) {
           const { data: evRaw } = await supabase
@@ -148,24 +146,15 @@ export default function PublicScreen() {
     })()
   }, [eventoCandidato, candidataActual])
 
-  // Cargar escena actualizada desde estado_evento en cada refresco del contexto
-  useEffect(() => {
-    const cargarEscena = async () => {
-      try {
-        const supabase = getSupabase()
-        const { data } = await supabase
-          .from('estado_evento')
-          .select('pantalla_escena')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (data) setEscena((data as { pantalla_escena: string }).pantalla_escena || 'inicio')
-      } catch {
-        /* sin cambios */
-      }
-    }
-    cargarEscena()
-  }, [candidataActual, cargarEstado])
+  // Escena derivada automáticamente del estado del evento
+  const escena =
+    estadoEv === 'evaluando'
+      ? 'evaluacion'
+      : estadoEv === 'esperando_jurados' || estadoEv === 'resultados_listos'
+        ? 'esperando'
+        : estadoEv === 'publicado'
+          ? 'resultados'
+          : 'inicio'
 
   // Cargar ranking para escena de resultados
   useEffect(() => {

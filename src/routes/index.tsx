@@ -2,7 +2,6 @@ import { Route, Routes } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import JuradoLayout from '../layouts/JuradoLayout'
 import AdminLayout from '../layouts/AdminLayout'
-import Home from '../pages/Home'
 import PublicScreen from '../pages/PublicScreen'
 import AdminLogin from '../pages/AdminLogin'
 import JuradoLogin from '../pages/JuradoLogin'
@@ -23,13 +22,13 @@ import Evaluaciones from '../pages/admin/Evaluaciones'
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Administración */}
+      {/* Administración y portada antigua */}
       <Route element={<MainLayout />}>
-        <Route path="/" element={<Home />} />
         <Route path="*" element={<NotFound />} />
       </Route>
 
       {/* Pantalla pública: standalone a pantalla completa (sin header ni footer) */}
+      <Route path="/" element={<PublicScreen />} />
       <Route path="/pantalla" element={<PublicScreen />} />
 
       {/* Zona privada del jurado (sin navegación de administración) */}

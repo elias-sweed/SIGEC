@@ -211,16 +211,38 @@ export default function PublicScreen() {
   }, [escena, candidatas])
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10 text-center">
-      {escena === 'inicio' && <EscenaInicio evento={evento} />}
-      {escena === 'evaluacion' && <EscenaEvaluacion candidata={candidata} evento={evento} />}
-      {escena === 'esperando' && <EscenaEsperando candidata={candidata} />}
-      {escena === 'resultados' && <EscenaResultados podio={podio} />}
+    <div className="flex min-h-screen flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+        {escena === 'inicio' && <EscenaInicio evento={evento} />}
+        {escena === 'evaluacion' && <EscenaEvaluacion candidata={candidata} evento={evento} />}
+        {escena === 'esperando' && <EscenaEsperando candidata={candidata} />}
+        {escena === 'resultados' && <EscenaResultados podio={podio} />}
 
-      <p className="mt-auto pt-8 text-[10px] uppercase tracking-[0.25em] text-navy-600">
-        SIGEC — Transmisión en tiempo real
-      </p>
+        <p className="mt-auto pt-8 text-[10px] uppercase tracking-[0.25em] text-navy-600">
+          SIGEC — Transmisión en tiempo real
+        </p>
+      </div>
+
+      <FooterIE />
     </div>
+  )
+}
+
+/* ─── Footer de la I.E. Jiménez Pimentel ─────────────────────────────── */
+
+function FooterIE() {
+  return (
+    <footer className="border-t border-white/10 bg-navy-950/80 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-2 px-6 py-5 text-center">
+        <img src={logo} alt="Logo de la I.E." className="h-10 w-10 object-contain" />
+        <p className="text-sm font-semibold text-white">
+          I.E. Jiménez Pimentel
+        </p>
+        <p className="text-xs text-navy-300">
+          Elección y Coronación de Señorita Jiménez Pimentel 2026
+        </p>
+      </div>
+    </footer>
   )
 }
 

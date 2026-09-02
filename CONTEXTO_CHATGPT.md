@@ -318,6 +318,7 @@ export function validarPuntaje(puntaje, puntajeMaximo): boolean
 - ~~Registro de acciones~~ → **implementado**: tabla `auditoria` + `src/utils/auditLog.ts`; se registran inicio de sesión (admin/jurado), inicio del evento, cambio de candidata, cierre de evaluación, publicación, cambio de escena y generación de acta. NO se registra el movimiento de sliders.
 - ~~Modo Ensayo~~ → **implementado**: interruptor en la consola (`estado_evento.modo_ensayo`); las evaluaciones guardadas en modo ensayo se marcan `es_ensayo=true` y no afectan el ranking ni el progreso de jurados ni el acta.
 - ~~QR de ingreso del evento~~ → **implementado**: botón "Mostrar QR de ingreso" en la consola abre `src/components/admin/QRIngresoModal.tsx` (pantalla completa, QR grande que apunta a `/jurado` vía `urlQRIngreso()` en `jurado.service.ts`, texto "Jurados, escaneen para ingresar", duración configurable 5–30 s con contador y cierre automático).
+- ~~Realtime~~ → **implementado**: `src/utils/realtime.ts` (hook `useRealtime`) suscribe solo a `estado_evento`, `evaluaciones` y `jurados`, sin polling. `PanelDataContext` lo usa para refrescar el panel (progreso 5/5, jurados conectados, escena) y `PublicScreen` para la escena/candidata/podio en vivo. Requiere **activar Realtime en Supabase** para esas 3 tablas (ver nota al pie).
 - Determinación automática de la **ganadora** declarada (coronación) explícita y estructura de podio con decisión del jurado (los empates no resueltos quedan como "Decisión del Jurado").
 - Cierre de sesión con expiración o intentos adicionales; login por contraseña ya funciona.
 - **RLS / políticas por rol** para producción (hoy todo deshabilitado; RLS off).
@@ -327,6 +328,7 @@ export function validarPuntaje(puntaje, puntajeMaximo): boolean
 
 ## 13. Historial de entregas recientes (commits)
 
+- `f672aea` — Parte 10: QR de ingreso del evento en pantalla completa con contador (5-30s).
 - `2319002` — Partes 5-9: pantalla pública por escenas + podio animado, acta PDF (jspdf), auditoría, modo ensayo.
 - `714484a` — Partes 2-4: progreso real de jurados + auto-habilitar Cerrar Evaluación, bloqueo de ronda cerrada, ranking automático con desempate y decisión del jurado.
 - `b129607` — Parte 0 y 1: migración `20260902150000_evaluaciones_updated_at.sql` (columna `updated_at` + trigger) y Consola de Operación en el dashboard (reloj, control de estados, navegación de candidata).
@@ -341,3 +343,17 @@ Antes de eso, ya estaban: sistema de QR por token (`49..`), logo en login admin 
 ---
 
 *Fin del documento. Al continuar, respeta las convenciones de la sección 2 y verifica la sección 7 (notas críticas) antes de tocar Supabase.*
+
+---
+
+## Nota Realtime (PARTE 11)
+
+Para que las suscripciones en vivo funcionen, en el panel de Supabase hay que **habilitar Realtime en la publicación** solo para estas 3 tablas (Database → Replication → enable Realtime para `public`):
+
+| Tabla | Para qué se usa en vivo |
+|---|---|
+| `estado_evento` | Candidata actual, escena, modo ensayo, pantalla pública |
+| `evaluaciones` | Progreso `5/5` y avance de evaluaciones |
+| `jurados` | Jurados conectados / activados |
+
+No es necesario convertir toda la app a Realtime; el hook `useRealtime` (en `src/utils/realtime.ts`) se suscribe únicamente a estas tablas con `event: '*'` (INSERT/UPDATE/DELETE) y dispara `recargar()` / `cargarEstado()`. Con RLS desactivado en desarrollo, las suscripciones con la anon key funcionan directamente. En producción con RLS activo, habría que añadir políticas que permitan `select` para el rol correspondiente.

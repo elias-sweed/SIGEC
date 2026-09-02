@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { getSupabase } from '../lib/supabase'
 import { logFilas, logError } from '../utils/devlog'
+import { useRealtime } from '../utils/realtime'
 import { useCertamen } from './CertamenContext'
 import type { Candidata, Criterio, Evaluacion, EvaluacionDetalle, Evento, Jurado, ReglamentoEtapa } from '../types/database'
 
@@ -74,6 +75,12 @@ export function PanelDataProvider({ children }: { children: ReactNode }) {
     await cargarDatos()
     await cargarEstado()
   }, [cargarDatos, cargarEstado])
+
+  // Realtime (sin polling): refresca el panel ante cambios en estado_evento,
+  // evaluaciones (progreso 5/5) y jurados (conectados).
+  useRealtime(['estado_evento', 'evaluaciones', 'jurados'], () => {
+    void recargar()
+  })
 
   const valor = useMemo<PanelData>(
     () => ({ evento, candidatas, jurados, criterios, evaluaciones, detalles, reglamentos, recargar }),

@@ -89,20 +89,6 @@ export default function Resumen() {
   const estadoActual = (evento?.estado as EventState) || 'preparando'
   const criteriosEtapa = criterios.filter((c) => c.etapa === etapa)
 
-  // Auto-refresco: la consola se actualiza sola mientras la evaluación está activa,
-  // para que el progreso de jurados y el botón "Cerrar Evaluación" se habiliten solos.
-  useEffect(() => {
-    if (estadoActual !== 'evaluando') return
-    const intervalo = setInterval(async () => {
-      try {
-        await recargar()
-      } catch {
-        /* sin acciones: reintenta en el siguiente ciclo */
-      }
-    }, 10000)
-    return () => clearInterval(intervalo)
-  }, [estadoActual, recargar])
-
   const checklist: ItemChecklist[] = [
     { clave: 'evento', label: 'Evento creado', ok: !!evento },
     { clave: 'candidatas', label: 'Candidatas registradas', ok: candidatas.length > 0 },

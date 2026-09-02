@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
 import { logConsulta, logError } from '../utils/devlog'
+import { useRealtime } from '../utils/realtime'
 import { calcularPromedioJurados, calcularTotales } from '../utils/scoring'
 import logo from '../assets/Logo/logo.png'
 import type { Evento, Evaluacion, EvaluacionDetalle, Criterio } from '../types/database'
@@ -35,6 +36,7 @@ export default function PublicScreen() {
   const [candidata, setCandidata] = useState<CandidataInfo | null>(null)
   const [escena, setEscena] = useState<string>('inicio')
   const [podio, setPodio] = useState<PodioItem[]>([])
+  const [escenaRefresco, setEscenaRefresco] = useState(0)
 
   useEffect(() => {
     if (eventoCandidato) setEvento(eventoCandidato)
@@ -48,17 +50,55 @@ export default function PublicScreen() {
     }
   }, [eventoCandidato, candidataActual])
 
-  // Auto-refresco cada 8s
+  // Realtime (sin polling): la pantalla se actualiza sola al cambiar el estado,
+  // la escena o la candidata activa (estado_evento). También recalcula el podio.
+  useRealtime(['estado_evento'], () => {
+    void cargarEstado()
+    setEscenaRefresco((n) => n + 1)
+  })
+
+  // Releer la escena desde estado_evento cuando cambia en vivo
   useEffect(() => {
-    const intervalo = setInterval(async () => {
+    const cargarEscena = async () => {
       try {
-        await cargarEstado()
-      } catch (err) {
-        logError('PublicScreen auto-refresh', err instanceof Error ? err.message : String(err))
+        const supabase = getSupabase()
+        const { data } = await supabase
+          .from('estado_evento')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (data) {
+          const est = data as {
+            estado: string
+            pantalla_escena: string
+            candidata_actual_id: string | null
+            evento_id: string
+          }
+          setEscena(est.pantalla_escena || 'inicio')
+          if (est.evento_id && !evento) {
+            const { data: evRaw } = await supabase
+              .from('eventos')
+              .select('*')
+              .eq('id', est.evento_id)
+              .maybeSingle()
+            if (evRaw) setEvento(evRaw as Evento)
+          }
+          if (est.candidata_actual_id) {
+            const { data: caRaw } = await supabase
+              .from('candidatas')
+              .select('*')
+              .eq('id', est.candidata_actual_id)
+              .maybeSingle()
+            if (caRaw) setCandidata(caRaw as CandidataInfo)
+          }
+        }
+      } catch {
+        /* sin cambios */
       }
-    }, 8000)
-    return () => clearInterval(intervalo)
-  }, [cargarEstado])
+    }
+    cargarEscena()
+  }, [candidataActual, cargarEstado, escenaRefresco, evento])
 
   // Cargar estado_evento si el contexto no lo trae
   useEffect(() => {
@@ -178,7 +218,7 @@ export default function PublicScreen() {
       {escena === 'resultados' && <EscenaResultados podio={podio} />}
 
       <p className="mt-auto pt-8 text-[10px] uppercase tracking-[0.25em] text-navy-600">
-        SIGEC — Actualización automática cada 8 segundos
+        SIGEC — Transmisión en tiempo real
       </p>
     </div>
   )

@@ -1,5 +1,44 @@
 # CHANGELOG SIGEC
 
+## Fase 09
+
+Fecha: 02/09/2026
+Estado: Completada
+
+### Cambios realizados
+
+- **Consola de Operación** (Panel Maestro, `Resumen.tsx` rediseñado): tarjeta principal con evento, etapa, estado, **hora en vivo** (reloj con segundos + fecha) y candidata actual con posición "X de N". Controles tipo consola (Preparando / Iniciar Evaluación / Cerrar Evaluación / Publicar Resultados) que cambian el estado sin abrir Supabase ni refrescar. Navegación rápida de candidata (Anterior / Siguiente / + Agregar) que actualiza `estado_evento.candidata_actual_id`.
+- **Fix del bug de `updated_at` en `evaluaciones`**: nueva migración `20260902150000_evaluaciones_updated_at.sql` (columna + trigger `touch_updated_at`). `JuradoEvaluacion` ya no envía `updated_at` en el update, corrigiendo el error 400 al re-guardar puntajes.
+- **Progreso real de jurados**: la consola muestra "X / N respondieron" con barra y chips por jurado; "Cerrar Evaluación" se **auto-habilita** al llegar a N/N.
+- **Bloqueo de evaluación cerrada** (`JuradoEvaluacion`): al cerrar la ronda (resultados_listos/esperando_jurados) el jurado ve "Evaluación cerrada", no puede tocar sliders ni guardar (guard de `estado_evento`); se reabre solo desde el Panel Maestro.
+- **Ranking automático** (`RankingPanel`): tabla Puesto/Candidata/Promedio usando `calcularPromedioJurados()` + `calcularTotales()`; empates se rompen con el `+desempate` (`es_desempate`) y si persisten se muestran como "Decisión del Jurado".
+- **Pantalla Pública por escenas** (`PublicScreen`): 4 escenas (`inicio`, `evaluacion`, `esperando`, `resultados`), controladas por el Panel Maestro (`estado_evento.pantalla_escena`), no automáticas, con animaciones (`fade-in`, `slide-up`).
+- **Resultados publicados**: escena `resultados` muestra **podio 1º/2º/3º animado** (avatar, nombre, promedio) sin tablas técnicas.
+- **Acta Oficial PDF** (`actaPdf.ts`, dependencias nuevas `jspdf` + `jspdf-autotable`): logo, evento, fecha, lista de jurados, criterios, resultados por candidata (promedio + desempate) y ganadora; botón "Generar Acta Oficial".
+- **Registro de acciones** (tabla `auditoria` + `auditLog.ts`): registra inicio de sesión (admin y jurado), inicio del evento, cambio de candidata/escena, cierre y publicación, toggle de ensayo y generación de acta. NO registra movimientos de slider.
+- **Modo Ensayo** (`estado_evento.modo_ensayo`): interruptor en la consola; las evaluaciones guardadas en modo ensayo se marcan `es_ensayo=true` y se **excluyen** del ranking, del progreso de jurados y del acta.
+- **QR de ingreso del evento** (`QRIngresoModal`): pantalla completa con QR grande que apunta a `/jurado`, texto "Jurados, escaneen para ingresar" y **duración configurable 5–30 s** con contador y cierre automático.
+- **Realtime sin polling** (`useRealtime` en `realtime.ts`): suscribe solo a `estado_evento`, `evaluaciones` y `jurados`; actualiza en vivo la consola (progreso 5/5, jurados conectados, escena) y la pantalla pública (escena/candidata/podio). Se eliminó el polling previo.
+- El sistema de jurados funciona con **cualquier cantidad de jurados** (4, 5, 6…): el progreso y el auto-cierre usan `jurados.length` real.
+
+### Migraciones nuevas (aplicar en Supabase SQL Editor)
+
+- `20260902150000_evaluaciones_updated_at.sql`
+- `20260902160000_estado_evento_escena_ensayo.sql`
+- `20260902170000_auditoria.sql`
+- `20260902180000_evaluaciones_ensayo.sql`
+
+### Configuración requerida en Supabase
+
+- Activar **Realtime** (Database → Replication) solo para `estado_evento`, `evaluaciones` y `jurados`.
+
+### Pendiente para Fase 10
+
+- Reactivar RLS con políticas por rol para producción (hoy deshabilitado).
+- Declaración explícita de la ganadora / coronación y estructura de podio con decisión del jurado.
+- Verificar la confirmación de email en Supabase Auth (debe estar desactivada para el primer acceso del jurado).
+- Unificar o eliminar los servicios `evaluation.service.ts` / `criteria.service.ts` (el flujo real usa llamadas inline).
+
 ## Intermedio — Rúbrica de 100 pts controlada y criterios de desempate
 
 Fecha: 02/09/2026

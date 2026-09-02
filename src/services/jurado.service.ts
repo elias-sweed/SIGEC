@@ -26,6 +26,18 @@ export function urlQR(token: string, size = 200): string {
   )}`
 }
 
+/** URL del login del jurado (para el QR de ingreso al evento). */
+export function urlIngresoJurado(): string {
+  return `${window.location.origin}/jurado`
+}
+
+/** Imagen QR que apunta al login del jurado (QR genérico de ingreso). */
+export function urlQRIngreso(size = 300): string {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(
+    urlIngresoJurado(),
+  )}`
+}
+
 export async function obtenerJuradoPorCodigo(codigo: string): Promise<Jurado | null> {
   const supabase = getSupabase()
   const { data, error } = await supabase

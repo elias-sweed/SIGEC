@@ -317,6 +317,7 @@ export function validarPuntaje(puntaje, puntajeMaximo): boolean
 - ~~Acta Oficial PDF~~ → **implementado** en `src/utils/actaPdf.ts` (logo, evento, fecha, lista, promedio, jurados, ganadora) vía **jspdf** + **jspdf-autotable** (nuevas dependencias); botón "Generar Acta Oficial" en la consola.
 - ~~Registro de acciones~~ → **implementado**: tabla `auditoria` + `src/utils/auditLog.ts`; se registran inicio de sesión (admin/jurado), inicio del evento, cambio de candidata, cierre de evaluación, publicación, cambio de escena y generación de acta. NO se registra el movimiento de sliders.
 - ~~Modo Ensayo~~ → **implementado**: interruptor en la consola (`estado_evento.modo_ensayo`); las evaluaciones guardadas en modo ensayo se marcan `es_ensayo=true` y no afectan el ranking ni el progreso de jurados ni el acta.
+- ~~QR de ingreso del evento~~ → **implementado**: botón "Mostrar QR de ingreso" en la consola abre `src/components/admin/QRIngresoModal.tsx` (pantalla completa, QR grande que apunta a `/jurado` vía `urlQRIngreso()` en `jurado.service.ts`, texto "Jurados, escaneen para ingresar", duración configurable 5–30 s con contador y cierre automático).
 - Determinación automática de la **ganadora** declarada (coronación) explícita y estructura de podio con decisión del jurado (los empates no resueltos quedan como "Decisión del Jurado").
 - Cierre de sesión con expiración o intentos adicionales; login por contraseña ya funciona.
 - **RLS / políticas por rol** para producción (hoy todo deshabilitado; RLS off).
@@ -326,6 +327,7 @@ export function validarPuntaje(puntaje, puntajeMaximo): boolean
 
 ## 13. Historial de entregas recientes (commits)
 
+- `2319002` — Partes 5-9: pantalla pública por escenas + podio animado, acta PDF (jspdf), auditoría, modo ensayo.
 - `714484a` — Partes 2-4: progreso real de jurados + auto-habilitar Cerrar Evaluación, bloqueo de ronda cerrada, ranking automático con desempate y decisión del jurado.
 - `b129607` — Parte 0 y 1: migración `20260902150000_evaluaciones_updated_at.sql` (columna `updated_at` + trigger) y Consola de Operación en el dashboard (reloj, control de estados, navegación de candidata).
 - `eddbe82` — Fondo Beams 3D en el contenido del panel (lazy).

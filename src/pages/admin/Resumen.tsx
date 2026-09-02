@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
+import QRIngresoModal from '../../components/admin/QRIngresoModal'
 import { usePanelData } from '../../context/PanelDataContext'
 import { useCertamen } from '../../context/CertamenContext'
 import { getSupabase } from '../../lib/supabase'
@@ -76,6 +77,7 @@ export default function Resumen() {
   const [error, setError] = useState<string | null>(null)
   const [operando, setOperando] = useState(false)
   const [reiniciando, setReiniciando] = useState(false)
+  const [qrAbierto, setQrAbierto] = useState(false)
   const [ahora, setAhora] = useState(() => new Date())
 
   useEffect(() => {
@@ -478,6 +480,12 @@ export default function Resumen() {
                 + Agregar candidata
               </Link>
               <button
+                onClick={() => setQrAbierto(true)}
+                className="btn-gold shrink-0"
+              >
+                Mostrar QR de ingreso
+              </button>
+              <button
                 onClick={() => void navegarCandidata(-1)}
                 disabled={!candidataActual || idx < 1 || operando}
                 className="btn-ghost shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
@@ -635,6 +643,12 @@ export default function Resumen() {
           </ul>
         )}
       </Section>
+
+      <QRIngresoModal
+        evento={evento?.nombre}
+        abierto={qrAbierto}
+        onCerrar={() => setQrAbierto(false)}
+      />
     </div>
   )
 }

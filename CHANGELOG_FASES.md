@@ -1,5 +1,19 @@
 # CHANGELOG SIGEC
 
+## Intermedio — CRUD de criterios en el panel
+
+Fecha: 02/09/2026
+Estado: Completada
+
+- Página "Criterios" convertida en administrador completo de la rúbrica:
+  - **Tabla definida** con columnas: # (orden), Criterio (nombre + indicadores), Puntaje, Acciones; filas alternadas, hover dorado y fila total de la rúbrica.
+  - **Agregar**: botón "Nuevo criterio" abre modal con nombre, puntaje máximo e indicadores; orden asignado automáticamente (último + 1).
+  - **Editar**: modal precargado que actualiza el registro en la BD.
+  - **Eliminar**: modal de confirmación (el criterio se borra; las evaluaciones guardadas no se ven afectadas).
+  - Botón "Cargar oficiales" se conserva como acción secundaria (ghost).
+  - Header con resumen: cantidad de criterios y puntaje total de la etapa.
+- Archivos: `src/pages/admin/Criterios.tsx`, `CHANGELOG_FASES.md`.
+
 ## Intermedio — Rediseño premium del contenido del panel
 
 Fecha: 01/09/2026

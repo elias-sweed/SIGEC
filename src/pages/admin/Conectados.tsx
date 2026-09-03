@@ -1,9 +1,10 @@
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
+import { SectionSkeleton } from '../../components/Skeleton'
 import { usePanelData } from '../../context/PanelDataContext'
 
 export default function Conectados() {
-  const { jurados } = usePanelData()
+  const { jurados, cargandoInicial } = usePanelData()
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -13,11 +14,14 @@ export default function Conectados() {
         description="Estado en vivo de los jurados: quién está en sesión y quién activó su cuenta."
       />
 
-      <Section
-        titulo="Estado de los jurados"
-        descripcion="En sesión y activación de cuenta"
-        completado={jurados.length > 0}
-      >
+      {cargandoInicial ? (
+        <SectionSkeleton rows={4} />
+      ) : (
+        <Section
+          titulo="Estado de los jurados"
+          descripcion="En sesión y activación de cuenta"
+          completado={jurados.length > 0}
+        >
         {jurados.length === 0 ? (
           <p className="text-sm text-navy-400/80">Sin jurados registrados todavía.</p>
         ) : (
@@ -36,7 +40,8 @@ export default function Conectados() {
             ))}
           </ul>
         )}
-      </Section>
+        </Section>
+      )}
     </div>
   )
 }

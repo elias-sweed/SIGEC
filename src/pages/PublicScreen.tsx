@@ -37,6 +37,7 @@ export default function PublicScreen() {
   const [estadoEv, setEstadoEv] = useState<string>('preparando')
   const [podio, setPodio] = useState<PodioItem[]>([])
   const [escenaRefresco, setEscenaRefresco] = useState(0)
+  const [cargandoInicial, setCargandoInicial] = useState(true)
 
   useEffect(() => {
     if (eventoCandidato) setEvento(eventoCandidato)
@@ -94,6 +95,8 @@ export default function PublicScreen() {
         }
       } catch {
         /* sin cambios */
+      } finally {
+        setCargandoInicial(false)
       }
     }
     cargarEstadoEv()
@@ -101,7 +104,10 @@ export default function PublicScreen() {
 
   // Cargar estado_evento si el contexto no lo trae (primer arranque)
   useEffect(() => {
-    if (eventoCandidato && candidataActual) return
+    if (eventoCandidato && candidataActual) {
+      setCargandoInicial(false)
+      return
+    }
 
     ;(async () => {
       try {
@@ -142,6 +148,8 @@ export default function PublicScreen() {
         }
       } catch (err) {
         logError('PublicScreen', err instanceof Error ? err.message : String(err))
+      } finally {
+        setCargandoInicial(false)
       }
     })()
   }, [eventoCandidato, candidataActual])
@@ -203,10 +211,21 @@ export default function PublicScreen() {
   return (
     <div className="flex min-h-screen flex-col">
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
-        {escena === 'inicio' && <EscenaInicio evento={evento} />}
-        {escena === 'evaluacion' && <EscenaEvaluacion candidata={candidata} evento={evento} />}
-        {escena === 'esperando' && <EscenaEsperando candidata={candidata} />}
-        {escena === 'resultados' && <EscenaResultados podio={podio} />}
+        {cargandoInicial ? (
+          <div className="space-y-6 animate-pulse">
+            <div className="mx-auto h-20 w-20 rounded-2xl bg-navy-700" />
+            <div className="mx-auto h-10 w-80 max-w-full rounded bg-navy-700" />
+            <div className="mx-auto h-6 w-48 rounded bg-navy-700" />
+            <div className="mx-auto h-4 w-64 rounded bg-navy-700" />
+          </div>
+        ) : (
+          <>
+            {escena === 'inicio' && <EscenaInicio evento={evento} />}
+            {escena === 'evaluacion' && <EscenaEvaluacion candidata={candidata} evento={evento} />}
+            {escena === 'esperando' && <EscenaEsperando candidata={candidata} />}
+            {escena === 'resultados' && <EscenaResultados podio={podio} />}
+          </>
+        )}
 
         <p className="mt-auto pt-8 text-[10px] uppercase tracking-[0.25em] text-navy-600">
           SIGEC — Transmisión en tiempo real

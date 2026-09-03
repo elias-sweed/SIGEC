@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
+import { SectionSkeleton } from '../../components/Skeleton'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
 import { logConsulta, logError } from '../../utils/devlog'
@@ -190,7 +191,7 @@ function FormularioCriterio({
 }
 
 export default function Criterios() {
-  const { evento, criterios, reglamentos, recargar } = usePanelData()
+  const { evento, criterios, reglamentos, cargandoInicial, recargar } = usePanelData()
 
   const [cargando, setCargando] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -361,6 +362,9 @@ export default function Criterios() {
         </p>
       ) : (
         <>
+          {cargandoInicial ? (
+            <SectionSkeleton rows={4} />
+          ) : (
           <Section
             titulo="Rúbrica de la etapa"
             descripcion={`Etapa actual: ${etapa}`}
@@ -529,6 +533,7 @@ export default function Criterios() {
               </div>
             )}
           </Section>
+          )}
 
           {reglamento && (
             <Section

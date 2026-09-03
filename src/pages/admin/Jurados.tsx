@@ -8,7 +8,7 @@ import { generarCodigoJurado, generarTokenAcceso } from '../../utils/codigos'
 import { logConsulta, logError } from '../../utils/devlog'
 
 export default function Jurados() {
-  const { jurados, recargar } = usePanelData()
+  const { jurados, cargandoInicial, recargar } = usePanelData()
 
   const [nombre, setNombre] = useState('')
   const [editandoId, setEditandoId] = useState<string | null>(null)
@@ -106,8 +106,23 @@ export default function Jurados() {
           Agregar jurado
         </button>
 
-        {jurados.length > 0 && (
-          <ul className="mt-4 max-h-80 space-y-1.5 overflow-y-auto">
+        {cargandoInicial ? (
+          <div className="mt-4 space-y-1.5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="fila-panel">
+                <div className="h-3 w-12 rounded skeleton bg-white/10" />
+                <div className="h-3 flex-1 skeleton bg-white/10" />
+                <div className="h-5 w-20 rounded-full skeleton bg-white/10" />
+                <div className="flex gap-1.5">
+                  <div className="h-8 w-8 rounded-lg skeleton bg-white/10" />
+                  <div className="h-8 w-8 rounded-lg skeleton bg-white/10" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          jurados.length > 0 && (
+            <ul className="mt-4 max-h-80 space-y-1.5 overflow-y-auto">
             {jurados.map((j) => (
               <li
                 key={j.id}
@@ -162,7 +177,8 @@ export default function Jurados() {
                 </div>
               </li>
             ))}
-          </ul>
+            </ul>
+          )
         )}
       </Section>
     </div>

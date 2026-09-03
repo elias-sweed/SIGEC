@@ -8,7 +8,7 @@ import { logConsulta, logError } from '../../utils/devlog'
 import type { Candidata } from '../../types/database'
 
 export default function Candidatas() {
-  const { candidatas, recargar } = usePanelData()
+  const { candidatas, cargandoInicial, recargar } = usePanelData()
 
   const [nombre, setNombre] = useState('')
   const [grado, setGrado] = useState('')
@@ -121,8 +121,19 @@ export default function Candidatas() {
           Agregar candidata
         </button>
 
-        {candidatas.length > 0 && (
-          <ul className="mt-4 max-h-80 space-y-1.5 overflow-y-auto">
+        {cargandoInicial ? (
+          <div className="mt-4 space-y-1.5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="fila-panel">
+                <div className="h-3 flex-1 skeleton bg-white/10" />
+                <div className="h-8 w-8 rounded-lg skeleton bg-white/10" />
+                <div className="h-8 w-8 rounded-lg skeleton bg-white/10" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          candidatas.length > 0 && (
+            <ul className="mt-4 max-h-80 space-y-1.5 overflow-y-auto">
             {candidatas.map((c) => (
               <li
                 key={c.id}
@@ -185,7 +196,8 @@ export default function Candidatas() {
                 </div>
               </li>
             ))}
-          </ul>
+            </ul>
+          )
         )}
       </Section>
     </div>

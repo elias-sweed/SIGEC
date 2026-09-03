@@ -6,6 +6,7 @@ import QRIngresoModal from '../../components/admin/QRIngresoModal'
 import ReiniciarCertamenModal from '../../components/admin/ReiniciarCertamenModal'
 import { usePanelData } from '../../context/PanelDataContext'
 import { useCertamen } from '../../context/CertamenContext'
+import { SectionSkeleton } from '../../components/Skeleton'
 import { getSupabase } from '../../lib/supabase'
 import { resetCertamen } from '../../services/reset.service'
 import { logConsulta, logError } from '../../utils/devlog'
@@ -74,7 +75,7 @@ function iniciales(nombre: string): string {
 }
 
 export default function Resumen() {
-  const { evento, candidatas, jurados, criterios, evaluaciones, detalles, recargar } = usePanelData()
+  const { evento, candidatas, jurados, criterios, evaluaciones, detalles, cargandoInicial, recargar } = usePanelData()
   const { estadoEvento, candidataActual, actualizarCandidata } = useCertamen()
 
   const [error, setError] = useState<string | null>(null)
@@ -372,6 +373,14 @@ export default function Resumen() {
         <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
       )}
 
+      {cargandoInicial ? (
+        <>
+          <SectionSkeleton rows={5} lista={false} />
+          <SectionSkeleton rows={4} />
+          <SectionSkeleton rows={4} />
+        </>
+      ) : (
+        <>
       {/* Tarjeta principal: consola */}
       <section className="panel-card overflow-hidden p-6 sm:p-8">
         {/* Zona 1: estado en vivo */}
@@ -679,6 +688,8 @@ export default function Resumen() {
           </ul>
         )}
       </Section>
+        </>
+      )}
 
       <QRIngresoModal
         evento={evento?.nombre}

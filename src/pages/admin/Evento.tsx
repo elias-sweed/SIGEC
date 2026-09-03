@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
+import { SectionSkeleton } from '../../components/Skeleton'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
 import { logConsulta, logError } from '../../utils/devlog'
@@ -8,7 +9,7 @@ import { ETAPAS } from '../../constants/criteriosOficiales'
 import { EVENT_STATE_LABELS } from '../../constants/eventStates'
 
 export default function Evento() {
-  const { evento, recargar } = usePanelData()
+  const { evento, cargandoInicial, recargar } = usePanelData()
 
   const [nombre, setNombre] = useState('')
   const [etapa, setEtapa] = useState<string>(ETAPAS[0])
@@ -110,6 +111,9 @@ export default function Evento() {
         description="Define el nombre y la etapa del certamen. Solo se evalúa un evento a la vez."
       />
 
+      {cargandoInicial ? (
+        <SectionSkeleton rows={2} />
+      ) : (
       <Section
         titulo="Datos del evento"
         descripcion="Nombre oficial y etapa competitiva"
@@ -242,6 +246,7 @@ export default function Evento() {
           </div>
         )}
       </Section>
+      )}
     </div>
   )
 }

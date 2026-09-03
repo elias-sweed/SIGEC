@@ -103,16 +103,25 @@ export default function Resumen() {
   ]
   const completo = checklist.every((i) => i.ok)
 
-  const respondieronIds = new Set(
-    evaluaciones
-      .filter(
-        (ev) => ev.evento_id === evento?.id && ev.estado === 'completada' && !ev.es_ensayo,
-      )
-      .map((ev) => ev.jurado_id),
+  const totalCandidatas = candidatas.length
+
+  // Progreso FIJO sobre todas las candidatas registradas: un jurado cuenta como
+  // "listo" únicamente cuando completa la evaluación de las 45 (45/45).
+  const evaluacionesCompletas = evaluaciones.filter(
+    (ev) => ev.evento_id === evento?.id && ev.estado === 'completada' && !ev.es_ensayo,
   )
-  const respondidos = jurados.filter((j) => respondieronIds.has(j.id)).length
+  const progresoJurados = jurados.map((j) => {
+    const completadas = evaluacionesCompletas.filter((ev) => ev.jurado_id === j.id).length
+    return { jurado: j, completadas, listo: totalCandidatas > 0 && completadas >= totalCandidatas }
+  })
+  const respondidos = progresoJurados.filter((p) => p.listo).length
   const respondieronTodos = jurados.length > 0 && respondidos === jurados.length
-  const pctRespondidos = jurados.length > 0 ? (respondidos / jurados.length) * 100 : 0
+  const pctRespondidos =
+    jurados.length > 0 && totalCandidatas > 0
+      ? (progresoJurados.reduce((s, p) => s + Math.min(p.completadas, totalCandidatas), 0) /
+          (jurados.length * totalCandidatas)) *
+        100
+      : 0
 
   const idx = candidatas.findIndex((c) => c.id === candidataActual?.id)
   const posicion = idx >= 0 ? idx + 1 : null
@@ -213,28 +222,6 @@ export default function Resumen() {
     }
   }
 
-  const cambiarEscena = async (escena: string) => {
-    if (!evento) return
-    setOperando(true)
-    setError(null)
-    const supabase = getSupabase()
-
-    if (estadoEvento) {
-      const { error } = await supabase
-        .from('estado_evento')
-        .update({ pantalla_escena: escena, updated_at: new Date().toISOString() })
-        .eq('evento_id', evento.id)
-      if (error) {
-        setError(error.message)
-        setOperando(false)
-        return
-      }
-    }
-    await recargar()
-    setOperando(false)
-    await registrarAccion('Operador', 'cambiar_escena', `Pantalla: ${escena}`)
-  }
-
   const toggleModoEnsayo = async () => {
     if (!evento || !estadoEvento) return
     setOperando(true)
@@ -282,13 +269,6 @@ export default function Resumen() {
 
   const botones: BotonConsola[] = [
     {
-      estado: 'preparando',
-      etiqueta: 'Preparando',
-      detalle: 'Restablece la configuración del certamen',
-      deshabilitado: estadoActual === 'preparando' || operando,
-      accion: () => void cambiarEstado('preparando', true),
-    },
-    {
       estado: 'evaluando',
       etiqueta: 'Iniciar Evaluación',
       detalle: 'Habilita la puntuación de los jurados',
@@ -299,8 +279,8 @@ export default function Resumen() {
       estado: 'resultados_listos',
       etiqueta: 'Cerrar Evaluación',
       detalle: respondieronTodos
-        ? 'Cierra las notas y deja listo el cómputo'
-        : `Esperando a los jurados (${respondidos}/${jurados.length})`,
+        ? 'Todos los jurados completaron sus evaluaciones — cierra y deja listo el cómputo'
+        : `Esperando ${jurados.length - respondidos} jurado${jurados.length - respondidos === 1 ? '' : 's'} por terminar (${respondidos}/${jurados.length})`,
       deshabilitado: estadoActual !== 'evaluando' || !respondieronTodos || operando,
       accion: () => void cambiarEstado('resultados_listos', false),
     },
@@ -449,7 +429,7 @@ export default function Resumen() {
               Progreso de jurados
             </p>
             <p className="text-xs font-bold tabular-nums text-gold-300">
-              {respondidos} / {jurados.length} respondieron
+              {respondidos} / {jurados.length} jurados completos
             </p>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-navy-800">
@@ -464,20 +444,21 @@ export default function Resumen() {
             {jurados.length === 0 ? (
               <p className="text-xs text-navy-400/80">Registra jurados antes de iniciar.</p>
             ) : (
-              jurados.map((j) => {
-                const respondio = respondieronIds.has(j.id)
-                return (
-                  <span key={j.id} className={`chip ${respondio ? 'chip-ok' : 'chip-muted'}`}>
-                    <span className="font-mono">{j.codigo}</span>{' '}
-                    {respondio ? '✓' : '⏳'}
-                  </span>
-                )
-              })
+              progresoJurados.map((p) => (
+                <span key={p.jurado.id} className={`chip ${p.listo ? 'chip-ok' : 'chip-muted'}`}>
+                  <span className="font-mono">{p.jurado.codigo}</span>{' '}
+                  <span className="tabular-nums">
+                    {Math.min(p.completadas, totalCandidatas)}/{totalCandidatas}
+                  </span>{' '}
+                  {p.listo ? '✓' : '⏳'}
+                </span>
+              ))
             )}
           </div>
           {estadoActual === 'evaluando' && !respondieronTodos && (
             <p className="mt-3 text-[11px] text-navy-400">
-              “Cerrar Evaluación” se habilitará automáticamente cuando todos los jurados respondan.
+              “Cerrar Evaluación” se habilitará cuando todos los jurados completen sus{' '}
+              {totalCandidatas}/{totalCandidatas} evaluaciones.
             </p>
           )}
         </div>
@@ -532,37 +513,17 @@ export default function Resumen() {
           </div>
         </div>
 
-        {/* Zona 4: pantalla pública (escenas) + modo ensayo + acta */}
+        {/* Zona 4: herramientas (modo ensayo + reportes) — la pantalla pública es automática */}
         <div className="mt-7 border-t border-white/10 pt-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-navy-300">
-            Pantalla pública
+            Herramientas
           </p>
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { id: 'inicio', etiqueta: 'Inicio del evento' },
-              { id: 'evaluacion', etiqueta: 'Candidata en evaluación' },
-              { id: 'esperando', etiqueta: 'Esperando jurados' },
-              { id: 'resultados', etiqueta: 'Resultados' },
-            ].map((esc) => {
-              const activo = estadoEvento?.pantalla_escena === esc.id
-              return (
-                <button
-                  key={esc.id}
-                  onClick={() => void cambiarEscena(esc.id)}
-                  disabled={operando}
-                  className={`rounded-xl border px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 disabled:opacity-50 ${
-                    activo
-                      ? 'border-gold-400/70 bg-gold-500/20 text-gold-200 ring-1 ring-gold-400/40'
-                      : 'border-white/10 bg-navy-800/40 text-navy-200 hover:border-gold-500/40 hover:text-white'
-                  }`}
-                >
-                  {esc.etiqueta}
-                </button>
-              )
-            })}
-          </div>
+          <p className="mt-1 text-xs text-navy-400">
+            La pantalla pública cambia sola según el estado del certamen (inicio → candidata →
+            esperando → resultados). No requiere botones.
+          </p>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <button
               onClick={() => void toggleModoEnsayo()}
               disabled={!estadoEvento || operando}

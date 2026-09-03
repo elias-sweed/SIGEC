@@ -113,3 +113,26 @@ export async function marcarActivado(juradoId: string, emailInterno: string, aut
   const { error } = await supabase.from('jurados').update(payload).eq('id', juradoId)
   if (error) logError('marcarActivado', error.message)
 }
+
+/**
+ * Guarda qué candidata está evaluando actualmente el jurado, para que la pantalla
+ * pública la muestre en tiempo real. Pasa `null` cuando el jurado deja de evaluar
+ * (vuelve al selector o cierra sesión). Omite la actualización si la columna aún
+ * no existe (migración pendiente) para no provocar un error 400.
+ */
+export async function actualizarCandidataJurado(
+  juradoId: string,
+  candidataId: string | null,
+): Promise<void> {
+  if (!(await columnaExiste('jurados', 'candidata_actual_id'))) return
+  try {
+    const supabase = getSupabase()
+    const { error } = await supabase
+      .from('jurados')
+      .update({ candidata_actual_id: candidataId })
+      .eq('id', juradoId)
+    if (error) logError('actualizarCandidataJurado', error.message)
+  } catch (err) {
+    logError('actualizarCandidataJurado', err instanceof Error ? err.message : String(err))
+  }
+}

@@ -103,10 +103,16 @@ alter table public.jurados add column if not exists activado boolean not null de
 alter table public.jurados add column if not exists email_interno text;
 alter table public.jurados add column if not exists auth_uid uuid;
 alter table public.jurados add column if not exists token_acceso text;
+-- Candidata que cada jurado está evaluando actualmente (pantalla pública en vivo)
+alter table public.jurados add column if not exists candidata_actual_id uuid
+  references public.candidatas(id) on delete set null;
 
 -- Índice único en token_acceso (QW-03): garantiza que un QR no se duplique
 create unique index if not exists jurados_token_acceso_idx
   on public.jurados (token_acceso);
+
+create index if not exists jurados_candidata_actual_idx
+  on public.jurados (candidata_actual_id);
 
 -- 6b. Indicadores de criterios
 alter table public.criterios add column if not exists indicadores text;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
-import { marcarEnSesion } from '../services/jurado.service'
+import { marcarEnSesion, actualizarCandidataJurado } from '../services/jurado.service'
 import { calcularTotales } from '../utils/scoring'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
 import { leerSesionJurado, limpiarSesionJurado } from '../utils/session'
@@ -125,6 +125,7 @@ export default function JuradoEvaluacion() {
   const salir = async () => {
     if (jurado) {
       await marcarEnSesion(jurado.id, false)
+      await actualizarCandidataJurado(jurado.id, null)
     }
     try {
       const supabase = getSupabase()
@@ -321,7 +322,10 @@ export default function JuradoEvaluacion() {
                   return (
                     <button
                       key={c.id}
-                      onClick={() => setCandidataSel(c)}
+                      onClick={() => {
+                        setCandidataSel(c)
+                        void actualizarCandidataJurado(jurado.id, c.id)
+                      }}
                       className={`group relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition ${
                         evaluada
                           ? 'border-emerald-500/30 bg-emerald-500/10 hover:border-emerald-500/50 hover:bg-emerald-500/15'
@@ -374,6 +378,7 @@ export default function JuradoEvaluacion() {
               </div>
               <button
                 onClick={() => {
+                  void actualizarCandidataJurado(jurado.id, null)
                   setCandidataSel(null)
                   setDetalles([])
                   setEnviado(false)

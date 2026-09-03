@@ -24,6 +24,7 @@ export interface Jurado {
   activado: boolean
   email_interno: string | null
   auth_uid: string | null
+  candidata_actual_id: string | null
   created_at: string
 }
 

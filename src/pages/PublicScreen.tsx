@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
-import { logConsulta, logError } from '../utils/devlog'
+import { logError } from '../utils/devlog'
 import { useRealtime } from '../utils/realtime'
 import { calcularPromedioJurados, calcularTotales } from '../utils/scoring'
 import logo from '../assets/Logo/logo.png'
 import Aurora from '../components/effects/Aurora'
 import AuroraText from '../components/effects/AuroraText'
-import type { Evento, Evaluacion, EvaluacionDetalle, Criterio } from '../types/database'
-
-interface CandidataInfo {
-  id: string
-  nombre: string
-  grado: string
-  seccion: string
-}
+import CandidatasGrid from '../components/public/CandidatasGrid'
+import PanelJurados, { type JuradoEnVivo } from '../components/public/PanelJurados'
+import type { Candidata, Evento, Evaluacion, EvaluacionDetalle, Criterio } from '../types/database'
 
 interface PodioItem {
   nombre: string
@@ -42,128 +37,87 @@ function calcularObjetivo(): Date {
 }
 
 export default function PublicScreen() {
-  const { eventoCandidato, candidataActual, candidatas, cargarEstado } = useCertamen()
+  const { eventoCandidato, candidatas, cargarEstado } = useCertamen()
   const [evento, setEvento] = useState<Evento | null>(eventoCandidato)
-  const [candidata, setCandidata] = useState<CandidataInfo | null>(null)
   const [estadoEv, setEstadoEv] = useState<string>('preparando')
   const [podio, setPodio] = useState<PodioItem[]>([])
-  const [escenaRefresco, setEscenaRefresco] = useState(0)
+  const [jurados, setJurados] = useState<JuradoEnVivo[]>([])
+  const [evaluadasIds, setEvaluadasIds] = useState<Set<string>>(new Set())
   const [cargandoInicial, setCargandoInicial] = useState(true)
 
   useEffect(() => {
     if (eventoCandidato) setEvento(eventoCandidato)
-    if (candidataActual) {
-      setCandidata({
-        id: candidataActual.id,
-        nombre: candidataActual.nombre,
-        grado: candidataActual.grado,
-        seccion: candidataActual.seccion,
-      })
-    }
-  }, [eventoCandidato, candidataActual])
+  }, [eventoCandidato])
 
-  // Realtime (sin polling): la pantalla se actualiza sola al cambiar el estado,
-  // la escena o la candidata activa (estado_evento). También recalcula el podio.
-  useRealtime(['estado_evento'], () => {
-    void cargarEstado()
-    setEscenaRefresco((n) => n + 1)
-  })
+  // Carga en vivo: estado, evento, jurados conectados y candidatas evaluadas
+  const cargarEnVivo = useCallback(async () => {
+    const supabase = getSupabase()
 
-  // Leer evento, candidata y estado desde estado_evento cuando cambia en vivo
-  useEffect(() => {
-    const cargarEstadoEv = async () => {
-      try {
-        const supabase = getSupabase()
-        const { data } = await supabase
-          .from('estado_evento')
-          .select('*')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (data) {
-          const est = data as {
-            estado: string
-            candidata_actual_id: string | null
-            evento_id: string
-          }
-          setEstadoEv(est.estado || 'preparando')
-          if (est.evento_id && !evento) {
-            const { data: evRaw } = await supabase
-              .from('eventos')
-              .select('*')
-              .eq('id', est.evento_id)
-              .maybeSingle()
-            if (evRaw) setEvento(evRaw as Evento)
-          }
-          if (est.candidata_actual_id) {
-            const { data: caRaw } = await supabase
-              .from('candidatas')
-              .select('*')
-              .eq('id', est.candidata_actual_id)
-              .maybeSingle()
-            if (caRaw) setCandidata(caRaw as CandidataInfo)
-          }
-        }
-      } catch {
-        /* sin cambios */
-      } finally {
-        setCargandoInicial(false)
-      }
-    }
-    cargarEstadoEv()
-  }, [candidataActual, cargarEstado, escenaRefresco, evento])
+    try {
+      const { data: estadoData } = await supabase
+        .from('estado_evento')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-  // Cargar estado_evento si el contexto no lo trae (primer arranque)
-  useEffect(() => {
-    if (eventoCandidato && candidataActual) {
-      setCargandoInicial(false)
-      return
-    }
-
-    ;(async () => {
-      try {
-        const supabase = getSupabase()
-        logConsulta('PublicScreen: buscar estado_evento')
-        const { data: estadoRaw, error: errEstado } = await supabase
-          .from('estado_evento')
-          .select('*')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (errEstado || !estadoRaw) return
-
-        const est = estadoRaw as {
-          evento_id: string
-          candidata_actual_id: string | null
-          estado: string
-        }
+      let ev = evento
+      if (estadoData) {
+        const est = estadoData as { estado: string; evento_id: string }
         setEstadoEv(est.estado || 'preparando')
-
-        if (est.evento_id) {
+        if (est.evento_id && !ev) {
           const { data: evRaw } = await supabase
             .from('eventos')
             .select('*')
             .eq('id', est.evento_id)
             .maybeSingle()
-          if (evRaw) setEvento(evRaw as Evento)
+          if (evRaw) {
+            ev = evRaw as Evento
+            setEvento(ev)
+          }
         }
-
-        if (est.candidata_actual_id) {
-          const { data: caRaw } = await supabase
-            .from('candidatas')
-            .select('*')
-            .eq('id', est.candidata_actual_id)
-            .maybeSingle()
-          if (caRaw) setCandidata(caRaw as CandidataInfo)
-        }
-      } catch (err) {
-        logError('PublicScreen', err instanceof Error ? err.message : String(err))
-      } finally {
-        setCargandoInicial(false)
+      } else {
+        setEstadoEv('preparando')
       }
-    })()
-  }, [eventoCandidato, candidataActual])
+
+      const eventoId = ev?.id
+
+      const [juradosRes, evalsRes] = await Promise.all([
+        supabase
+          .from('jurados')
+          .select('id, nombre, codigo, en_sesion, candidata_actual_id')
+          .eq('activado', true),
+        eventoId
+          ? supabase
+              .from('evaluaciones')
+              .select('candidata_id')
+              .eq('evento_id', eventoId)
+              .eq('estado', 'completada')
+              .eq('es_ensayo', false)
+          : Promise.resolve({ data: [] as Array<{ candidata_id: string }> }),
+      ])
+
+      setJurados((juradosRes.data ?? []) as JuradoEnVivo[])
+      const evals = (evalsRes.data ?? []) as Array<{ candidata_id: string }>
+      setEvaluadasIds(new Set(evals.map((e) => e.candidata_id)))
+    } catch (err) {
+      logError('PublicScreen en vivo', err instanceof Error ? err.message : String(err))
+    } finally {
+      setCargandoInicial(false)
+    }
+  }, [evento])
+
+  useEffect(() => {
+    void cargarEnVivo()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Tiempo real: estado, jurados (candidata que evalúa cada uno) y evaluaciones
+  const onEnVivo = useCallback(() => {
+    void cargarEstado()
+    void cargarEnVivo()
+  }, [cargarEstado, cargarEnVivo])
+  useRealtime(['estado_evento', 'jurados', 'evaluaciones'], onEnVivo)
 
   // Escena derivada automáticamente del estado del evento
   const escena =
@@ -246,9 +200,19 @@ export default function PublicScreen() {
             </div>
           ) : (
             <>
-              {escena === 'inicio' && <EscenaInicio evento={evento} candidatas={candidatas} />}
-              {escena === 'evaluacion' && <EscenaEvaluacion candidata={candidata} evento={evento} />}
-              {escena === 'esperando' && <EscenaEsperando candidata={candidata} />}
+              {escena === 'inicio' && (
+                <EscenaInicio evento={evento} candidatas={candidatas} evaluadasIds={evaluadasIds} />
+              )}
+              {escena === 'evaluacion' && (
+                <EscenaEvaluacion
+                  candidatas={candidatas}
+                  evaluadasIds={evaluadasIds}
+                  jurados={jurados}
+                />
+              )}
+              {escena === 'esperando' && (
+                <EscenaEsperando candidatas={candidatas} evaluadasIds={evaluadasIds} />
+              )}
               {escena === 'resultados' && <EscenaResultados podio={podio} />}
             </>
           )}
@@ -305,9 +269,11 @@ function IconoCorona({ className = '' }: { className?: string }) {
 function EscenaInicio({
   evento,
   candidatas,
+  evaluadasIds,
 }: {
   evento: Evento | null
-  candidatas: Array<{ id: string; nombre: string }>
+  candidatas: Candidata[]
+  evaluadasIds: Set<string>
 }) {
   return (
     <div className="w-full max-w-5xl space-y-8 animate-fade-in">
@@ -321,7 +287,6 @@ function EscenaInicio({
 
       {evento ? (
         <>
-          {/* Título más pequeño, con gradiente aurora animado */}
           <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
             <AuroraText
               className="drop-shadow-[0_0_25px_rgba(223,191,98,0.35)]"
@@ -355,8 +320,10 @@ function EscenaInicio({
         Bienvenidos
       </p>
 
-      {/* Candidatas desfilando (avatares con iniciales) */}
-      {candidatas.length > 0 && <MarqueeCandidatas candidatas={candidatas} />}
+      {/* Candidatas en orden (grado → sección), con modal de foto */}
+      {candidatas.length > 0 && (
+        <CandidatasGrid candidatas={candidatas} evaluadasIds={evaluadasIds} />
+      )}
     </div>
   )
 }
@@ -410,92 +377,29 @@ function ContadorRegresivo() {
   )
 }
 
-/* ─── Marquee de candidatas (avatares con iniciales) ─────────────────── */
-
-const AVATAR_MARQUEE_COLORS = [
-  'from-gold-400 to-gold-600',
-  'from-navy-400 to-navy-600',
-  'from-rose-400 to-rose-600',
-  'from-emerald-400 to-emerald-600',
-  'from-sky-400 to-sky-600',
-  'from-purple-400 to-purple-600',
-]
-
-function iniciales(nombre: string) {
-  return nombre
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
-
-function MarqueeCandidatas({
-  candidatas,
-}: {
-  candidatas: Array<{ id: string; nombre: string }>
-}) {
-  // Duplicamos la lista para lograr el desplazamiento continuo (marquee)
-  const lista = [...candidatas, ...candidatas]
-
-  return (
-    <div className="relative w-full overflow-hidden border-y border-white/10 bg-navy-950/40 py-5 backdrop-blur-sm">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-navy-950 to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-navy-950 to-transparent" />
-
-      <div className="flex w-max animate-marquee gap-5 pl-5">
-        {lista.map((c, idx) => (
-          <div
-            key={`${c.id}-${idx}`}
-            className="flex w-20 flex-col items-center gap-2"
-          >
-            <span
-              className={`flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br text-lg font-bold text-white ring-2 ring-white/20 shadow-lg ${AVATAR_MARQUEE_COLORS[idx % AVATAR_MARQUEE_COLORS.length]}`}
-            >
-              {iniciales(c.nombre)}
-            </span>
-            <span className="max-w-20 truncate text-[11px] font-semibold text-white/80">
-              {c.nombre}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ─── Escena 2: Candidata en evaluación ───────────────────────────────── */
+/* ─── Escena 2: Evaluación en curso (panel de jurados + candidatas) ───── */
 
 function EscenaEvaluacion({
-  candidata,
-  evento,
+  candidatas,
+  evaluadasIds,
+  jurados,
 }: {
-  candidata: CandidataInfo | null
-  evento: Evento | null
+  candidatas: Candidata[]
+  evaluadasIds: Set<string>
+  jurados: JuradoEnVivo[]
 }) {
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="w-full max-w-5xl space-y-8 animate-fade-in">
       <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gold-400">
-        Candidata en evaluación
-      </p>
-
-      {candidata ? (
-        <div className="rounded-3xl border border-gold-500/30 bg-linear-to-b from-navy-900/90 to-navy-950/90 px-10 py-12 shadow-2xl shadow-gold-500/10 transition-all duration-700">
-          <h2 className="text-5xl font-bold text-white sm:text-7xl">{candidata.nombre}</h2>
-          <p className="mt-4 text-xl text-navy-300 sm:text-2xl">
-            {candidata.grado} · Sección {candidata.seccion}
-          </p>
-        </div>
-      ) : (
-        <p className="text-xl text-navy-500">Esperando selección…</p>
-      )}
-
-      <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400 animate-pulse">
         Evaluación en curso
       </p>
 
-      {evento && (
-        <p className="text-xs text-navy-500">{evento.etapa}</p>
+      {/* Cada jurado con la candidata que está evaluando */}
+      <PanelJurados jurados={jurados} candidatas={candidatas} />
+
+      {/* Candidatas ordenadas: evaluadas abajo */}
+      {candidatas.length > 0 && (
+        <CandidatasGrid candidatas={candidatas} evaluadasIds={evaluadasIds} compacto />
       )}
     </div>
   )
@@ -503,21 +407,18 @@ function EscenaEvaluacion({
 
 /* ─── Escena 3: Esperando jurados ────────────────────────────────────── */
 
-function EscenaEsperando({ candidata }: { candidata: CandidataInfo | null }) {
+function EscenaEsperando({
+  candidatas,
+  evaluadasIds,
+}: {
+  candidatas: Candidata[]
+  evaluadasIds: Set<string>
+}) {
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="w-full max-w-5xl space-y-8 animate-fade-in">
       <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-400">
         Esperando resultados de los jurados
       </p>
-
-      {candidata && (
-        <div className="rounded-3xl border border-white/10 bg-navy-900/70 px-10 py-10">
-          <h2 className="text-4xl font-bold text-white sm:text-5xl">{candidata.nombre}</h2>
-          <p className="mt-3 text-lg text-navy-300">
-            {candidata.grado} · Sección {candidata.seccion}
-          </p>
-        </div>
-      )}
 
       <div className="flex items-center justify-center gap-2">
         <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-amber-400 [animation-delay:0ms]" />
@@ -526,6 +427,10 @@ function EscenaEsperando({ candidata }: { candidata: CandidataInfo | null }) {
       </div>
 
       <p className="text-sm text-navy-400">Los jurados están evaluando…</p>
+
+      {candidatas.length > 0 && (
+        <CandidatasGrid candidatas={candidatas} evaluadasIds={evaluadasIds} compacto />
+      )}
     </div>
   )
 }
@@ -566,7 +471,6 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
               className={`flex flex-1 flex-col items-center animate-slide-up`}
               style={{ animationDelay: `${item.podiumIdx * 300}ms` }}
             >
-              {/* Avatar */}
               <span
                 className={`flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br text-lg font-bold text-navy-950 ring-2 ${AVATAR_COLORS[item.podiumIdx]} ${POSICION_BORDERS[item.podiumIdx]}`}
               >
@@ -577,13 +481,11 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
                   .slice(0, 2)}
               </span>
 
-              {/* Nombre */}
               <p className={`mt-3 text-center text-sm font-bold sm:text-base ${POSICION_TEXT[item.podiumIdx]}`}>
                 {item.nombre}
               </p>
               <p className="text-[11px] text-navy-400">{item.grado}</p>
 
-              {/* Puesto */}
               <div
                 className={`mt-3 flex w-full flex-col items-center rounded-t-2xl border-b-0 px-2 py-5 ${altura} ${POSICION_BG[item.podiumIdx]} border ${POSICION_BORDERS[item.podiumIdx]} justify-end`}
               >
@@ -595,7 +497,6 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
                 </p>
               </div>
 
-              {/* Etiqueta del puesto */}
               <span
                 className={`mt-2 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${POSICION_BG[item.podiumIdx]} ${POSICION_TEXT[item.podiumIdx]} ring-1 ${POSICION_BORDERS[item.podiumIdx]}`}
               >

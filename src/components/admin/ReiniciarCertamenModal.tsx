@@ -57,7 +57,7 @@ export default function ReiniciarCertamenModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-3xl border border-red-500/30 bg-navy-900 p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>

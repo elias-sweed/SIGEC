@@ -100,7 +100,7 @@ export default function RankingPanel({
             </thead>
             <tbody>
               {filas.map((f, i) => (
-                <tr key={f.candidata.id} className="border-t border-white/10 transition-colors hover:bg-white/[0.03]">
+                <tr key={f.candidata.id} className="border-t border-white/10 transition-colors hover:bg-white/3">
                   <td className="py-3 pr-3">
                     <span
                       className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${

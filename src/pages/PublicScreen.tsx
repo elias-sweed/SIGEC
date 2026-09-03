@@ -278,7 +278,7 @@ function EscenaEvaluacion({
       </p>
 
       {candidata ? (
-        <div className="rounded-3xl border border-gold-500/30 bg-gradient-to-b from-navy-900/90 to-navy-950/90 px-10 py-12 shadow-2xl shadow-gold-500/10 transition-all duration-700">
+        <div className="rounded-3xl border border-gold-500/30 bg-linear-to-b from-navy-900/90 to-navy-950/90 px-10 py-12 shadow-2xl shadow-gold-500/10 transition-all duration-700">
           <h2 className="text-5xl font-bold text-white sm:text-7xl">{candidata.nombre}</h2>
           <p className="mt-4 text-xl text-navy-300 sm:text-2xl">
             {candidata.grado} · Sección {candidata.seccion}
@@ -366,7 +366,7 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
             >
               {/* Avatar */}
               <span
-                className={`flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br text-lg font-bold text-navy-950 ring-2 ${AVATAR_COLORS[item.podiumIdx]} ${POSICION_BORDERS[item.podiumIdx]}`}
+                className={`flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br text-lg font-bold text-navy-950 ring-2 ${AVATAR_COLORS[item.podiumIdx]} ${POSICION_BORDERS[item.podiumIdx]}`}
               >
                 {item.nombre
                   .split(/\s+/)

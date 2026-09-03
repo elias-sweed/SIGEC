@@ -62,7 +62,7 @@ export default function AdminLogin() {
       <div aria-hidden className="pointer-events-none absolute inset-0 opacity-60">
         <Lightning hue={260} xOffset={0} speed={1.2} intensity={1.1} size={1.2} />
       </div>
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-navy-950/40 via-transparent to-navy-950" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-brom-navy-950/40 via-transparent to-navy-950" />
       <div className="relative z-10 mx-auto w-full max-w-md">
       <div className="rounded-2xl border border-white/10 bg-navy-900/80 p-8 shadow-2xl backdrop-blur-md">
         <div className="flex flex-col items-center text-center">

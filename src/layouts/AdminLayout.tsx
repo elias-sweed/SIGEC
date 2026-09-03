@@ -117,7 +117,7 @@ function AdminLayoutContent() {
       {!colapsado && (
         <span
           aria-hidden
-          className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-gold-300 to-gold-500 transition-opacity duration-200 ${
+          className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-linear-to-b from-gold-300 to-gold-500 transition-opacity duration-200 ${
             isActive ? 'opacity-100' : 'opacity-0'
           }`}
         />
@@ -134,12 +134,12 @@ function AdminLayoutContent() {
           colapsado ? 'flex-col px-0' : 'px-2'
         }`}
       >
-        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-b from-navy-700 to-navy-900 shadow-[0_0_18px_rgba(201,162,39,0.35)] ring-1 ring-gold-500/50">
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-linear-to-b from-navy-700 to-navy-900 shadow-[0_0_18px_rgba(201,162,39,0.35)] ring-1 ring-gold-500/50">
           <img src={logo} alt="Logo del certamen" className="h-9 w-9 object-contain" />
         </span>
         {!colapsado && (
           <div className="min-w-0 leading-tight">
-            <span className="block truncate bg-gradient-to-r from-gold-200 via-gold-300 to-gold-500 bg-clip-text text-sm font-bold tracking-wide text-transparent">
+            <span className="block truncate bg-linear-to-r from-gold-200 via-gold-300 to-gold-500 bg-clip-text text-sm font-bold tracking-wide text-transparent">
               ECSA 2026
             </span>
             <span className="block truncate text-[11px] text-navy-400">Centro de Control</span>
@@ -171,15 +171,15 @@ function AdminLayoutContent() {
       <div className={`space-y-3 border-t border-white/10 py-4 ${colapsado ? 'px-0' : 'px-2'}`}>
         {!colapsado && (
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-xl border border-white/10 bg-gradient-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="rounded-xl border border-white/10 bg-linear-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <p className="text-lg font-bold leading-none text-gold-300">{candidatas.length}</p>
               <p className="mt-1 text-[10px] uppercase tracking-wider text-navy-400">Candidatas</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-gradient-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="rounded-xl border border-white/10 bg-linear-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <p className="text-lg font-bold leading-none text-emerald-300">{totalActivados}</p>
               <p className="mt-1 text-[10px] uppercase tracking-wider text-navy-400">Activados</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-gradient-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="rounded-xl border border-white/10 bg-linear-to-b from-navy-800/80 to-navy-900/40 px-1 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <p className="text-lg font-bold leading-none text-white">{criterios.length}</p>
               <p className="mt-1 text-[10px] uppercase tracking-wider text-navy-400">Criterios</p>
             </div>
@@ -189,7 +189,7 @@ function AdminLayoutContent() {
         <button
           onClick={cerrar}
           title={colapsado ? 'Cerrar sesión' : undefined}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-sm font-medium text-navy-200 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/3 px-3.5 py-2.5 text-sm font-medium text-navy-200 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4 shrink-0">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6A2.25 2.25 0 005.25 5.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m-3 3l-3-3m3 3h-9" />
@@ -204,7 +204,7 @@ function AdminLayoutContent() {
     <div className="flex h-screen overflow-hidden bg-navy-950 text-white">
       {/* Sidebar escritorio (estático) */}
       <aside
-        className={`relative hidden shrink-0 border-r border-white/10 bg-gradient-to-b from-navy-900 to-navy-950 backdrop-blur transition-all duration-300 lg:block ${
+        className={`relative hidden shrink-0 border-r border-white/10 bg-linear-to-b from-navy-900 to-navy-950 backdrop-blur transition-all duration-300 lg:block ${
           colapsado ? 'w-16' : 'w-64'
         }`}
       >
@@ -215,7 +215,7 @@ function AdminLayoutContent() {
       {mobileAbierto && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileAbierto(false)} />
-          <aside className="absolute left-0 top-0 h-full w-64 border-r border-white/10 bg-gradient-to-b from-navy-900 to-navy-950">
+          <aside className="absolute left-0 top-0 h-full w-64 border-r border-white/10 bg-linear-to-b from-navy-900 to-navy-950">
             {contenidoSidebar}
           </aside>
         </div>
@@ -244,7 +244,7 @@ function AdminLayoutContent() {
         <header className="relative z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-navy-950/80 px-4 py-3 backdrop-blur">
           <span
             aria-hidden
-            className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-gold-500/50 to-transparent"
+            className="absolute inset-x-6 top-0 h-px bg-linear-to-r from-transparent via-gold-500/50 to-transparent"
           />
           <span className="hidden truncate text-sm font-semibold text-white sm:block">
             {evento?.nombre ?? 'Centro de Control'}

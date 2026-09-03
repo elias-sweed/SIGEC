@@ -46,9 +46,9 @@ export default function QRIngresoModal({ evento, abierto, onCerrar }: QRSugerenc
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy-950">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-navy-950">
       {/* Fondo con beams */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-950 to-black" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-linear-to-br from-navy-900 via-navy-950 to-black" />
 
       <div className="relative z-10 flex w-full max-w-lg flex-col items-center gap-6 px-6 text-center">
         {/* Logo + evento */}

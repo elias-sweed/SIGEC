@@ -413,7 +413,7 @@ export default function JuradoEvaluacion() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold-300">
                     Criterios de desempate
                   </p>
-                  <span className="h-px flex-1 bg-gradient-to-r from-gold-500/40 to-transparent" />
+                  <span className="h-px flex-1 bg-linear-to-r from-gold-500/40 to-transparent" />
                   <p className="text-[11px] text-navy-500">Solo rompen empates, no suman a la nota base</p>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

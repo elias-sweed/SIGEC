@@ -90,7 +90,7 @@ export default function EvaluacionesPanel({
             </thead>
             <tbody>
               {mapa.map((m) => (
-                <tr key={m.candidata.id} className="border-t border-white/10 transition-colors hover:bg-white/[0.03]">
+                <tr key={m.candidata.id} className="border-t border-white/10 transition-colors hover:bg-white/3">
                   <td className="py-3 pr-3">
                     <span className="text-white">{m.candidata.nombre}</span>
                     <span className="text-navy-500"> · {m.candidata.grado}</span>

@@ -70,7 +70,7 @@ function FormularioCriterio({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancelar} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-gold-500/25 bg-gradient-to-b from-navy-800/95 to-navy-950/95 p-6 shadow-2xl shadow-black/60 backdrop-blur">
+      <div className="relative w-full max-w-lg rounded-2xl border border-gold-500/25 bg-linear-to-b from-navy-800/95 to-navy-950/95 p-6 shadow-2xl shadow-black/60 backdrop-blur">
         <p className="panel-overline text-[11px] font-semibold uppercase tracking-[0.25em] text-gold-300">
           {criterio ? 'Editar criterio' : 'Nuevo criterio'}
         </p>
@@ -410,7 +410,7 @@ export default function Criterios() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-white/[0.03] text-left text-[10px] uppercase tracking-[0.2em] text-navy-400">
+                      <tr className="bg-white/3 text-left text-[10px] uppercase tracking-[0.2em] text-navy-400">
                         <th className="w-14 px-4 py-3 font-semibold">#</th>
                         <th className="px-4 py-3 font-semibold">Criterio</th>
                         <th className="w-24 px-4 py-3 text-center font-semibold">Puntaje</th>
@@ -421,9 +421,9 @@ export default function Criterios() {
                       {criteriosEtapa.map((c, i) => (
                         <tr
                           key={c.id}
-                          className={`border-t transition-colors hover:bg-gold-500/[0.04] ${
-                            c.es_desempate ? 'border-gold-500/20 bg-gold-500/[0.04]' : 'border-white/[0.07]'
-                          } ${i % 2 === 1 ? 'bg-white/[0.015]' : ''}`}
+                          className={`border-t transition-colors hover:bg-gold-500/4 ${
+                            c.es_desempate ? 'border-gold-500/20 bg-gold-500/4' : 'border-white/[0.07]'
+                          } ${i % 2 === 1 ? 'bg-white/1.5' : ''}`}
                         >
                           <td className="px-4 py-3 align-top">
                             <span
@@ -471,7 +471,7 @@ export default function Criterios() {
                                 className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition ${
                                   c.es_desempate
                                     ? 'border-gold-500/40 bg-gold-500/10 text-gold-300 hover:bg-gold-500/20 disabled:opacity-40'
-                                    : 'border-white/10 bg-white/[0.03] text-navy-300 hover:border-gold-500/30 hover:text-gold-300 disabled:opacity-40'
+                                    : 'border-white/10 bg-white/3 text-navy-300 hover:border-gold-500/30 hover:text-gold-300 disabled:opacity-40'
                                 }`}
                               >
                                 Desempate
@@ -479,7 +479,7 @@ export default function Criterios() {
                               <button
                                 onClick={() => abrirEditar(c)}
                                 title="Editar criterio"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-navy-200 transition hover:border-gold-500/40 hover:text-gold-300"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/3 text-navy-200 transition hover:border-gold-500/40 hover:text-gold-300"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -488,7 +488,7 @@ export default function Criterios() {
                               <button
                                 onClick={() => setConfirmarEliminar(c)}
                                 title="Eliminar criterio"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-navy-200 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/3 text-navy-200 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -500,7 +500,7 @@ export default function Criterios() {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t border-gold-500/20 bg-white/[0.02]">
+                      <tr className="border-t border-gold-500/20 bg-white/2">
                         <td colSpan={2} className="px-4 py-3">
                           <span className="text-xs font-semibold uppercase tracking-widest text-navy-400">
                             Total rúbrica
@@ -561,7 +561,7 @@ export default function Criterios() {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setConfirmarEliminar(null)}
           />
-          <div className="relative w-full max-w-sm rounded-2xl border border-red-500/25 bg-gradient-to-b from-navy-800/95 to-navy-950/95 p-6 shadow-2xl shadow-black/60 backdrop-blur">
+          <div className="relative w-full max-w-sm rounded-2xl border border-red-500/25 bg-linear-to-b from-navy-800/95 to-navy-950/95 p-6 shadow-2xl shadow-black/60 backdrop-blur">
             <p className="panel-overline text-[11px] font-semibold uppercase tracking-[0.25em] text-red-300">
               Eliminar criterio
             </p>

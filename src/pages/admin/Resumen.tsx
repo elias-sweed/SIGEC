@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
-import QRIngresoModal from '../../components/admin/QRIngresoModal'
 import ReiniciarCertamenModal from '../../components/admin/ReiniciarCertamenModal'
 import { usePanelData } from '../../context/PanelDataContext'
 import { useCertamen } from '../../context/CertamenContext'
@@ -64,24 +62,13 @@ const estiloBoton: Record<EventState, EstiloBoton> = {
   },
 }
 
-function iniciales(nombre: string): string {
-  return nombre
-    .trim()
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
-
 export default function Resumen() {
   const { evento, candidatas, jurados, criterios, evaluaciones, detalles, cargandoInicial, recargar } = usePanelData()
-  const { estadoEvento, candidataActual, actualizarCandidata } = useCertamen()
+  const { estadoEvento } = useCertamen()
 
   const [error, setError] = useState<string | null>(null)
   const [operando, setOperando] = useState(false)
   const [reiniciando, setReiniciando] = useState(false)
-  const [qrAbierto, setQrAbierto] = useState(false)
   const [resetAbierto, setResetAbierto] = useState(false)
   const [exportando, setExportando] = useState(false)
   const [ahora, setAhora] = useState(() => new Date())
@@ -123,9 +110,6 @@ export default function Resumen() {
         100
       : 0
 
-  const idx = candidatas.findIndex((c) => c.id === candidataActual?.id)
-  const posicion = idx >= 0 ? idx + 1 : null
-
   const hora = ahora.toLocaleTimeString('es-PE', {
     hour: '2-digit',
     minute: '2-digit',
@@ -152,8 +136,8 @@ export default function Resumen() {
     setError(null)
     const supabase = getSupabase()
 
-    let candidataId = candidataActual?.id ?? null
-    if (nuevo === 'evaluando') candidataId = candidataId ?? candidatas[0]?.id ?? null
+    let candidataId: string | null = null
+    if (nuevo === 'evaluando') candidataId = candidatas[0]?.id ?? null
     if (nuevo === 'preparando') candidataId = null
 
     logConsulta(`Panel: eventos.estado -> ${nuevo}`)
@@ -208,18 +192,6 @@ export default function Resumen() {
       publicado: 'Publicación de resultados',
     }
     await registrarAccion('Operador', `estado_${nuevo}`, labels[nuevo] ?? nuevo)
-  }
-
-  const navegarCandidata = async (direccion: -1 | 1) => {
-    if (!candidataActual || idx < 0) return
-    const destino = candidatas[idx + direccion]
-    if (!destino) return
-    try {
-      await actualizarCandidata(destino.id)
-      await registrarAccion('Operador', 'cambiar_candidata', `Candidata: ${destino.nombre}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    }
   }
 
   const toggleModoEnsayo = async () => {
@@ -463,56 +435,6 @@ export default function Resumen() {
           )}
         </div>
 
-        {/* Zona 3: candidata actual + navegación rápida */}
-        <div className="mt-7 border-t border-white/10 pt-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-navy-300">
-            Candidata en pantalla
-          </p>
-          <div className="mt-3 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gold-500/20 text-lg font-bold text-gold-300 ring-1 ring-gold-500/40">
-                {candidataActual ? iniciales(candidataActual.nombre) : '—'}
-              </span>
-              <div className="min-w-0">
-                <p className="text-lg font-bold text-white">{candidataActual?.nombre ?? 'Sin candidata activa'}</p>
-                <p className="text-xs text-navy-400">
-                  {candidataActual
-                    ? `${candidataActual.grado} · Sección ${candidataActual.seccion}`
-                    : 'Usa Anterior / Siguiente o agrega una candidata'}
-                </p>
-                <p className="mt-0.5 text-xs font-semibold text-gold-300">
-                  {posicion !== null ? `Candidata ${posicion} de ${candidatas.length}` : `${candidatas.length} candidatas registradas`}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link to="/panel/candidatas" className="btn-ghost shrink-0">
-                + Agregar candidata
-              </Link>
-              <button
-                onClick={() => setQrAbierto(true)}
-                className="btn-gold shrink-0"
-              >
-                Mostrar QR de ingreso
-              </button>
-              <button
-                onClick={() => void navegarCandidata(-1)}
-                disabled={!candidataActual || idx < 1 || operando}
-                className="btn-ghost shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                ← Anterior
-              </button>
-              <button
-                onClick={() => void navegarCandidata(1)}
-                disabled={!candidataActual || idx < 0 || idx >= candidatas.length - 1 || operando}
-                className="btn-ghost shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Siguiente →
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Zona 4: herramientas (modo ensayo + reportes) — la pantalla pública es automática */}
         <div className="mt-7 border-t border-white/10 pt-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-navy-300">
@@ -651,12 +573,6 @@ export default function Resumen() {
       </Section>
         </>
       )}
-
-      <QRIngresoModal
-        evento={evento?.nombre}
-        abierto={qrAbierto}
-        onCerrar={() => setQrAbierto(false)}
-      />
 
       <ReiniciarCertamenModal
         abierto={resetAbierto}

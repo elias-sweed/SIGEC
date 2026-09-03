@@ -211,7 +211,11 @@ export default function PublicScreen() {
                 />
               )}
               {escena === 'esperando' && (
-                <EscenaEsperando candidatas={candidatas} evaluadasIds={evaluadasIds} />
+                <EscenaEsperando
+                  candidatas={candidatas}
+                  evaluadasIds={evaluadasIds}
+                  jurados={jurados}
+                />
               )}
               {escena === 'resultados' && <EscenaResultados podio={podio} />}
             </>
@@ -410,15 +414,20 @@ function EscenaEvaluacion({
 function EscenaEsperando({
   candidatas,
   evaluadasIds,
+  jurados,
 }: {
   candidatas: Candidata[]
   evaluadasIds: Set<string>
+  jurados: JuradoEnVivo[]
 }) {
   return (
     <div className="w-full max-w-5xl space-y-8 animate-fade-in">
       <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-400">
         Esperando resultados de los jurados
       </p>
+
+      {/* Cada jurado con la candidata que está evaluando */}
+      <PanelJurados jurados={jurados} candidatas={candidatas} />
 
       <div className="flex items-center justify-center gap-2">
         <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-amber-400 [animation-delay:0ms]" />

@@ -1,10 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
-import { IconoCheck, IconoLapiz, IconoPapelera } from '../../components/admin/Iconos'
+import {
+  IconoCheck,
+  IconoLapiz,
+  IconoPapelera,
+  IconoDescargar,
+  IconoImportar,
+} from '../../components/admin/Iconos'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
 import { logConsulta, logError } from '../../utils/devlog'
+import { descargarExcel } from '../../utils/exportExcel'
 import type { Candidata } from '../../types/database'
 
 const GRADOS = ['1', '2', '3', '4', '5']
@@ -25,6 +32,9 @@ export default function Candidatas() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [editando, setEditando] = useState({ nombre: '', grado: GRADOS[0], seccion: SECCIONES[0] })
   const [error, setError] = useState<string | null>(null)
+  const [mensajeImport, setMensajeImport] = useState<string | null>(null)
+  const [importando, setImportando] = useState(false)
+  const inputArchivo = useRef<HTMLInputElement>(null)
 
   // Orden global estable: grado (numérico) → sección → nombre
   const ordenGlobal = useMemo(
@@ -120,6 +130,101 @@ export default function Candidatas() {
     await recargar()
   }
 
+  // Descarga las candidatas actuales en un archivo .xls (Excel)
+  const manejarDescargar = () => {
+    if (ordenGlobal.length === 0) {
+      setError('No hay candidatas para exportar todavía.')
+      return
+    }
+    setError(null)
+    setMensajeImport(null)
+    logConsulta('Panel: exportar candidatas a Excel')
+    descargarExcel(`Candidatas_${new Date().toISOString().slice(0, 10)}`, [
+      {
+        titulo: 'Candidatas',
+        cabeceras: ['#', 'Nombre', 'Grado', 'Sección'],
+        filas: ordenGlobal.map((c, i) => ({
+          '#': i + 1,
+          Nombre: c.nombre,
+          Grado: c.grado,
+          Sección: c.seccion,
+        })),
+      },
+    ])
+  }
+
+  // Lee y agrega candidatas desde un archivo .xlsx/.xls (sin duplicar)
+  const manejarImportar = async (file: File) => {
+    setImportando(true)
+    setMensajeImport(null)
+    setError(null)
+    try {
+      const XLSX = await import('xlsx')
+      const buf = await file.arrayBuffer()
+      const libro = XLSX.read(buf, { type: 'array' })
+      const hoja = libro.Sheets[libro.SheetNames[0]]
+      if (!hoja) throw new Error('El archivo no contiene hojas.')
+      const filas = XLSX.utils.sheet_to_json<Record<string, unknown>>(hoja, { defval: '' })
+
+      const supabase = getSupabase()
+      const { data: existentesData } = await supabase.from('candidatas').select('nombre, grado, seccion')
+      const existentes: Candidata[] = (existentesData ?? []) as Candidata[]
+      const claveExistente = new Set(
+        existentes.map((c) => `${String(c.nombre).trim().toLowerCase()}|${c.grado}|${c.seccion}`),
+      )
+
+      const nuevos: { nombre: string; grado: string; seccion: string }[] = []
+      const ignorados: string[] = []
+      let invalidas = 0
+
+      for (const f of filas) {
+        const nombre = String(f.nombre ?? f.Nombre ?? '').trim()
+        const grado = String(f.grado ?? f.Grado ?? '').trim()
+        const seccion = String(f.seccion ?? f.Seccion ?? '').trim().toUpperCase()
+        if (!nombre || !valido(grado, seccion)) {
+          invalidas += 1
+          continue
+        }
+        const clave = `${nombre.toLowerCase()}|${grado}|${seccion}`
+        if (claveExistente.has(clave)) {
+          ignorados.push(nombre)
+          continue
+        }
+        claveExistente.add(clave)
+        nuevos.push({ nombre, grado, seccion })
+      }
+
+      if (nuevos.length > 0) {
+        const filasInsert = nuevos.map((n) => ({ nombre: n.nombre, grado: n.grado, seccion: n.seccion }))
+        const { error } = await supabase.from('candidatas').insert(filasInsert)
+        if (error) throw error
+      }
+
+      if (nuevos.length === 0 && invalidas > 0) {
+        setMensajeImport(
+          `No se importó ninguna fila (${invalidas} inválida${invalidas === 1 ? '' : 's'}). Verifica que las columnas sean "nombre", "grado" y "seccion".`,
+        )
+      } else {
+        const partes: string[] = [`Se agregaron ${nuevos.length} candidata${nuevos.length === 1 ? '' : 's'}.`]
+        if (ignorados.length > 0) partes.push(`${ignorados.length} duplicada${ignorados.length === 1 ? '' : 's'} omitida${ignorados.length === 1 ? '' : 's'}.`)
+        if (invalidas > 0) partes.push(`${invalidas} fila${invalidas === 1 ? '' : 's'} inválida${invalidas === 1 ? '' : 's'}.`)
+        setMensajeImport(partes.join(' '))
+      }
+
+      await recargar()
+    } catch (err) {
+      logError('importar candidatas', err instanceof Error ? err.message : String(err))
+      setError(
+        err instanceof Error
+          ? `No se pudo importar: ${err.message}. El archivo debe ser .xlsx con columnas nombre, grado, seccion.`
+          : 'No se pudo importar el archivo.',
+      )
+    } finally {
+      setImportando(false)
+      if (inputArchivo.current) inputArchivo.current.value = ''
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PanelHeader
@@ -169,6 +274,40 @@ export default function Candidatas() {
         <button onClick={agregar} className="btn-gold mt-3 w-full">
           Agregar candidata
         </button>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button onClick={manejarDescargar} className="btn-ghost flex items-center gap-2">
+            <IconoDescargar />
+            Descargar listado
+          </button>
+          <button
+            onClick={() => inputArchivo.current?.click()}
+            className="btn-ghost flex items-center gap-2"
+            disabled={importando}
+          >
+            <IconoImportar />
+            {importando ? 'Importando…' : 'Importar (.xlsx)'}
+          </button>
+          <input
+            ref={inputArchivo}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) void manejarImportar(f)
+            }}
+          />
+          <span className="text-[11px] text-navy-400">
+            Importa un Excel con columnas: nombre, grado (1-5), sección (A-I)
+          </span>
+        </div>
+
+        {mensajeImport && (
+          <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+            {mensajeImport}
+          </p>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">

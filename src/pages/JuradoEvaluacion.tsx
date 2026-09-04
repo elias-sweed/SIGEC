@@ -60,6 +60,9 @@ export default function JuradoEvaluacion() {
       }
 
       setJurado(data as Jurado)
+      // Al volver a la evaluación (incluso restaurando sesión sin re-login) garantiza
+      // que el jurado quede marcado como "En sesión" en la pantalla pública.
+      void marcarEnSesion((data as Jurado).id, true)
 
       // Candidatas que este jurado ya evaluó (para mostrarlas en el selector)
       const { data: evals } = await supabase

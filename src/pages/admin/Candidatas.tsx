@@ -15,7 +15,7 @@ import { descargarExcel } from '../../utils/exportExcel'
 import type { Candidata } from '../../types/database'
 
 const GRADOS = ['1', '2', '3', '4', '5']
-const SECCIONES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+const SECCIONES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
 
 function valido(grado: string, seccion: string): boolean {
   return GRADOS.includes(grado) && SECCIONES.includes(seccion)

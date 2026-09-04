@@ -128,7 +128,7 @@ export default function PanelJurados({
                 </div>
 
                 {/* Cuerpo: candidata que evalúa */}
-                <div className="flex min-h-[96px] flex-col items-center justify-center gap-1.5 px-4 py-4">
+                <div className="flex min-h-24 flex-col items-center justify-center gap-1.5 px-4 py-4">
                   {!conectado ? (
                     <>
                       <span className="flex h-16 w-16 items-center justify-center rounded-full bg-navy-800/60 text-2xl font-bold text-navy-500 ring-2 ring-white/5">

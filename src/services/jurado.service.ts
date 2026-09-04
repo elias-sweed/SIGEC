@@ -85,11 +85,8 @@ export async function columnaExiste(tabla: string, columna: string): Promise<boo
 
 /**
  * Marca "En sesión" / "Sin sesión" del jurado.
- * Antes de actualizar verifica que la columna `en_sesion` exista; si la migración
- * aún no se aplicó, omite la actualización sin provocar un error 400.
  */
 export async function marcarEnSesion(juradoId: string, activa: boolean): Promise<void> {
-  if (!(await columnaExiste('jurados', 'en_sesion'))) return
   try {
     const supabase = getSupabase()
     const { error } = await supabase
@@ -117,14 +114,12 @@ export async function marcarActivado(juradoId: string, emailInterno: string, aut
 /**
  * Guarda qué candidata está evaluando actualmente el jurado, para que la pantalla
  * pública la muestre en tiempo real. Pasa `null` cuando el jurado deja de evaluar
- * (vuelve al selector o cierra sesión). Omite la actualización si la columna aún
- * no existe (migración pendiente) para no provocar un error 400.
+ * (vuelve al selector o cierra sesión).
  */
 export async function actualizarCandidataJurado(
   juradoId: string,
   candidataId: string | null,
 ): Promise<void> {
-  if (!(await columnaExiste('jurados', 'candidata_actual_id'))) return
   try {
     const supabase = getSupabase()
     const { error } = await supabase

@@ -163,7 +163,7 @@ function VentanaModal({ onCerrar, children }: { onCerrar: () => void; children: 
   }, [onCerrar])
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy-950/85 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-navy-950/85 p-4 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl animate-fade-in overflow-hidden rounded-3xl border border-gold-500/40 bg-navy-900 shadow-2xl shadow-gold-500/20">
         <button
           onClick={onCerrar}

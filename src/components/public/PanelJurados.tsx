@@ -54,9 +54,22 @@ function Avatar({
 }
 
 /**
+ * Devuelve el ancho de cada tarjeta según el número total de jurados, para que
+ * siempre queden centrados y bien repartidos (sin espacio muerto a los lados).
+ */
+function anchoTarjeta(total: number): string {
+  if (total === 1) return 'w-full max-w-sm'
+  if (total === 2) return 'w-full sm:w-[46%] max-w-xs'
+  if (total === 3) return 'w-full sm:w-[31%] max-w-xs'
+  if (total === 4) return 'w-full sm:w-[23%] max-w-[12rem]'
+  // 5 o más: envolver de a 3 para no apretar
+  return 'w-full sm:w-[31%] max-w-xs'
+}
+
+/**
  * Muestra a cada jurado en una tarjeta vertical: nombre del jurado arriba y,
- * debajo, la candidata que está evaluando (en vivo). La cuadrícula se adapta
- * al número de jurados (3 → 3 columnas, 4 → 4 columnas, etc.).
+ * debajo, la candidata que está evaluando (en vivo). Las tarjetas se colocan de
+ * forma inteligente y centrada según cuántos jurados haya.
  */
 export default function PanelJurados({
   jurados,
@@ -67,6 +80,8 @@ export default function PanelJurados({
 }) {
   const porId = new Map(candidatas.map((c) => [c.id, c]))
   const activos = jurados.filter((j) => j.en_sesion)
+  const total = jurados.length
+  const ancho = anchoTarjeta(total)
 
   return (
     <div className="w-full space-y-4">
@@ -80,19 +95,19 @@ export default function PanelJurados({
         </span>
       </div>
 
-      {jurados.length === 0 ? (
+      {total === 0 ? (
         <p className="text-sm text-navy-400">
           Sin jurados registrados por el momento.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="flex flex-wrap items-start justify-center gap-4">
           {jurados.map((j, idx) => {
             const candidata = j.candidata_actual_id ? porId.get(j.candidata_actual_id) : undefined
             const conectado = j.en_sesion
             return (
               <div
                 key={j.id}
-                className={`flex flex-col items-stretch overflow-hidden rounded-2xl border backdrop-blur ${
+                className={`${ancho} flex flex-col items-stretch overflow-hidden rounded-2xl border backdrop-blur ${
                   conectado
                     ? 'border-white/10 bg-navy-900/60'
                     : 'border-white/5 bg-navy-950/40 opacity-70'

@@ -50,64 +50,105 @@ async function subirFotoCandidata(file: File): Promise<string | null> {
   }
 }
 
+/** Borra el objeto de Storage correspondiente a una URL pública (ignora errores). */
+async function borrarFotoDeStorage(url: string | null): Promise<void> {
+  if (!url) return
+  try {
+    const marcador = '/object/public/candidatas/'
+    const i = url.indexOf(marcador)
+    if (i === -1) return
+    const path = url.slice(i + marcador.length).split('?')[0]
+    if (!path) return
+    const supabase = getSupabase()
+    const { error } = await supabase.storage.from('candidatas').remove([path])
+    if (error) logError('borrar foto candidata', error.message)
+  } catch (err) {
+    logError('borrar foto candidata', err instanceof Error ? err.message : String(err))
+  }
+}
+
 function SelectorImagen({
   etiqueta,
   actual,
+  quitar,
   onCambio,
+  onQuitar,
 }: {
   etiqueta: string
   actual?: string | null
+  quitar: boolean
   onCambio: (file: File | null) => void
+  onQuitar: () => void
 }) {
   const [preview, setPreview] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const mostrar = preview ?? actual ?? null
+  const mostrar = preview ?? (quitar ? null : actual) ?? null
 
   return (
-    <div className="flex items-center gap-3">
-      {mostrar ? (
-        <img
-          src={mostrar}
-          alt="Vista previa de la foto"
-          className="h-16 w-16 rounded-full border-2 border-gold-500/40 object-cover shadow-lg"
-        />
-      ) : (
-        <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full border-2 border-dashed border-white/20 bg-navy-700/40 text-2xl font-bold text-navy-400">
-          +
-        </span>
-      )}
-      <div className="flex flex-col gap-1.5">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0] ?? null
-            if (f) setPreview(URL.createObjectURL(f))
-            onCambio(f)
-          }}
-        />
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative mx-auto h-44 w-44">
+        {mostrar ? (
+          <img
+            src={mostrar}
+            alt="Foto de la candidata"
+            className="h-full w-full rounded-2xl border-2 border-gold-500/40 object-cover shadow-2xl shadow-gold-500/10"
+          />
+        ) : (
+          <div className="grid h-full w-full place-items-center rounded-2xl border-2 border-dashed border-white/15 bg-linear-to-br from-navy-800 to-navy-950">
+            <div className="flex flex-col items-center gap-1 text-navy-400">
+              <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8" stroke="currentColor" strokeWidth={1.5}>
+                <path d="M14.5 4h-5L7.5 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2.5L14.5 4Z" />
+                <circle cx="12" cy="13" r="3" />
+              </svg>
+              <span className="text-[11px] font-semibold">Sin foto</span>
+            </div>
+          </div>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0] ?? null
+          if (f) setPreview(URL.createObjectURL(f))
+          onCambio(f)
+        }}
+      />
+      <div className="flex flex-wrap items-center justify-center gap-2">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           className="btn-ghost flex items-center gap-1.5"
         >
+          <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth={2}>
+            <path d="m21 21-4.35-4.35" />
+            <circle cx="11" cy="11" r="8" />
+          </svg>
           {mostrar ? 'Cambiar foto' : etiqueta}
         </button>
-        {preview && (
+        {(preview || (actual && !quitar)) && (
           <button
             type="button"
             onClick={() => {
-              setPreview(null)
-              onCambio(null)
+              if (preview) {
+                setPreview(null)
+                onCambio(null)
+              } else {
+                onQuitar()
+              }
             }}
-            className="text-left text-[11px] font-semibold text-red-400 hover:text-red-300"
+            className="btn-ghost flex items-center gap-1.5 text-red-400 hover:text-red-300"
           >
-            Quitar foto nueva
+            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth={2}>
+              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+            </svg>
+            Quitar foto
           </button>
         )}
       </div>
+      <p className="text-[10px] text-navy-400">JPG o PNG. Se mostrará en la pantalla pública.</p>
     </div>
   )
 }
@@ -123,7 +164,7 @@ function VentanaModal({ onCerrar, children }: { onCerrar: () => void; children: 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy-950/85 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md animate-fade-in overflow-hidden rounded-3xl border border-gold-500/40 bg-navy-900 p-6 shadow-2xl shadow-gold-500/20">
+      <div className="relative w-full max-w-2xl animate-fade-in overflow-hidden rounded-3xl border border-gold-500/40 bg-navy-900 shadow-2xl shadow-gold-500/20">
         <button
           onClick={onCerrar}
           aria-label="Cerrar"
@@ -149,6 +190,7 @@ export default function Candidatas() {
   const [importando, setImportando] = useState(false)
   const [modal, setModal] = useState<ModalCandidata | null>(null)
   const [fotoArchivo, setFotoArchivo] = useState<File | null>(null)
+  const [quitarFoto, setQuitarFoto] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const inputArchivo = useRef<HTMLInputElement>(null)
 
@@ -182,19 +224,27 @@ export default function Candidatas() {
   const abrirAgregar = () => {
     setError(null)
     setFotoArchivo(null)
+    setQuitarFoto(false)
     setModal({ id: null, nombre: '', grado: GRADOS[0], seccion: SECCIONES[0], foto_url: null })
   }
 
   const abrirEditar = (c: Candidata) => {
     setError(null)
     setFotoArchivo(null)
+    setQuitarFoto(false)
     setModal({ id: c.id, nombre: c.nombre, grado: c.grado, seccion: c.seccion, foto_url: c.foto_url ?? null })
   }
 
   const cerrarModal = () => {
     setModal(null)
     setFotoArchivo(null)
+    setQuitarFoto(false)
     setError(null)
+  }
+
+  const manejarFoto = (f: File | null) => {
+    setFotoArchivo(f)
+    if (f) setQuitarFoto(false)
   }
 
   const guardarModal = async () => {
@@ -211,8 +261,10 @@ export default function Candidatas() {
     setGuardando(true)
     setError(null)
     const supabase = getSupabase()
-    let fotoUrl = modal.foto_url
-    if (fotoArchivo) {
+    let fotoUrl: string | null = modal.foto_url
+    if (quitarFoto) {
+      fotoUrl = null
+    } else if (fotoArchivo) {
       const subida = await subirFotoCandidata(fotoArchivo)
       if (!subida) {
         setError('No se pudo subir la imagen. Verifica que el bucket "candidatas" exista y tenga política de escritura.')
@@ -222,6 +274,7 @@ export default function Candidatas() {
       fotoUrl = subida
     }
     if (modal.id) {
+      const fotoAnterior = modal.foto_url
       logConsulta('Panel: editar candidata')
       const { error } = await supabase
         .from('candidatas')
@@ -238,6 +291,7 @@ export default function Candidatas() {
         setGuardando(false)
         return
       }
+      if (fotoAnterior && fotoUrl !== fotoAnterior) await borrarFotoDeStorage(fotoAnterior)
     } else {
       logConsulta('Panel: agregar candidata')
       const { error } = await supabase
@@ -516,77 +570,98 @@ export default function Candidatas() {
 
       {modal && (
         <VentanaModal onCerrar={cerrarModal}>
-          <div className="pr-10">
-            <h3 className="text-lg font-bold text-white">
-              {modal.id ? 'Editar candidata' : 'Nueva candidata'}
-            </h3>
-            <p className="text-xs text-navy-400">Cierra con ESC o el botón ✕.</p>
-          </div>
-
-          {error && <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
-
-          <div className="mt-4 space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
-                Nombre
+          <div className="relative">
+            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-gold-500/80 to-transparent" />
+            <div className="flex items-center gap-3 border-b border-white/10 bg-navy-950/50 px-6 py-5 pr-14">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-500/15 text-gold-300 ring-1 ring-gold-500/30">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+                  <path d="M12 2l2.4 7.2H22l-6 4.6 2.4 7.2-6.4-4.7-6.4 4.7L8 13.8 2 9.2h7.6L12 2Z" />
+                </svg>
               </span>
-              <input
-                value={modal.nombre}
-                onChange={(e) => setModal({ ...modal, nombre: e.target.value })}
-                placeholder="Nombre completo"
-                className="input-panel"
-              />
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
-                  Grado
-                </span>
-                <select
-                  value={modal.grado}
-                  onChange={(e) => setModal({ ...modal, grado: e.target.value })}
-                  className="input-panel"
-                >
-                  {GRADOS.map((g) => (
-                    <option key={g} value={g}>
-                      {g}° grado
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
-                  Sección
-                </span>
-                <select
-                  value={modal.seccion}
-                  onChange={(e) => setModal({ ...modal, seccion: e.target.value })}
-                  className="input-panel"
-                >
-                  {SECCIONES.map((s) => (
-                    <option key={s} value={s}>
-                      Sección {s}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="min-w-0">
+                <h3 className="text-xl font-bold tracking-tight text-white">
+                  {modal.id ? 'Editar candidata' : 'Nueva candidata'}
+                </h3>
+                <p className="text-xs text-navy-400">Cierra con ESC o el botón ✕.</p>
+              </div>
             </div>
-            <SelectorImagen
-              key={modal.id ?? 'nuevo'}
-              etiqueta="Subir foto"
-              actual={modal.foto_url}
-              onCambio={setFotoArchivo}
-            />
-            <button
-              onClick={() => void guardarModal()}
-              disabled={guardando}
-              className="btn-gold w-full"
-            >
-              {guardando ? 'Guardando…' : modal.id ? 'Guardar cambios' : 'Agregar candidata'}
-            </button>
-            <button onClick={cerrarModal} className="btn-ghost w-full">
-              Cancelar
-            </button>
+
+            {error && (
+              <p className="mx-6 mt-5 rounded-xl bg-red-500/10 px-4 py-2.5 text-sm text-red-400 ring-1 ring-red-500/20">
+                {error}
+              </p>
+            )}
+
+            <div className="grid gap-8 px-6 py-6 sm:grid-cols-[minmax(0,220px)_1fr]">
+              <SelectorImagen
+                key={modal.id ?? 'nuevo'}
+                etiqueta="Subir foto"
+                actual={modal.foto_url}
+                quitar={quitarFoto}
+                onCambio={manejarFoto}
+                onQuitar={() => setQuitarFoto(true)}
+              />
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
+                    Nombre
+                  </span>
+                  <input
+                    value={modal.nombre}
+                    onChange={(e) => setModal({ ...modal, nombre: e.target.value })}
+                    placeholder="Nombre completo"
+                    className="input-panel"
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
+                      Grado
+                    </span>
+                    <select
+                      value={modal.grado}
+                      onChange={(e) => setModal({ ...modal, grado: e.target.value })}
+                      className="input-panel"
+                    >
+                      {GRADOS.map((g) => (
+                        <option key={g} value={g}>
+                          {g}° grado
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
+                      Sección
+                    </span>
+                    <select
+                      value={modal.seccion}
+                      onChange={(e) => setModal({ ...modal, seccion: e.target.value })}
+                      className="input-panel"
+                    >
+                      {SECCIONES.map((s) => (
+                        <option key={s} value={s}>
+                          Sección {s}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 border-t border-white/10 bg-navy-950/50 px-6 py-5 sm:flex-row sm:justify-end">
+              <button onClick={cerrarModal} className="btn-ghost w-full sm:w-auto">
+                Cancelar
+              </button>
+              <button
+                onClick={() => void guardarModal()}
+                disabled={guardando}
+                className="btn-gold w-full sm:min-w-44"
+              >
+                {guardando ? 'Guardando…' : modal.id ? 'Guardar cambios' : 'Agregar candidata'}
+              </button>
+            </div>
           </div>
         </VentanaModal>
       )}

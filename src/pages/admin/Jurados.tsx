@@ -1,11 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
-import { IconoCheck, IconoLapiz, IconoPapelera } from '../../components/admin/Iconos'
+import {
+  IconoCheck,
+  IconoLapiz,
+  IconoPapelera,
+  IconoDescargar,
+  IconoImportar,
+} from '../../components/admin/Iconos'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
 import { generarCodigoJurado, generarTokenAcceso } from '../../utils/codigos'
 import { logConsulta, logError } from '../../utils/devlog'
+import { descargarExcel } from '../../utils/exportExcel'
 
 export default function Jurados() {
   const { jurados, cargandoInicial, recargar } = usePanelData()

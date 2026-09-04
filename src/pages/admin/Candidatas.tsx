@@ -371,7 +371,7 @@ export default function Candidatas() {
 
       <Section
         titulo="Registro de candidatas"
-        descripcion="Agrega o edita candidatas desde una ventana. Cierra con ESC o el botón ✕."
+        descripcion="Agrega o edita candidatas desde una ventana."
         completado={candidatas.length > 0}
       >
         {error && <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}

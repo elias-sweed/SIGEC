@@ -45,6 +45,13 @@ export default function Jurados() {
 
   const siguienteCodigo = useMemo(() => generarCodigoJurado(), [jurados])
 
+  // Número fijo (1..N) según el orden actual de jurados, igual que en Candidatas
+  const numeroPorId = useMemo(() => {
+    const map = new Map<string, number>()
+    jurados.forEach((j, i) => map.set(j.id, i + 1))
+    return map
+  }, [jurados])
+
   const agregar = async () => {
     if (!nombre.trim()) {
       setError('Ingresa el nombre del jurado')
@@ -132,6 +139,9 @@ export default function Jurados() {
                 key={j.id}
                 className="fila-panel text-sm"
               >
+                <span className="grid h-7 w-9 shrink-0 place-items-center rounded-lg bg-gold-500/15 font-mono text-xs font-bold text-gold-300 ring-1 ring-gold-500/25">
+                  {numeroPorId.get(j.id)}
+                </span>
                 {editandoId === j.id ? (
                   <div className="flex flex-1 items-center gap-2">
                     <input

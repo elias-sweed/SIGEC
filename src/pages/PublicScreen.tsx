@@ -112,6 +112,16 @@ export default function PublicScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Refresco automático de respaldo: además del realtime, se vuelve a cargar
+  // cada pocos segundos para garantizar que la pantalla se actualice sola
+  // (aunque el realtime de Supabase no esté configurado en la publicación).
+  useEffect(() => {
+    const id = setInterval(() => {
+      void cargarEnVivo()
+    }, 4000)
+    return () => clearInterval(id)
+  }, [cargarEnVivo])
+
   // Tiempo real: estado, jurados (candidata que evalúa cada uno) y evaluaciones
   const onEnVivo = useCallback(() => {
     void cargarEstado()
@@ -204,11 +214,7 @@ export default function PublicScreen() {
                 <EscenaInicio evento={evento} candidatas={candidatas} evaluadasIds={evaluadasIds} />
               )}
               {escena === 'evaluacion' && (
-                <EscenaEvaluacion
-                  candidatas={candidatas}
-                  evaluadasIds={evaluadasIds}
-                  jurados={jurados}
-                />
+                <EscenaEvaluacion candidatas={candidatas} jurados={jurados} />
               )}
               {escena === 'esperando' && (
                 <EscenaEsperando
@@ -385,11 +391,9 @@ function ContadorRegresivo() {
 
 function EscenaEvaluacion({
   candidatas,
-  evaluadasIds,
   jurados,
 }: {
   candidatas: Candidata[]
-  evaluadasIds: Set<string>
   jurados: JuradoEnVivo[]
 }) {
   return (
@@ -398,13 +402,8 @@ function EscenaEvaluacion({
         Evaluación en curso
       </p>
 
-      {/* Cada jurado con la candidata que está evaluando */}
+      {/* Solo el panel de jurados: cada tarjeta con su nombre y la candidata que evalúa */}
       <PanelJurados jurados={jurados} candidatas={candidatas} />
-
-      {/* Candidatas ordenadas: evaluadas abajo */}
-      {candidatas.length > 0 && (
-        <CandidatasGrid candidatas={candidatas} evaluadasIds={evaluadasIds} compacto />
-      )}
     </div>
   )
 }

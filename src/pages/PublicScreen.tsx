@@ -522,16 +522,28 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
                       <span className="text-[10px] font-bold tabular-nums text-white">
                         {f.promedio.toFixed(1)}
                       </span>
-                      <div
-                        className="w-full rounded-t-lg"
-                        style={{
-                          height: `${alto}px`,
-                          background: `linear-gradient(to top, ${COLORES_GRADO[g]}cc, ${COLORES_GRADO[g]}55)`,
-                          boxShadow: `0 0 12px ${COLORES_GRADO[g]}55`,
-                        }}
-                      />
-                      <span className="truncate text-[9px] font-semibold text-navy-300" title={f.nombre}>
-                        {f.nombre.split(/\s+/).map((p) => p[0]).join('').slice(0, 3)}
+                      <div className="group relative flex w-full flex-col items-center">
+                        <div
+                          className="w-full rounded-t-lg transition-transform group-hover:scale-x-105"
+                          style={{
+                            height: `${alto}px`,
+                            background: `linear-gradient(to top, ${COLORES_GRADO[g]}cc, ${COLORES_GRADO[g]}55)`,
+                            boxShadow: `0 0 12px ${COLORES_GRADO[g]}55`,
+                          }}
+                        />
+                        {/* Tooltip al pasar el mouse: nombre y sección grandes */}
+                        <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-xl border border-white/20 bg-navy-950/95 px-3 py-2 text-center shadow-2xl backdrop-blur group-hover:block">
+                          <p className="text-sm font-bold text-white">{f.nombre}</p>
+                          <p className="text-xs font-semibold text-gold-300">
+                            {f.grado}º grado · Sección {f.seccion}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className="w-full truncate text-center text-[10px] font-semibold leading-tight text-navy-200"
+                        title={f.nombre}
+                      >
+                        {f.nombre}
                       </span>
                     </div>
                   )

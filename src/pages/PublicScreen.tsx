@@ -14,18 +14,9 @@ import type { Candidata, Evento, Evaluacion, EvaluacionDetalle, Criterio } from 
 interface PodioItem {
   nombre: string
   grado: string
+  seccion: string
   promedio: number
 }
-
-const AVATAR_COLORS = [
-  'from-yellow-400 to-yellow-600',
-  'from-gray-300 to-gray-500',
-  'from-amber-600 to-amber-800',
-]
-const POSICION_LABELS = ['Primer Puesto', 'Segundo Puesto', 'Tercer Puesto']
-const POSICION_BORDERS = ['border-yellow-400', 'border-gray-300', 'border-amber-600']
-const POSICION_BG = ['bg-yellow-500/15', 'bg-gray-400/15', 'bg-amber-600/15']
-const POSICION_TEXT = ['text-yellow-300', 'text-gray-200', 'text-amber-300']
 
 // La coronación es el viernes a las 7:00 PM. Calculamos el próximo objetivo
 // de forma robusta: el día siguiente a las 19:00 (mañana).
@@ -171,12 +162,24 @@ export default function PublicScreen() {
           return {
             nombre: c.nombre,
             grado: c.grado,
+            seccion: c.seccion,
             promedio: calcularPromedioJurados(bases),
           }
         })
 
-        porCandidata.sort((a, b) => b.promedio - a.promedio)
-        setPodio(porCandidata.slice(0, 3))
+        // 15 finalistas: los 3 de mejor promedio por cada grado (1-5)
+        const porGrado = new Map<string, PodioItem[]>()
+        for (const c of porCandidata) {
+          if (!porGrado.has(c.grado)) porGrado.set(c.grado, [])
+          porGrado.get(c.grado)!.push(c)
+        }
+        const finalistas: PodioItem[] = []
+        for (const g of ['1', '2', '3', '4', '5']) {
+          finalistas.push(
+            ...(porGrado.get(g) ?? []).sort((a, b) => b.promedio - a.promedio).slice(0, 3),
+          )
+        }
+        setPodio(finalistas)
       } catch (err) {
         logError('PublicScreen podium', err instanceof Error ? err.message : String(err))
       }
@@ -443,19 +446,31 @@ function EscenaEsperando({
   )
 }
 
-/* ─── Escena 4: Resultados (podio animado) ────────────────────────────── */
+/* ─── Escena 4: Resultados (15 finalistas, 3 por grado) ───────────────── */
+
+const GRADO_ORDEN = ['1', '2', '3', '4', '5']
+const COLORES_GRADO: Record<string, string> = {
+  '1': '#c9a227',
+  '2': '#5f7fae',
+  '3': '#5bb98b',
+  '4': '#b96b9c',
+  '5': '#a06fe0',
+}
+
+function agruparPorGrado(finalistas: PodioItem[]): Map<string, PodioItem[]> {
+  const map = new Map<string, PodioItem[]>()
+  for (const f of finalistas) {
+    const grupo = map.get(f.grado) ?? []
+    grupo.push(f)
+    map.set(f.grado, grupo)
+  }
+  return map
+}
 
 function EscenaResultados({ podio }: { podio: PodioItem[] }) {
-  const items = useMemo(() => {
-    if (podio.length === 0) return []
-    const orden = podio.length === 1 ? [0] : podio.length === 2 ? [1, 0] : [1, 0, 2]
-    return orden.map((originalIdx) => ({
-      ...podio[originalIdx],
-      podiumIdx: originalIdx,
-    }))
-  }, [podio])
+  const porGrado = useMemo(() => agruparPorGrado(podio), [podio])
 
-  if (items.length === 0) {
+  if (podio.length === 0) {
     return (
       <div className="space-y-4 animate-fade-in">
         <p className="text-3xl font-bold text-white">Resultados</p>
@@ -464,52 +479,181 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
     )
   }
 
+  // Promedio por finalista (barras) y por grado (pastel)
+  const maxProm = Math.max(...podio.map((p) => p.promedio), 1)
+  const gradosPresentes = GRADO_ORDEN.filter((g) => porGrado.has(g))
+  const promPorGrado = gradosPresentes.map((g) => {
+    const grupo = porGrado.get(g)!
+    const prom = grupo.reduce((s, f) => s + f.promedio, 0) / grupo.length
+    return { grado: g, prom }
+  })
+  const totalPastel = promPorGrado.reduce((s, p) => s + p.prom, 0) || 1
+
   return (
-    <div className="w-full max-w-3xl animate-fade-in">
-      <p className="mb-10 text-sm font-semibold uppercase tracking-[0.35em] text-purple-400">
-        Resultados del certamen
-      </p>
+    <div className="w-full max-w-6xl space-y-10 animate-fade-in">
+      <div className="text-center">
+        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-purple-400">
+          Resultados del certamen
+        </p>
+        <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">
+          15 finalistas{' '}
+          <span className="bg-linear-to-r from-gold-300 to-purple-300 bg-clip-text text-transparent">
+            (3 por grado)
+          </span>
+        </h2>
+        <p className="mt-1 text-sm text-navy-400">
+          Pasan a la etapa final los 3 mejores de cada grado, del 1° al 5°.
+        </p>
+      </div>
 
-      <div className="flex items-end justify-center gap-4 sm:gap-8">
-        {items.map((item) => {
-          const altura = item.podiumIdx === 0 ? 'min-h-[220px]' : item.podiumIdx === 1 ? 'min-h-[170px]' : 'min-h-[140px]'
-          return (
-            <div
-              key={item.nombre}
-              className={`flex flex-1 flex-col items-center animate-slide-up`}
-              style={{ animationDelay: `${item.podiumIdx * 300}ms` }}
-            >
-              <span
-                className={`flex h-16 w-16 items-center justify-center rounded-full bg-linear-to-br text-lg font-bold text-navy-950 ring-2 ${AVATAR_COLORS[item.podiumIdx]} ${POSICION_BORDERS[item.podiumIdx]}`}
-              >
-                {item.nombre
-                  .split(/\s+/)
-                  .map((p) => p[0])
-                  .join('')
-                  .slice(0, 2)}
+      <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr]">
+        {/* Gráfico de barras: promedio por finalista */}
+        <div className="rounded-3xl border border-white/10 bg-navy-900/50 p-5 backdrop-blur">
+          <p className="mb-5 text-sm font-bold uppercase tracking-widest text-gold-300">
+            Promedio por finalista
+          </p>
+          <div className="grid grid-cols-5 gap-2 sm:gap-3">
+            {gradosPresentes.map((g) => (
+              <div key={g} className="flex flex-col gap-2">
+                {porGrado.get(g)!.map((f) => {
+                  const alto = Math.max(8, Math.round((f.promedio / maxProm) * 130))
+                  return (
+                    <div key={f.nombre} className="flex flex-col items-center gap-1">
+                      <span className="text-[10px] font-bold tabular-nums text-white">
+                        {f.promedio.toFixed(1)}
+                      </span>
+                      <div
+                        className="w-full rounded-t-lg"
+                        style={{
+                          height: `${alto}px`,
+                          background: `linear-gradient(to top, ${COLORES_GRADO[g]}cc, ${COLORES_GRADO[g]}55)`,
+                          boxShadow: `0 0 12px ${COLORES_GRADO[g]}55`,
+                        }}
+                      />
+                      <span className="truncate text-[9px] font-semibold text-navy-300" title={f.nombre}>
+                        {f.nombre.split(/\s+/).map((p) => p[0]).join('').slice(0, 3)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-4">
+            {gradosPresentes.map((g) => (
+              <span key={g} className="flex items-center gap-1.5 text-[11px] font-semibold text-navy-200">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORES_GRADO[g] }} />
+                {g}° grado
               </span>
+            ))}
+          </div>
+        </div>
 
-              <p className={`mt-3 text-center text-sm font-bold sm:text-base ${POSICION_TEXT[item.podiumIdx]}`}>
-                {item.nombre}
-              </p>
-              <p className="text-[11px] text-navy-400">{item.grado}</p>
+        {/* Gráfico de pastel (dona): distribución por grado */}
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-navy-900/50 p-5 backdrop-blur">
+          <p className="mb-3 self-start text-sm font-bold uppercase tracking-widest text-gold-300">
+            Distribución por grado
+          </p>
+          <svg viewBox="0 0 200 200" className="h-44 w-44">
+            <circle cx="100" cy="100" r="72" fill="none" stroke="#1b2740" strokeWidth="26" />
+            <g transform="rotate(-90 100 100)">
+              {promPorGrado.reduce<{ dash: number; offset: number; grado: string }[]>(
+                (acc, p) => {
+                  const dash = (p.prom / totalPastel) * 2 * Math.PI * 72
+                  const prev = acc[acc.length - 1]?.offset ?? 0
+                  acc.push({ dash, offset: prev - dash, grado: p.grado })
+                  return acc
+                },
+                [],
+              ).map((seg, i) => (
+                <circle
+                  key={i}
+                  cx="100"
+                  cy="100"
+                  r="72"
+                  fill="none"
+                  stroke={COLORES_GRADO[seg.grado]}
+                  strokeWidth="26"
+                  strokeDasharray={`${seg.dash} ${2 * Math.PI * 72 - seg.dash}`}
+                  strokeDashoffset={seg.offset}
+                />
+              ))}
+            </g>
+            <text x="100" y="96" textAnchor="middle" className="fill-white text-[26px] font-black">
+              15
+            </text>
+            <text x="100" y="118" textAnchor="middle" className="fill-navy-300 text-[11px] font-semibold">
+              finalistas
+            </text>
+          </svg>
+          <ul className="mt-4 w-full space-y-1.5">
+            {promPorGrado.map((p) => (
+              <li key={p.grado} className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 font-semibold text-navy-200">
+                  <span className="h-3 w-3 rounded-full" style={{ background: COLORES_GRADO[p.grado] }} />
+                  {p.grado}° grado
+                </span>
+                <span className="font-bold tabular-nums text-white">{p.prom.toFixed(1)} pts</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
-              <div
-                className={`mt-3 flex w-full flex-col items-center rounded-t-2xl border-b-0 px-2 py-5 ${altura} ${POSICION_BG[item.podiumIdx]} border ${POSICION_BORDERS[item.podiumIdx]} justify-end`}
-              >
-                <p className={`text-2xl font-bold sm:text-3xl ${POSICION_TEXT[item.podiumIdx]}`}>
-                  {item.promedio.toFixed(2)}
-                </p>
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-navy-300">
-                  pts
-                </p>
+      {/* Tarjetas de los 15 finalistas agrupadas por grado */}
+      <div className="space-y-8">
+        {gradosPresentes.map((g) => {
+          const grupo = porGrado.get(g)!
+          return (
+            <div key={g} className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-xl font-black text-navy-950"
+                  style={{ background: COLORES_GRADO[g] }}
+                >
+                  {g}°
+                </span>
+                <h3 className="text-2xl font-black uppercase tracking-wider text-white">
+                  Grado {g}
+                </h3>
+                <span className="h-px flex-1 bg-linear-to-r from-white/25 to-transparent" />
               </div>
 
-              <span
-                className={`mt-2 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${POSICION_BG[item.podiumIdx]} ${POSICION_TEXT[item.podiumIdx]} ring-1 ${POSICION_BORDERS[item.podiumIdx]}`}
-              >
-                {POSICION_LABELS[item.podiumIdx]}
-              </span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {grupo.map((f, i) => (
+                  <div
+                    key={f.nombre}
+                    className="flex flex-col items-center rounded-3xl border border-white/10 bg-navy-900/50 p-5 text-center backdrop-blur"
+                    style={{ boxShadow: `0 10px 30px -12px ${COLORES_GRADO[g]}66` }}
+                  >
+                    <span
+                      className="mb-2 rounded-full px-3 py-0.5 text-[11px] font-black uppercase tracking-widest text-navy-950"
+                      style={{ background: COLORES_GRADO[g] }}
+                    >
+                      {i === 0 ? '1º del grado' : i === 1 ? '2º del grado' : '3º del grado'}
+                    </span>
+                    <span className="text-4xl font-black tabular-nums text-white">
+                      {f.promedio.toFixed(2)}
+                    </span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-navy-400">
+                      pts
+                    </span>
+                    <p className="mt-2 text-base font-bold text-white">{f.nombre}</p>
+                    {/* Grado y sección GRANDES y notorios */}
+                    <div className="mt-3 flex items-center gap-2">
+                      <span
+                        className="rounded-xl px-4 py-1.5 text-2xl font-black text-navy-950"
+                        style={{ background: COLORES_GRADO[g] }}
+                      >
+                        {g}°
+                      </span>
+                      <span className="rounded-xl border-2 border-white/20 px-4 py-1 text-2xl font-black text-white">
+                        Sección {f.seccion}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )
         })}

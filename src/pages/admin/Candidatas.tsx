@@ -21,6 +21,89 @@ function valido(grado: string, seccion: string): boolean {
   return GRADOS.includes(grado) && SECCIONES.includes(seccion)
 }
 
+/** Sube la foto de una candidata al bucket "candidatas" y devuelve su URL pública. */
+async function subirFotoCandidata(file: File): Promise<string | null> {
+  try {
+    const supabase = getSupabase()
+    const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase()
+    const path = `fotos/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`
+    const { error: upErr } = await supabase.storage
+      .from('candidatas')
+      .upload(path, file, { upsert: true })
+    if (upErr) {
+      logError('subir foto candidata', upErr.message)
+      return null
+    }
+    const { data } = supabase.storage.from('candidatas').getPublicUrl(path)
+    return data.publicUrl
+  } catch (err) {
+    logError('subir foto candidata', err instanceof Error ? err.message : String(err))
+    return null
+  }
+}
+
+function SelectorImagen({
+  etiqueta,
+  actual,
+  onCambio,
+}: {
+  etiqueta: string
+  actual?: string | null
+  onCambio: (file: File | null) => void
+}) {
+  const [preview, setPreview] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const mostrar = preview ?? actual ?? null
+
+  return (
+    <div className="flex items-center gap-3">
+      {mostrar ? (
+        <img
+          src={mostrar}
+          alt="Vista previa de la foto"
+          className="h-16 w-16 rounded-full border-2 border-gold-500/40 object-cover shadow-lg"
+        />
+      ) : (
+        <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full border-2 border-dashed border-white/20 bg-navy-700/40 text-2xl font-bold text-navy-400">
+          +
+        </span>
+      )}
+      <div className="flex flex-col gap-1.5">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null
+            if (f) setPreview(URL.createObjectURL(f))
+            onCambio(f)
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="btn-ghost flex items-center gap-1.5"
+        >
+          {mostrar ? 'Cambiar foto' : etiqueta}
+        </button>
+        {preview && (
+          <button
+            type="button"
+            onClick={() => {
+              setPreview(null)
+              onCambio(null)
+            }}
+            className="text-left text-[11px] font-semibold text-red-400 hover:text-red-300"
+          >
+            Quitar foto nueva
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Candidatas() {
   const { candidatas, cargandoInicial, recargar } = usePanelData()
 
@@ -34,6 +117,8 @@ export default function Candidatas() {
   const [error, setError] = useState<string | null>(null)
   const [mensajeImport, setMensajeImport] = useState<string | null>(null)
   const [importando, setImportando] = useState(false)
+  const [fotoArchivo, setFotoArchivo] = useState<File | null>(null)
+  const [fotoEdicion, setFotoEdicion] = useState<File | null>(null)
   const inputArchivo = useRef<HTMLInputElement>(null)
 
   // Orden global estable: grado (numérico) → sección → nombre
@@ -66,6 +151,7 @@ export default function Candidatas() {
   const comenzarEdicion = (c: Candidata) => {
     setEditandoId(c.id)
     setEditando({ nombre: c.nombre, grado: c.grado, seccion: c.seccion })
+    setFotoEdicion(null)
   }
 
   const guardarEdicion = async (id: string) => {
@@ -79,15 +165,30 @@ export default function Candidatas() {
       return
     }
     const supabase = getSupabase()
+    let fotoUrl: string | null | undefined
+    if (fotoEdicion) {
+      const subida = await subirFotoCandidata(fotoEdicion)
+      if (!subida) {
+        setError('No se pudo subir la imagen. Verifica que el bucket "candidatas" exista y tenga política de escritura.')
+        return
+      }
+      fotoUrl = subida
+    }
     const { error } = await supabase
       .from('candidatas')
-      .update({ nombre: nombreOk, grado: editando.grado, seccion: editando.seccion })
+      .update({
+        nombre: nombreOk,
+        grado: editando.grado,
+        seccion: editando.seccion,
+        ...(fotoUrl ? { foto_url: fotoUrl } : {}),
+      })
       .eq('id', id)
     if (error) {
       setError(error.message)
       return
     }
     setEditandoId(null)
+    setFotoEdicion(null)
     setError(null)
     await recargar()
   }
@@ -104,17 +205,25 @@ export default function Candidatas() {
     }
     const supabase = getSupabase()
     logConsulta('Panel: agregar candidata')
-    const { error } = await supabase.from('candidatas').insert({
-      nombre: nombreOk,
-      grado,
-      seccion,
-    })
+    let fotoUrl: string | null = null
+    if (fotoArchivo) {
+      const subida = await subirFotoCandidata(fotoArchivo)
+      if (!subida) {
+        setError('No se pudo subir la imagen. Verifica que el bucket "candidatas" exista y tenga política de escritura.')
+        return
+      }
+      fotoUrl = subida
+    }
+    const { error } = await supabase
+      .from('candidatas')
+      .insert({ nombre: nombreOk, grado, seccion, foto_url: fotoUrl })
     if (error) {
       logError('agregar candidata', error.message)
       setError(error.message)
       return
     }
     setNombre('')
+    setFotoArchivo(null)
     setError(null)
     await recargar()
   }
@@ -271,6 +380,14 @@ export default function Candidatas() {
             ))}
           </select>
         </div>
+        <div className="mt-3">
+          <SelectorImagen
+            key={`add-${candidatas.length}`}
+            etiqueta="Subir foto"
+            actual={null}
+            onCambio={setFotoArchivo}
+          />
+        </div>
         <button onClick={agregar} className="btn-gold mt-3 w-full">
           Agregar candidata
         </button>
@@ -371,45 +488,60 @@ export default function Candidatas() {
                   {numeroPorId.get(c.id)}
                 </span>
                 {editandoId === c.id ? (
-                  <div className="flex flex-1 flex-wrap items-center gap-2">
-                    <input
-                      value={editando.nombre}
-                      onChange={(e) => setEditando({ ...editando, nombre: e.target.value })}
-                      className="flex-1 rounded-lg border border-gold-500/40 bg-navy-800 px-2 py-1 text-sm text-white"
+                  <div className="flex flex-1 flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        value={editando.nombre}
+                        onChange={(e) => setEditando({ ...editando, nombre: e.target.value })}
+                        className="flex-1 rounded-lg border border-gold-500/40 bg-navy-800 px-2 py-1 text-sm text-white"
+                      />
+                      <select
+                        value={editando.grado}
+                        onChange={(e) => setEditando({ ...editando, grado: e.target.value })}
+                        className="w-20 rounded-lg border border-gold-500/40 bg-navy-800 px-1 py-1 text-sm text-white"
+                      >
+                        {GRADOS.map((g) => (
+                          <option key={g} value={g}>
+                            {g}°
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={editando.seccion}
+                        onChange={(e) => setEditando({ ...editando, seccion: e.target.value })}
+                        className="w-20 rounded-lg border border-gold-500/40 bg-navy-800 px-1 py-1 text-sm text-white"
+                      >
+                        {SECCIONES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => guardarEdicion(c.id)}
+                        title="Guardar"
+                        aria-label="Guardar"
+                        className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/15 text-emerald-400 transition hover:bg-emerald-500/25"
+                      >
+                        <IconoCheck />
+                      </button>
+                    </div>
+                    <SelectorImagen
+                      key={c.id}
+                      etiqueta="Subir foto"
+                      actual={c.foto_url}
+                      onCambio={setFotoEdicion}
                     />
-                    <select
-                      value={editando.grado}
-                      onChange={(e) => setEditando({ ...editando, grado: e.target.value })}
-                      className="w-20 rounded-lg border border-gold-500/40 bg-navy-800 px-1 py-1 text-sm text-white"
-                    >
-                      {GRADOS.map((g) => (
-                        <option key={g} value={g}>
-                          {g}°
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={editando.seccion}
-                      onChange={(e) => setEditando({ ...editando, seccion: e.target.value })}
-                      className="w-20 rounded-lg border border-gold-500/40 bg-navy-800 px-1 py-1 text-sm text-white"
-                    >
-                      {SECCIONES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => guardarEdicion(c.id)}
-                      title="Guardar"
-                      aria-label="Guardar"
-                      className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/15 text-emerald-400 transition hover:bg-emerald-500/25"
-                    >
-                      <IconoCheck />
-                    </button>
                   </div>
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-white">
+                    {c.foto_url && (
+                      <img
+                        src={c.foto_url}
+                        alt=""
+                        className="mr-2 inline h-6 w-6 rounded-full object-cover align-middle ring-1 ring-white/15"
+                      />
+                    )}
                     <span className="font-semibold">{c.nombre}</span>
                     <span className="text-navy-400">
                       {' '}· {c.grado}° · Sección {c.seccion}

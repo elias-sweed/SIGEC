@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
 import {
-  IconoCheck,
   IconoLapiz,
   IconoPapelera,
   IconoDescargar,
@@ -19,6 +19,14 @@ const SECCIONES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
 
 function valido(grado: string, seccion: string): boolean {
   return GRADOS.includes(grado) && SECCIONES.includes(seccion)
+}
+
+type ModalCandidata = {
+  id: string | null
+  nombre: string
+  grado: string
+  seccion: string
+  foto_url: string | null
 }
 
 /** Sube la foto de una candidata al bucket "candidatas" y devuelve su URL pública. */
@@ -104,21 +112,44 @@ function SelectorImagen({
   )
 }
 
+function VentanaModal({ onCerrar, children }: { onCerrar: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCerrar()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCerrar])
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy-950/85 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md animate-fade-in overflow-hidden rounded-3xl border border-gold-500/40 bg-navy-900 p-6 shadow-2xl shadow-gold-500/20">
+        <button
+          onClick={onCerrar}
+          aria-label="Cerrar"
+          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-navy-950/60 text-white/80 ring-1 ring-white/15 transition hover:bg-navy-950 hover:text-white"
+        >
+          <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth={2.5}>
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function Candidatas() {
   const { candidatas, cargandoInicial, recargar } = usePanelData()
 
-  const [nombre, setNombre] = useState('')
-  const [grado, setGrado] = useState(GRADOS[0])
-  const [seccion, setSeccion] = useState(SECCIONES[0])
   const [filtroGrado, setFiltroGrado] = useState('')
   const [filtroSeccion, setFiltroSeccion] = useState('')
-  const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [editando, setEditando] = useState({ nombre: '', grado: GRADOS[0], seccion: SECCIONES[0] })
   const [error, setError] = useState<string | null>(null)
   const [mensajeImport, setMensajeImport] = useState<string | null>(null)
   const [importando, setImportando] = useState(false)
+  const [modal, setModal] = useState<ModalCandidata | null>(null)
   const [fotoArchivo, setFotoArchivo] = useState<File | null>(null)
-  const [fotoEdicion, setFotoEdicion] = useState<File | null>(null)
+  const [guardando, setGuardando] = useState(false)
   const inputArchivo = useRef<HTMLInputElement>(null)
 
   // Orden global estable: grado (numérico) → sección → nombre
@@ -148,83 +179,79 @@ export default function Candidatas() {
     )
   }, [ordenGlobal, filtroGrado, filtroSeccion])
 
-  const comenzarEdicion = (c: Candidata) => {
-    setEditandoId(c.id)
-    setEditando({ nombre: c.nombre, grado: c.grado, seccion: c.seccion })
-    setFotoEdicion(null)
-  }
-
-  const guardarEdicion = async (id: string) => {
-    const nombreOk = editando.nombre.trim()
-    if (!nombreOk) {
-      setError('El nombre es obligatorio')
-      return
-    }
-    if (!valido(editando.grado, editando.seccion)) {
-      setError('Selecciona un grado (1-5) y una sección (A-I) válidos')
-      return
-    }
-    const supabase = getSupabase()
-    let fotoUrl: string | null | undefined
-    if (fotoEdicion) {
-      const subida = await subirFotoCandidata(fotoEdicion)
-      if (!subida) {
-        setError('No se pudo subir la imagen. Verifica que el bucket "candidatas" exista y tenga política de escritura.')
-        return
-      }
-      fotoUrl = subida
-    }
-    const { error } = await supabase
-      .from('candidatas')
-      .update({
-        nombre: nombreOk,
-        grado: editando.grado,
-        seccion: editando.seccion,
-        ...(fotoUrl ? { foto_url: fotoUrl } : {}),
-      })
-      .eq('id', id)
-    if (error) {
-      setError(error.message)
-      return
-    }
-    setEditandoId(null)
-    setFotoEdicion(null)
+  const abrirAgregar = () => {
     setError(null)
-    await recargar()
+    setFotoArchivo(null)
+    setModal({ id: null, nombre: '', grado: GRADOS[0], seccion: SECCIONES[0], foto_url: null })
   }
 
-  const agregar = async () => {
-    const nombreOk = nombre.trim()
+  const abrirEditar = (c: Candidata) => {
+    setError(null)
+    setFotoArchivo(null)
+    setModal({ id: c.id, nombre: c.nombre, grado: c.grado, seccion: c.seccion, foto_url: c.foto_url ?? null })
+  }
+
+  const cerrarModal = () => {
+    setModal(null)
+    setFotoArchivo(null)
+    setError(null)
+  }
+
+  const guardarModal = async () => {
+    if (!modal || guardando) return
+    const nombreOk = modal.nombre.trim()
     if (!nombreOk) {
       setError('El nombre es obligatorio')
       return
     }
-    if (!valido(grado, seccion)) {
+    if (!valido(modal.grado, modal.seccion)) {
       setError('Selecciona un grado (1-5) y una sección (A-I) válidos')
       return
     }
+    setGuardando(true)
+    setError(null)
     const supabase = getSupabase()
-    logConsulta('Panel: agregar candidata')
-    let fotoUrl: string | null = null
+    let fotoUrl = modal.foto_url
     if (fotoArchivo) {
       const subida = await subirFotoCandidata(fotoArchivo)
       if (!subida) {
         setError('No se pudo subir la imagen. Verifica que el bucket "candidatas" exista y tenga política de escritura.')
+        setGuardando(false)
         return
       }
       fotoUrl = subida
     }
-    const { error } = await supabase
-      .from('candidatas')
-      .insert({ nombre: nombreOk, grado, seccion, foto_url: fotoUrl })
-    if (error) {
-      logError('agregar candidata', error.message)
-      setError(error.message)
-      return
+    if (modal.id) {
+      logConsulta('Panel: editar candidata')
+      const { error } = await supabase
+        .from('candidatas')
+        .update({
+          nombre: nombreOk,
+          grado: modal.grado,
+          seccion: modal.seccion,
+          foto_url: fotoUrl,
+        })
+        .eq('id', modal.id)
+      if (error) {
+        logError('editar candidata', error.message)
+        setError(error.message)
+        setGuardando(false)
+        return
+      }
+    } else {
+      logConsulta('Panel: agregar candidata')
+      const { error } = await supabase
+        .from('candidatas')
+        .insert({ nombre: nombreOk, grado: modal.grado, seccion: modal.seccion, foto_url: fotoUrl })
+      if (error) {
+        logError('agregar candidata', error.message)
+        setError(error.message)
+        setGuardando(false)
+        return
+      }
     }
-    setNombre('')
-    setFotoArchivo(null)
-    setError(null)
+    setGuardando(false)
+    cerrarModal()
     await recargar()
   }
 
@@ -344,52 +371,13 @@ export default function Candidatas() {
 
       <Section
         titulo="Registro de candidatas"
-        descripcion="Nombre completo, grado (1-5) y sección (A-I)"
+        descripcion="Agrega o edita candidatas desde una ventana. Cierra con ESC o el botón ✕."
         completado={candidatas.length > 0}
       >
         {error && <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_110px_110px]">
-          <input
-            placeholder="Nombre completo"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            className="input-panel"
-          />
-          <select
-            value={grado}
-            onChange={(e) => setGrado(e.target.value)}
-            className="input-panel"
-            title="Grado"
-          >
-            {GRADOS.map((g) => (
-              <option key={g} value={g}>
-                {g}° grado
-              </option>
-            ))}
-          </select>
-          <select
-            value={seccion}
-            onChange={(e) => setSeccion(e.target.value)}
-            className="input-panel"
-            title="Sección"
-          >
-            {SECCIONES.map((s) => (
-              <option key={s} value={s}>
-                Sección {s}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mt-3">
-          <SelectorImagen
-            key={`add-${candidatas.length}`}
-            etiqueta="Subir foto"
-            actual={null}
-            onCambio={setFotoArchivo}
-          />
-        </div>
-        <button onClick={agregar} className="btn-gold mt-3 w-full">
-          Agregar candidata
+        <button onClick={abrirAgregar} className="btn-gold flex w-full items-center justify-center gap-2">
+          <span className="text-lg leading-none">+</span>
+          Nueva candidata
         </button>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -487,78 +475,28 @@ export default function Candidatas() {
                 <span className="grid h-7 w-9 shrink-0 place-items-center rounded-lg bg-gold-500/15 font-mono text-xs font-bold text-gold-300 ring-1 ring-gold-500/25">
                   {numeroPorId.get(c.id)}
                 </span>
-                {editandoId === c.id ? (
-                  <div className="flex flex-1 flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        value={editando.nombre}
-                        onChange={(e) => setEditando({ ...editando, nombre: e.target.value })}
-                        className="flex-1 rounded-lg border border-gold-500/40 bg-navy-800 px-2 py-1 text-sm text-white"
-                      />
-                      <select
-                        value={editando.grado}
-                        onChange={(e) => setEditando({ ...editando, grado: e.target.value })}
-                        className="w-20 rounded-lg border border-gold-500/40 bg-navy-800 px-1 py-1 text-sm text-white"
-                      >
-                        {GRADOS.map((g) => (
-                          <option key={g} value={g}>
-                            {g}°
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={editando.seccion}
-                        onChange={(e) => setEditando({ ...editando, seccion: e.target.value })}
-                        className="w-20 rounded-lg border border-gold-500/40 bg-navy-800 px-1 py-1 text-sm text-white"
-                      >
-                        {SECCIONES.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => guardarEdicion(c.id)}
-                        title="Guardar"
-                        aria-label="Guardar"
-                        className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/15 text-emerald-400 transition hover:bg-emerald-500/25"
-                      >
-                        <IconoCheck />
-                      </button>
-                    </div>
-                    <SelectorImagen
-                      key={c.id}
-                      etiqueta="Subir foto"
-                      actual={c.foto_url}
-                      onCambio={setFotoEdicion}
+                <span className="min-w-0 flex-1 truncate text-white">
+                  {c.foto_url && (
+                    <img
+                      src={c.foto_url}
+                      alt=""
+                      className="mr-2 inline h-6 w-6 rounded-full object-cover align-middle ring-1 ring-white/15"
                     />
-                  </div>
-                ) : (
-                  <span className="min-w-0 flex-1 truncate text-white">
-                    {c.foto_url && (
-                      <img
-                        src={c.foto_url}
-                        alt=""
-                        className="mr-2 inline h-6 w-6 rounded-full object-cover align-middle ring-1 ring-white/15"
-                      />
-                    )}
-                    <span className="font-semibold">{c.nombre}</span>
-                    <span className="text-navy-400">
-                      {' '}· {c.grado}° · Sección {c.seccion}
-                    </span>
-                  </span>
-                )}
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {editandoId !== c.id && (
-                    <button
-                      onClick={() => comenzarEdicion(c)}
-                      title="Editar candidata"
-                      aria-label="Editar candidata"
-                      className="grid h-8 w-8 place-items-center rounded-lg bg-gold-500/10 text-gold-400 transition hover:bg-gold-500/25"
-                    >
-                      <IconoLapiz />
-                    </button>
                   )}
+                  <span className="font-semibold">{c.nombre}</span>
+                  <span className="text-navy-400">
+                    {' '}· {c.grado}° · Sección {c.seccion}
+                  </span>
+                </span>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    onClick={() => abrirEditar(c)}
+                    title="Editar candidata"
+                    aria-label="Editar candidata"
+                    className="grid h-8 w-8 place-items-center rounded-lg bg-gold-500/10 text-gold-400 transition hover:bg-gold-500/25"
+                  >
+                    <IconoLapiz />
+                  </button>
                   <button
                     onClick={() => eliminar(c.id)}
                     title="Eliminar candidata"
@@ -575,6 +513,83 @@ export default function Candidatas() {
           <p className="mt-4 text-sm text-navy-400/80">Sin candidatas registradas todavía.</p>
         )}
       </Section>
+
+      {modal && (
+        <VentanaModal onCerrar={cerrarModal}>
+          <div className="pr-10">
+            <h3 className="text-lg font-bold text-white">
+              {modal.id ? 'Editar candidata' : 'Nueva candidata'}
+            </h3>
+            <p className="text-xs text-navy-400">Cierra con ESC o el botón ✕.</p>
+          </div>
+
+          {error && <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
+
+          <div className="mt-4 space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
+                Nombre
+              </span>
+              <input
+                value={modal.nombre}
+                onChange={(e) => setModal({ ...modal, nombre: e.target.value })}
+                placeholder="Nombre completo"
+                className="input-panel"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
+                  Grado
+                </span>
+                <select
+                  value={modal.grado}
+                  onChange={(e) => setModal({ ...modal, grado: e.target.value })}
+                  className="input-panel"
+                >
+                  {GRADOS.map((g) => (
+                    <option key={g} value={g}>
+                      {g}° grado
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.2em] text-navy-400">
+                  Sección
+                </span>
+                <select
+                  value={modal.seccion}
+                  onChange={(e) => setModal({ ...modal, seccion: e.target.value })}
+                  className="input-panel"
+                >
+                  {SECCIONES.map((s) => (
+                    <option key={s} value={s}>
+                      Sección {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <SelectorImagen
+              key={modal.id ?? 'nuevo'}
+              etiqueta="Subir foto"
+              actual={modal.foto_url}
+              onCambio={setFotoArchivo}
+            />
+            <button
+              onClick={() => void guardarModal()}
+              disabled={guardando}
+              className="btn-gold w-full"
+            >
+              {guardando ? 'Guardando…' : modal.id ? 'Guardar cambios' : 'Agregar candidata'}
+            </button>
+            <button onClick={cerrarModal} className="btn-ghost w-full">
+              Cancelar
+            </button>
+          </div>
+        </VentanaModal>
+      )}
     </div>
   )
 }

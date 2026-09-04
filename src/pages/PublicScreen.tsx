@@ -30,9 +30,9 @@ const POSICION_TEXT = ['text-yellow-300', 'text-gray-200', 'text-amber-300']
 // La coronación es el viernes a las 7:00 PM. Calculamos el próximo objetivo
 // de forma robusta: el día siguiente a las 19:00 (mañana).
 function calcularObjetivo(): Date {
-  const t = new Date()
+  const t = new Date("2026-09-04")
   t.setDate(t.getDate() + 1)
-  t.setHours(19, 0, 0, 0)
+  t.setHours(20, 0, 0, 0)
   return t
 }
 
@@ -196,7 +196,7 @@ export default function PublicScreen() {
         />
         {/* Velo oscuro para legibilidad del texto */}
         <div className="absolute inset-0 bg-radial from-navy-950/80 via-navy-950/55 to-navy-950/90" />
-        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-navy-950 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-linear-to-t from-navy-950 to-transparent" />
       </div>
 
       <div className="relative z-10 flex min-h-screen flex-col">
@@ -321,7 +321,7 @@ function EscenaInicio({
       {/* Fecha, hora, lugar + contador regresivo */}
       <div className="mx-auto max-w-md space-y-4">
         <p className="text-base font-semibold text-white">
-          Viernes · 7:00 PM · Coliseo de la I.E.
+          Viernes · 8:00 PM · Coliseo de la I.E.
         </p>
         <ContadorRegresivo />
       </div>
@@ -338,7 +338,7 @@ function EscenaInicio({
   )
 }
 
-/* ─── Contador regresivo hasta el inicio (viernes 7:00 PM) ───────────── */
+/* ─── Contador regresivo hasta el inicio (viernes 8:00 PM) ───────────── */
 
 function ContadorRegresivo() {
   const objetivo = useMemo(calcularObjetivo, [])

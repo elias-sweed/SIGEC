@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCertamen } from '../context/CertamenContext'
 import { getSupabase } from '../lib/supabase'
@@ -7,6 +7,7 @@ import { calcularTotales } from '../utils/scoring'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
 import { leerSesionJurado, limpiarSesionJurado } from '../utils/session'
 import ScoreSlider from '../components/event/ScoreSlider'
+import { ordenarCandidatas } from '../components/public/CandidatasGrid'
 import type { Candidata, Criterio, Jurado } from '../types/database'
 
 interface DetalleState {
@@ -24,6 +25,9 @@ function iniciales(nombre: string): string {
     .toUpperCase()
 }
 
+const GRADOS = ['1', '2', '3', '4', '5']
+const SECCIONES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+
 export default function JuradoEvaluacion() {
   const { candidatas, eventoCandidato: evento, estadoEvento } = useCertamen()
   const navigate = useNavigate()
@@ -38,6 +42,20 @@ export default function JuradoEvaluacion() {
   const [enviado, setEnviado] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [filtroGrado, setFiltroGrado] = useState('')
+  const [filtroSeccion, setFiltroSeccion] = useState('')
+
+  // Candidatas ordenadas por grado (1→5) → sección → nombre, y filtradas
+  const candidatasOrdenadas = useMemo(() => ordenarCandidatas(candidatas), [candidatas])
+  const candidatasVisibles = useMemo(
+    () =>
+      candidatasOrdenadas.filter(
+        (c) =>
+          (!filtroGrado || c.grado === filtroGrado) &&
+          (!filtroSeccion || c.seccion === filtroSeccion),
+      ),
+    [candidatasOrdenadas, filtroGrado, filtroSeccion],
+  )
 
   // Cargar jurado por sesión
   useEffect(() => {
@@ -315,12 +333,60 @@ export default function JuradoEvaluacion() {
               </div>
             </div>
 
-            {/* Cuadrícula de candidatas */}
+            {/* Filtros por grado y sección */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <select
+                value={filtroGrado}
+                onChange={(e) => setFiltroGrado(e.target.value)}
+                className="input-panel w-auto"
+                title="Filtrar por grado"
+              >
+                <option value="">Todos los grados</option>
+                {GRADOS.map((g) => (
+                  <option key={g} value={g}>
+                    {g}° grado
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filtroSeccion}
+                onChange={(e) => setFiltroSeccion(e.target.value)}
+                className="input-panel w-auto"
+                title="Filtrar por sección"
+              >
+                <option value="">Todas las secciones</option>
+                {SECCIONES.map((s) => (
+                  <option key={s} value={s}>
+                    Sección {s}
+                  </option>
+                ))}
+              </select>
+              {(filtroGrado || filtroSeccion) && (
+                <button
+                  onClick={() => {
+                    setFiltroGrado('')
+                    setFiltroSeccion('')
+                  }}
+                  className="btn-ghost"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+              <span className="text-[11px] text-navy-400">
+                {candidatasVisibles.length} de {candidatas.length} candidatas
+              </span>
+            </div>
+
+            {/* Cuadrícula de candidatas (ordenadas por grado → sección) */}
             {candidatas.length === 0 ? (
               <p className="mt-4 text-center text-sm text-navy-500">Sin candidatas registradas.</p>
+            ) : candidatasVisibles.length === 0 ? (
+              <p className="mt-4 text-center text-sm text-navy-500">
+                Ninguna candidata coincide con los filtros.
+              </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {candidatas.map((c) => {
+                {candidatasVisibles.map((c) => {
                   const evaluada = evaluadasIds.has(c.id)
                   return (
                     <button

@@ -44,6 +44,8 @@ export default function JuradoEvaluacion() {
   const [error, setError] = useState<string | null>(null)
   const [filtroGrado, setFiltroGrado] = useState('')
   const [filtroSeccion, setFiltroSeccion] = useState('')
+  // Criterios ya respondidos: bloqueados para evitar errores al reanudar
+  const [lockedIds, setLockedIds] = useState<Set<string>>(new Set())
 
   // Candidatas ordenadas por grado (1→5) → sección → nombre, y filtradas
   const candidatasOrdenadas = useMemo(() => ordenarCandidatas(candidatas), [candidatas])
@@ -135,10 +137,15 @@ export default function JuradoEvaluacion() {
 
         if (detallesExistentes) {
           setDetalles(detallesExistentes as DetalleState[])
+          // Los criterios ya respondidos quedan bloqueados (no se pueden modificar)
+          setLockedIds(new Set(detallesExistentes.map((d) => d.criterio_id as string)))
+        } else {
+          setLockedIds(new Set())
         }
       } else {
         setEnviado(false)
         setDetalles([])
+        setLockedIds(new Set())
       }
     })()
   }, [jurado, candidataSel, evento?.etapa, estadoEvento])
@@ -159,6 +166,7 @@ export default function JuradoEvaluacion() {
   }
 
   const handleSliderChange = (criterioId: string, value: number) => {
+    if (lockedIds.has(criterioId)) return
     setDetalles((prev) => {
       const existente = prev.find((d) => d.criterio_id === criterioId)
       if (existente) {
@@ -235,6 +243,13 @@ export default function JuradoEvaluacion() {
     setEnviado(true)
     setSaving(false)
 
+    // Marcar como bloqueados los criterios que acaban de responderse
+    setLockedIds((prev) => {
+      const nuevo = new Set(prev)
+      detalles.forEach((d) => nuevo.add(d.criterio_id))
+      return nuevo
+    })
+
     // Marcar la candidata como evaluada para que se refleje en el selector
     if (candidataSel) {
       setEvaluadasIds((prev) => new Set(prev).add(candidataSel.id))
@@ -259,6 +274,10 @@ export default function JuradoEvaluacion() {
   const { base: total, desempate: totalDesempate } = calcularTotales(detalles, desempateIds)
   const pctEvaluadas = candidatas.length > 0 ? (evaluadasIds.size / candidatas.length) * 100 : 0
   const pctTotal = Math.min(100, total)
+
+  // Criterios aún sin responder, evaluados completos y si hay puntajes nuevos por guardar
+  const restantesNuevos = detalles.some((d) => !lockedIds.has(d.criterio_id))
+  const todoBloqueado = criterios.length > 0 && criterios.every((cr) => lockedIds.has(cr.id))
 
   return (
     <div className="min-h-screen bg-navy-950 pb-28">
@@ -451,6 +470,7 @@ export default function JuradoEvaluacion() {
                   setCandidataSel(null)
                   setDetalles([])
                   setEnviado(false)
+                  setLockedIds(new Set())
                 }}
                 className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-navy-300 transition hover:bg-navy-800 hover:text-white"
               >
@@ -459,6 +479,12 @@ export default function JuradoEvaluacion() {
             </div>
 
             {/* Rúbrica: criterios base (suman 100) */}
+            {lockedIds.size > 0 && !todoBloqueado && (
+              <p className="mb-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs font-semibold text-emerald-300">
+                Los criterios con «✓ Evaluado» ya fueron respondidos y están bloqueados. Completa los
+                restantes y pulsa «Guardar criterios restantes».
+              </p>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {criterios
                 .filter((cr) => !cr.es_desempate)
@@ -474,6 +500,7 @@ export default function JuradoEvaluacion() {
                       value={puntaje}
                       max={cr.puntaje_maximo}
                       descripcion={cr.indicadores ?? undefined}
+                      bloqueado={lockedIds.has(cr.id)}
                       onChange={(v) => handleSliderChange(cr.id, v)}
                     />
                   )
@@ -506,6 +533,7 @@ export default function JuradoEvaluacion() {
                           max={cr.puntaje_maximo}
                           descripcion={cr.indicadores ?? undefined}
                           desempate
+                          bloqueado={lockedIds.has(cr.id)}
                           onChange={(v) => handleSliderChange(cr.id, v)}
                         />
                       )
@@ -572,14 +600,24 @@ export default function JuradoEvaluacion() {
             </div>
             <button
               onClick={handleGuardar}
-              disabled={saving || enviado}
+              disabled={saving || todoBloqueado}
               className={`rounded-xl px-6 py-3 text-sm font-bold transition-all duration-300 ${
-                enviado
+                todoBloqueado
                   ? 'cursor-default bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30'
                   : 'bg-gold-500 text-navy-900 hover:bg-gold-400 active:scale-[0.98]'
               } disabled:opacity-70`}
             >
-              {enviado ? '✓ Evaluación guardada' : saving ? 'Guardando…' : 'Guardar evaluación'}
+              {saving
+                ? 'Guardando…'
+                : todoBloqueado
+                  ? '✓ Evaluación completada'
+                  : restantesNuevos
+                    ? enviado
+                      ? 'Guardar criterios restantes'
+                      : 'Guardar evaluación'
+                    : enviado
+                      ? '✓ Evaluación guardada'
+                      : 'Guardar evaluación'}
             </button>
           </div>
         </div>

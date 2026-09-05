@@ -299,6 +299,50 @@ export default function Resumen() {
     }
   }
 
+  // Reabre la evaluación tras haberla cerrado o publicado, para que los jurados
+  // sigan puntuando/corrigiendo. No borra ni pierde datos: solo vuelve a "evaluando".
+  const reabrirEvaluacion = async () => {
+    const confirmar = window.confirm(
+      '¿Reabrir la evaluación? Los jurados podrán seguir puntuando y corregir puntajes.\n\nNo se borra nada ni se pierden los puntajes guardados.',
+    )
+    if (!confirmar) return
+    if (!evento) return
+
+    setOperando(true)
+    setError(null)
+    const supabase = getSupabase()
+
+    logConsulta('Panel: reabrir evaluación -> evaluando')
+    const { error: errEvento } = await supabase
+      .from('eventos')
+      .update({ estado: 'evaluando' })
+      .eq('id', evento.id)
+    if (errEvento) {
+      logError('reabrir evaluacion evento', errEvento.message)
+      setError(errEvento.message)
+      setOperando(false)
+      return
+    }
+
+    if (estadoEvento) {
+      logConsulta('Panel: estado_evento -> evaluando (reabrir)')
+      const { error } = await supabase
+        .from('estado_evento')
+        .update({ estado: 'evaluando', updated_at: new Date().toISOString() })
+        .eq('evento_id', evento.id)
+      if (error) {
+        logError('reabrir evaluacion estado_evento', error.message)
+        setError(error.message)
+        setOperando(false)
+        return
+      }
+    }
+
+    await recargar()
+    setOperando(false)
+    await registrarAccion('Operador', 'reabrir_evaluacion', 'Evaluación reabierta: los jurados pueden seguir puntuando')
+  }
+
   const reiniciarCertamen = async () => {
     setReiniciando(true)
     setError(null)
@@ -394,7 +438,29 @@ export default function Resumen() {
           </div>
         </div>
 
-        {/* Zona 2b: progreso real de jurados */}
+        {/* Acceso rápido: reabrir evaluación tras cerrarla o publicarla */}
+          {['esperando_jurados', 'resultados_listos', 'publicado'].includes(estadoActual) && (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-dashed border-amber-400/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-amber-300">
+                  ¿Los jurados necesitan seguir puntuando?
+                </p>
+                <p className="mt-0.5 text-xs text-amber-100/70">
+                  Reabre la evaluación para que continúen o corrijan. No borra ni pierde ningún
+                  puntaje guardado; vuelve a la pantalla de evaluación.
+                </p>
+              </div>
+              <button
+                onClick={() => void reabrirEvaluacion()}
+                disabled={operando}
+                className="shrink-0 rounded-xl border border-amber-400/70 bg-amber-500/20 px-4 py-2.5 text-sm font-bold text-amber-100 transition hover:bg-amber-500/30 disabled:opacity-50"
+              >
+                ↩ Reabrir Evaluación
+              </button>
+            </div>
+          )}
+
+          {/* Zona 2b: progreso real de jurados */}
         <div className="mt-7 border-t border-white/10 pt-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-navy-300">

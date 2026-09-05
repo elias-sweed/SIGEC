@@ -59,10 +59,12 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
     try {
       const supabase = getSupabase()
 
-      // 0) Lista completa de candidatas (para que el jurado elija cuál evaluar)
+      // 0) Lista de candidatas activas (para que el jurado elija cuál evaluar
+      //    y para la pantalla pública; las deshabilitadas no participan)
       const { data: listaCandidatas } = await supabase
         .from('candidatas')
         .select('*')
+        .eq('activa', true)
         .order('nombre')
 
       // 1) Consultar estado_evento sin FK hints (evita error 400 por constraint renombrada)
@@ -97,6 +99,7 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
           const { data: primeraCandidata } = await supabase
             .from('candidatas')
             .select('*')
+            .eq('activa', true)
             .order('nombre')
             .limit(1)
             .maybeSingle()

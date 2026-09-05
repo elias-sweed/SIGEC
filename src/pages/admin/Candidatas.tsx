@@ -7,6 +7,8 @@ import {
   IconoPapelera,
   IconoDescargar,
   IconoImportar,
+  IconoVisible,
+  IconoOculto,
 } from '../../components/admin/Iconos'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
@@ -320,6 +322,21 @@ export default function Candidatas() {
     await recargar()
   }
 
+  // Deshabilita/habilita la participación sin borrar sus evaluaciones
+  const alternarActiva = async (c: Candidata) => {
+    const supabase = getSupabase()
+    const { error } = await supabase
+      .from('candidatas')
+      .update({ activa: !c.activa })
+      .eq('id', c.id)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setError(null)
+    await recargar()
+  }
+
   // Descarga las candidatas actuales en un archivo .xls (Excel)
   const manejarDescargar = () => {
     if (ordenGlobal.length === 0) {
@@ -525,7 +542,7 @@ export default function Candidatas() {
         ) : listado.length > 0 ? (
           <ul className="mt-4 max-h-80 space-y-1.5 overflow-y-auto">
             {listado.map((c) => (
-              <li key={c.id} className="fila-panel text-sm">
+              <li key={c.id} className={`fila-panel text-sm ${!c.activa ? 'opacity-60' : ''}`}>
                 <span className="grid h-7 w-9 shrink-0 place-items-center rounded-lg bg-gold-500/15 font-mono text-xs font-bold text-gold-300 ring-1 ring-gold-500/25">
                   {numeroPorId.get(c.id)}
                 </span>
@@ -538,11 +555,26 @@ export default function Candidatas() {
                     />
                   )}
                   <span className="font-semibold">{c.nombre}</span>
+                  {!c.activa && (
+                    <span className="ml-2 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400 ring-1 ring-red-500/25">
+                      No participa
+                    </span>
+                  )}
                   <span className="text-navy-400">
                     {' '}· {c.grado}° · Sección {c.seccion}
                   </span>
                 </span>
                 <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    onClick={() => void alternarActiva(c)}
+                    title={c.activa ? 'Deshabilitar (ya no aparece en la evaluación)' : 'Habilitar participación'}
+                    aria-label={c.activa ? 'Deshabilitar candidata' : 'Habilitar candidata'}
+                    className={`grid h-8 w-8 place-items-center rounded-lg transition hover:bg-navy-800 ${
+                      c.activa ? 'bg-navy-700/40 text-navy-200 hover:text-white' : 'bg-gold-500/15 text-gold-400'
+                    }`}
+                  >
+                    {c.activa ? <IconoVisible /> : <IconoOculto />}
+                  </button>
                   <button
                     onClick={() => abrirEditar(c)}
                     title="Editar candidata"

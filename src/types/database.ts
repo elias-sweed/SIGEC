@@ -12,6 +12,7 @@ export interface Candidata {
   grado: string
   seccion: string
   foto_url: string | null
+  activa: boolean
   created_at: string
 }
 

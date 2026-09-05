@@ -5,7 +5,7 @@ import { SectionSkeleton } from '../../components/Skeleton'
 import { usePanelData } from '../../context/PanelDataContext'
 
 export default function Evaluaciones() {
-  const { candidatas, jurados, criterios, evaluaciones, detalles, cargandoInicial, recargar } =
+  const { evento, candidatas, jurados, criterios, evaluaciones, detalles, cargandoInicial, recargar } =
     usePanelData()
 
   return (
@@ -29,6 +29,7 @@ export default function Evaluaciones() {
             criterios={criterios}
             evaluaciones={evaluaciones}
             detalles={detalles}
+            totalCriterios={criterios.filter((c) => c.etapa === evento?.etapa).length}
             onRecargar={recargar}
           />
 

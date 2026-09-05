@@ -97,8 +97,18 @@ export default function Resumen() {
   const evaluacionesCompletas = evaluaciones.filter(
     (ev) => ev.evento_id === evento?.id && ev.estado === 'completada' && !ev.es_ensayo,
   )
+  // Solo cuentan como "completas" las que respondieron TODOS los criterios de la etapa.
+  // Una evaluación guardada con pocos criterios sigue incompleta hasta cerrar la rúbrica.
+  const totalCriteriosPorEval = criteriosEtapa.length
+  const completasReales =
+    totalCriteriosPorEval > 0
+      ? evaluacionesCompletas.filter((ev) => {
+          const respondidos = detalles.filter((d) => d.evaluacion_id === ev.id).length
+          return respondidos >= totalCriteriosPorEval
+        })
+      : evaluacionesCompletas
   const progresoJurados = jurados.map((j) => {
-    const completadas = evaluacionesCompletas.filter((ev) => ev.jurado_id === j.id).length
+    const completadas = completasReales.filter((ev) => ev.jurado_id === j.id).length
     return { jurado: j, completadas, listo: totalCandidatas > 0 && completadas >= totalCandidatas }
   })
   const respondidos = progresoJurados.filter((p) => p.listo).length
@@ -493,6 +503,11 @@ export default function Resumen() {
               ))
             )}
           </div>
+          <p className="mt-3 text-[11px] text-navy-400">
+            Progreso real: una candidata cuenta como «evaluada» solo cuando el jurado respondió
+            todos los criterios de la etapa ({totalCriteriosPorEval} crit.{' '}
+            {totalCriteriosPorEval === 1 ? '' : 's'}). Las guardadas a medias no suman.
+          </p>
           {estadoActual === 'evaluando' && !respondieronTodos && (
             <p className="mt-3 text-[11px] text-navy-400">
               “Cerrar Evaluación” se habilitará cuando todos los jurados completen sus{' '}

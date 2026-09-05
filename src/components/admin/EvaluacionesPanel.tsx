@@ -3,6 +3,7 @@ import type { Candidata, Criterio, Evaluacion, EvaluacionDetalle, Jurado } from 
 interface EvaluacionesPorCandidata {
   candidata: Candidata
   totalevaluado: number
+  parciales: number
   porJurado: { jurado: Jurado; promedio: number; desempate: number }[]
 }
 
@@ -12,6 +13,7 @@ export default function EvaluacionesPanel({
   criterios,
   evaluaciones,
   detalles,
+  totalCriterios,
   onRecargar,
 }: {
   candidatas: Candidata[]
@@ -19,6 +21,7 @@ export default function EvaluacionesPanel({
   criterios: Criterio[]
   evaluaciones: Evaluacion[]
   detalles: EvaluacionDetalle[]
+  totalCriterios?: number
   onRecargar: () => Promise<void>
 }) {
   const desempateIds = new Set(
@@ -26,10 +29,21 @@ export default function EvaluacionesPanel({
   )
   const hayDesempate = desempateIds.size > 0
 
+  // Conteo de respondidos de una evaluación (null si no se puede saber)
+  const estadoDe = (ev: Evaluacion): 'completa' | 'parcial' | 'vacia' => {
+    if (!totalCriterios || totalCriterios <= 0) return 'completa'
+    const n = detalles.filter((d) => d.evaluacion_id === ev.id).length
+    if (n >= totalCriterios) return 'completa'
+    if (n > 0) return 'parcial'
+    return 'vacia'
+  }
+
   const mapa: EvaluacionesPorCandidata[] = candidatas.map((c) => {
     const evalsDeCandidata = evaluaciones.filter(
       (ev) => ev.candidata_id === c.id && !ev.es_ensayo,
     )
+    const completas = evalsDeCandidata.filter((ev) => estadoDe(ev) === 'completa').length
+    const parciales = evalsDeCandidata.filter((ev) => estadoDe(ev) === 'parcial').length
     const porJurado = evalsDeCandidata
       .map((ev) => {
         let base = 0
@@ -45,7 +59,8 @@ export default function EvaluacionesPanel({
 
     return {
       candidata: c,
-      totalevaluado: evalsDeCandidata.length,
+      totalevaluado: completas,
+      parciales,
       porJurado,
     }
   })
@@ -117,13 +132,20 @@ export default function EvaluacionesPanel({
                     )
                   })}
                   <td className="py-3 text-center">
-                    <span
-                      className={`chip ${
-                        totalJurados > 0 && m.totalevaluado >= totalJurados ? 'chip-ok' : 'chip-muted'
-                      }`}
-                    >
-                      {m.totalevaluado}/{totalJurados}
-                    </span>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span
+                        className={`chip ${
+                          totalJurados > 0 && m.totalevaluado >= totalJurados ? 'chip-ok' : 'chip-muted'
+                        }`}
+                      >
+                        {m.totalevaluado}/{totalJurados}
+                      </span>
+                      {m.parciales > 0 && (
+                        <span className="text-[10px] font-semibold text-amber-400/90">
+                          ◐ {m.parciales} parcial
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

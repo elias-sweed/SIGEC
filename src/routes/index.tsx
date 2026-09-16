@@ -3,6 +3,8 @@ import MainLayout from '../layouts/MainLayout'
 import JuradoLayout from '../layouts/JuradoLayout'
 import AdminLayout from '../layouts/AdminLayout'
 import PublicScreen from '../pages/PublicScreen'
+import VotoQR from '../pages/VotoQR'
+import VotarPublico from '../pages/VotarPublico'
 import AdminLogin from '../pages/AdminLogin'
 import JuradoLogin from '../pages/JuradoLogin'
 import JuradoActivar from '../pages/JuradoActivar'
@@ -30,6 +32,10 @@ export default function AppRoutes() {
       {/* Pantalla pública: standalone a pantalla completa (sin header ni footer) */}
       <Route path="/" element={<PublicScreen />} />
       <Route path="/pantalla" element={<PublicScreen />} />
+
+      {/* Votación pública por QR: sin login, standalone */}
+      <Route path="/voto" element={<VotoQR />} />
+      <Route path="/votar" element={<VotarPublico />} />
 
       {/* Zona privada del jurado (sin navegación de administración) */}
       <Route element={<JuradoLayout />}>

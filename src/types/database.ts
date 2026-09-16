@@ -13,6 +13,7 @@ export interface Candidata {
   seccion: string
   foto_url: string | null
   activa: boolean
+  evento_id: string | null
   created_at: string
 }
 
@@ -26,6 +27,7 @@ export interface Jurado {
   email_interno: string | null
   auth_uid: string | null
   candidata_actual_id: string | null
+  evento_id: string | null
   created_at: string
 }
 

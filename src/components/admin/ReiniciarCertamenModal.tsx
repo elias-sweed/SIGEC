@@ -7,7 +7,7 @@ interface ReiniciarCertamenModalProps {
   onConfirmar: () => Promise<void>
 }
 
-const PALABRA_CONFIRMACION = 'BORRAR'
+const PALABRA_CONFIRMACION = 'REINICIAR'
 
 export default function ReiniciarCertamenModal({
   abierto,
@@ -40,7 +40,7 @@ export default function ReiniciarCertamenModal({
       try {
         const ok = await verificarContrasenaSuperadmin(password)
         if (!ok) {
-          setError('Contraseña incorrecta. No se puede reiniciar el certamen.')
+          setError('Contraseña incorrecta. No se puede reiniciar el evento.')
           setVerificando(false)
           return
         }
@@ -62,9 +62,9 @@ export default function ReiniciarCertamenModal({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-red-400">
-              Acción destructiva
+              Reinicio del evento activo
             </p>
-            <h2 className="mt-1 text-xl font-bold text-white">Reiniciar Certamen</h2>
+            <h2 className="mt-1 text-xl font-bold text-white">Reiniciar evento</h2>
           </div>
           <button
             onClick={onCerrar}
@@ -75,9 +75,10 @@ export default function ReiniciarCertamenModal({
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-navy-300">
-          Esto <span className="font-bold text-red-300">eliminará todos los datos</span> del
-          certamen: evaluaciones, candidatas, jurados, criterios y el evento. <b>No se puede
-          deshacer.</b>
+          Se limpiarán las <span className="font-bold text-red-300">evaluaciones y el estado del
+          evento activo</span>: ese evento queda como recién creado.{' '}
+          <b>Los demás eventos conservan todos sus datos y candidatas, jurados y criterios no se tocan.</b>{' '}
+          Esto no se puede deshacer.
         </p>
 
         <div className="mt-5 space-y-4">
@@ -128,13 +129,13 @@ export default function ReiniciarCertamenModal({
           ) : (
             <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-center">
               <p className="text-sm font-semibold text-red-200">
-                Contraseña verificada. Si continúas se borrará TODO.
+                Contraseña verificada. Si continúas se reiniciará el evento activo (los demás no se tocan).
               </p>
               <button
                 onClick={() => void confirmar()}
                 className="mt-3 w-full rounded-xl border border-red-500 bg-red-600 px-4 py-3 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-red-500 active:scale-[0.98]"
               >
-                ⚠ Eliminar definitivamente
+                ⚠ Reiniciar evento (solo el activo)
               </button>
             </div>
           )}

@@ -59,14 +59,6 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
     try {
       const supabase = getSupabase()
 
-      // 0) Lista de candidatas activas (para que el jurado elija cuál evaluar
-      //    y para la pantalla pública; las deshabilitadas no participan)
-      const { data: listaCandidatas } = await supabase
-        .from('candidatas')
-        .select('*')
-        .eq('activa', true)
-        .order('nombre')
-
       // 1) Consultar estado_evento sin FK hints (evita error 400 por constraint renombrada)
       logConsulta('estado_evento: select *, limit 1')
       const { data: estadoRaw, error: errEstado } = await supabase
@@ -81,7 +73,33 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
         throw errEstado
       }
 
-      if (!estadoRaw) {
+      let ev: Evento | null = null
+      let cand: Candidata | null = null
+      let estado: EstadoEvento | null = null
+      let sinEstado = false
+
+      if (estadoRaw) {
+        // Hay registro: obtener evento y candidata por separado (sin FK hints)
+        estado = estadoRaw as unknown as EstadoEvento
+
+        logConsulta(`evento_id=${estado.evento_id}`)
+        const { data: eventoRaw } = await supabase
+          .from('eventos')
+          .select('*')
+          .eq('id', estado.evento_id)
+          .maybeSingle()
+        ev = (eventoRaw ?? null) as Evento | null
+
+        if (estado.candidata_actual_id) {
+          logConsulta(`candidata_actual_id=${estado.candidata_actual_id}`)
+          const { data } = await supabase
+            .from('candidatas')
+            .select('*')
+            .eq('id', estado.candidata_actual_id)
+            .maybeSingle()
+          cand = (data ?? null) as Candidata | null
+        }
+      } else {
         // 2) No hay registro: sin estado activo. La creación ocurre
         //    únicamente al pulsar "Iniciar Evaluación" en el asistente.
         logConsulta('estado_evento vacío — sin estado activo')
@@ -92,60 +110,32 @@ export function CertamenProvider({ children }: { children: ReactNode }) {
           .limit(1)
           .maybeSingle()
 
-        const ev = (primerEvento ?? null) as Evento | null
-
-        let cand: Candidata | null = null
-        if (ev) {
-          const { data: primeraCandidata } = await supabase
-            .from('candidatas')
-            .select('*')
-            .eq('activa', true)
-            .order('nombre')
-            .limit(1)
-            .maybeSingle()
-          cand = (primeraCandidata ?? null) as Candidata | null
-        }
-
-        setEvento(ev)
-        setCandidata(cand)
-        setCandidatas((listaCandidatas ?? []) as Candidata[])
-        setEstadoEvento(null)
-
-        window.localStorage.setItem('sigec-certamen', JSON.stringify({ evento: ev, candidata: cand }))
-
-        return { evento: ev, candidata: cand, estado: null }
+        ev = (primerEvento ?? null) as Evento | null
+        sinEstado = true
       }
 
-      // 3) Hay registro: obtener evento y candidata por separado (sin FK hints)
-      const estado = estadoRaw as unknown as EstadoEvento
-
-      logConsulta(`evento_id=${estado.evento_id}`)
-      const { data: eventoRaw } = await supabase
-        .from('eventos')
-        .select('*')
-        .eq('id', estado.evento_id)
-        .maybeSingle()
-
-      let candRaw: Candidata | null = null
-      if (estado.candidata_actual_id) {
-        logConsulta(`candidata_actual_id=${estado.candidata_actual_id}`)
+      // Candidatas activas SOLO del evento en vivo (más legacy sin evento):
+      // cada evento tiene su propia lista de participantes.
+      let listaCandidatas: Candidata[] = []
+      if (ev) {
         const { data } = await supabase
           .from('candidatas')
           .select('*')
-          .eq('id', estado.candidata_actual_id)
-          .maybeSingle()
-        candRaw = (data ?? null) as Candidata | null
+          .eq('activa', true)
+          .or(`evento_id.eq.${ev.id},evento_id.is.null`)
+          .order('nombre')
+        listaCandidatas = (data ?? []) as Candidata[]
+        if (sinEstado) cand = listaCandidatas[0] ?? null
       }
 
-      const ev = (eventoRaw ?? null) as Evento | null
       setEvento(ev)
-      setCandidata(candRaw)
-      setCandidatas((listaCandidatas ?? []) as Candidata[])
+      setCandidata(cand)
+      setCandidatas(listaCandidatas)
       setEstadoEvento(estado)
 
-      window.localStorage.setItem('sigec-certamen', JSON.stringify({ evento: ev, candidata: candRaw }))
+      window.localStorage.setItem('sigec-certamen', JSON.stringify({ evento: ev, candidata: cand }))
 
-      return { evento: ev, candidata: candRaw, estado }
+      return { evento: ev, candidata: cand, estado }
     } catch (err) {
       logError('cargarEstado', err instanceof Error ? err.message : String(err))
       const respaldo = leerRespaldo()

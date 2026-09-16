@@ -12,7 +12,7 @@ import { generarCodigoJurado, generarTokenAcceso } from '../../utils/codigos'
 import { logConsulta, logError } from '../../utils/devlog'
 
 export default function Jurados() {
-  const { jurados, cargandoInicial, recargar } = usePanelData()
+  const { jurados, cargandoInicial, recargar, evento } = usePanelData()
 
   const [nombre, setNombre] = useState('')
   const [editandoId, setEditandoId] = useState<string | null>(null)
@@ -63,6 +63,7 @@ export default function Jurados() {
       nombre: nombre.trim(),
       codigo: siguienteCodigo,
       token_acceso: generarTokenAcceso(),
+      evento_id: evento?.id ?? null,
     })
     if (error) {
       logError('agregar jurado', error.message)
@@ -90,7 +91,7 @@ export default function Jurados() {
       <PanelHeader
         eyebrow="Configuración"
         title="Jurados"
-        description="Registra a los jurados. Cada uno recibe un código único y aleatorio que usarás en su QR de acceso."
+        description={`Registra a los jurados del evento seleccionado: ${evento?.nombre ?? '—'}. Cada uno recibe un código único para su QR de acceso.`}
       />
 
       <Section

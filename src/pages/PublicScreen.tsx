@@ -73,11 +73,14 @@ export default function PublicScreen() {
 
       const eventoId = ev?.id
 
+      let queryJurados = supabase
+        .from('jurados')
+        .select('id, nombre, codigo, en_sesion, candidata_actual_id')
+        .eq('activado', true)
+      if (eventoId) queryJurados = queryJurados.or(`evento_id.eq.${eventoId},evento_id.is.null`)
+
       const [juradosRes, evalsRes] = await Promise.all([
-        supabase
-          .from('jurados')
-          .select('id, nombre, codigo, en_sesion, candidata_actual_id')
-          .eq('activado', true),
+        queryJurados,
         eventoId
           ? supabase
               .from('evaluaciones')

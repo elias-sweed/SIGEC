@@ -183,7 +183,7 @@ function VentanaModal({ onCerrar, children }: { onCerrar: () => void; children: 
 }
 
 export default function Candidatas() {
-  const { candidatas, cargandoInicial, recargar } = usePanelData()
+  const { candidatas, cargandoInicial, recargar, evento } = usePanelData()
 
   const [filtroGrado, setFiltroGrado] = useState('')
   const [filtroSeccion, setFiltroSeccion] = useState('')
@@ -298,7 +298,13 @@ export default function Candidatas() {
       logConsulta('Panel: agregar candidata')
       const { error } = await supabase
         .from('candidatas')
-        .insert({ nombre: nombreOk, grado: modal.grado, seccion: modal.seccion, foto_url: fotoUrl })
+        .insert({
+          nombre: nombreOk,
+          grado: modal.grado,
+          seccion: modal.seccion,
+          foto_url: fotoUrl,
+          evento_id: evento?.id ?? null,
+        })
       if (error) {
         logError('agregar candidata', error.message)
         setError(error.message)
@@ -374,7 +380,9 @@ export default function Candidatas() {
       const filas = XLSX.utils.sheet_to_json<Record<string, unknown>>(hoja, { defval: '' })
 
       const supabase = getSupabase()
-      const { data: existentesData } = await supabase.from('candidatas').select('nombre, grado, seccion')
+      let queryExistentes = supabase.from('candidatas').select('nombre, grado, seccion')
+      if (evento?.id) queryExistentes = queryExistentes.or(`evento_id.eq.${evento.id},evento_id.is.null`)
+      const { data: existentesData } = await queryExistentes
       const existentes: Candidata[] = (existentesData ?? []) as Candidata[]
       const claveExistente = new Set(
         existentes.map((c) => `${String(c.nombre).trim().toLowerCase()}|${c.grado}|${c.seccion}`),
@@ -402,7 +410,12 @@ export default function Candidatas() {
       }
 
       if (nuevos.length > 0) {
-        const filasInsert = nuevos.map((n) => ({ nombre: n.nombre, grado: n.grado, seccion: n.seccion }))
+        const filasInsert = nuevos.map((n) => ({
+        nombre: n.nombre,
+        grado: n.grado,
+        seccion: n.seccion,
+        evento_id: evento?.id ?? null,
+      }))
         const { error } = await supabase.from('candidatas').insert(filasInsert)
         if (error) throw error
       }
@@ -437,7 +450,7 @@ export default function Candidatas() {
       <PanelHeader
         eyebrow="Configuración"
         title="Candidatas"
-        description={`${candidatas.length} participantes registradas. Ordenadas por grado y sección, con numeración del 1 al ${candidatas.length}.`}
+        description={`${candidatas.length} participantes del evento seleccionado: ${evento?.nombre ?? '—'}. Cada evento tiene su propia lista.`}
       />
 
       <Section

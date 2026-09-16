@@ -84,16 +84,17 @@ export default function JuradoEvaluacion() {
       // que el jurado quede marcado como "En sesión" en la pantalla pública.
       void marcarEnSesion((data as Jurado).id, true)
 
-      // Candidatas que este jurado ya evaluó (para mostrarlas en el selector)
+      // Candidatas que este jurado ya evaluó EN ESTE EVENTO (para mostrarlas en el selector)
       const { data: evals } = await supabase
         .from('evaluaciones')
         .select('candidata_id')
         .eq('jurado_id', (data as Jurado).id)
+        .eq('evento_id', evento?.id ?? '')
       if (evals) {
         setEvaluadasIds(new Set(evals.map((e) => e.candidata_id as string)))
       }
     })()
-  }, [sesion, jurado, navigate])
+  }, [sesion, jurado, navigate, evento?.id])
 
   // Al elegir una candidata, cargar criterios de la etapa y la evaluación existente
   useEffect(() => {
@@ -121,6 +122,7 @@ export default function JuradoEvaluacion() {
         .select('id')
         .eq('candidata_id', candidataSel.id)
         .eq('jurado_id', jurado.id)
+        .eq('evento_id', evento.id)
         .maybeSingle()
 
       if (existenteError) {

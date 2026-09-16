@@ -3,10 +3,9 @@ import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
 import ReiniciarCertamenModal from '../../components/admin/ReiniciarCertamenModal'
 import { usePanelData } from '../../context/PanelDataContext'
-import { useCertamen } from '../../context/CertamenContext'
 import { SectionSkeleton } from '../../components/Skeleton'
 import { getSupabase } from '../../lib/supabase'
-import { resetCertamen } from '../../services/reset.service'
+import { resetEvento } from '../../services/reset.service'
 import { logConsulta, logError } from '../../utils/devlog'
 import { registrarAccion } from '../../utils/auditLog'
 import { generarActaOficial } from '../../utils/actaPdf'
@@ -63,8 +62,7 @@ const estiloBoton: Record<EventState, EstiloBoton> = {
 }
 
 export default function Resumen() {
-  const { evento, candidatas, jurados, criterios, evaluaciones, detalles, cargandoInicial, recargar } = usePanelData()
-  const { estadoEvento } = useCertamen()
+  const { evento, candidatas, jurados, criterios, evaluaciones, detalles, cargandoInicial, recargar, estadoEvento } = usePanelData()
 
   const [error, setError] = useState<string | null>(null)
   const [operando, setOperando] = useState(false)
@@ -354,13 +352,20 @@ export default function Resumen() {
   }
 
   const reiniciarCertamen = async () => {
+    if (!evento) return
     setReiniciando(true)
     setError(null)
     setResetAbierto(false)
     try {
-      await resetCertamen()
+      // Reinicia SOLO el evento activo: limpia sus evaluaciones y su estado; los
+      // demás eventos y datos compartidos quedan intactos.
+      await resetEvento(evento.id)
       await recargar()
-      await registrarAccion('Operador', 'reiniciar_certamen', 'Certamen reiniciado (todos los datos eliminados)')
+      await registrarAccion(
+        'Operador',
+        'reiniciar_evento',
+        `Evento «${evento.nombre}» reiniciado (solo sus evaluaciones y estado)`,
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -603,7 +608,7 @@ export default function Resumen() {
               disabled={reiniciando || operando}
               className="btn-danger shrink-0"
             >
-              {reiniciando ? 'Reiniciando…' : 'Reiniciar Certamen'}
+              {reiniciando ? 'Reiniciando…' : 'Reiniciar Evento'}
             </button>
           </div>
         </div>

@@ -3,6 +3,7 @@ import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
 import ReiniciarCertamenModal from '../../components/admin/ReiniciarCertamenModal'
 import PagosVotacion from '../../components/admin/PagosVotacion'
+import MesasCobro from '../../components/admin/MesasCobro'
 import { usePanelData } from '../../context/PanelDataContext'
 import { SectionSkeleton } from '../../components/Skeleton'
 import { getSupabase } from '../../lib/supabase'
@@ -661,6 +662,7 @@ export default function Resumen() {
 
       {/* Votación pública: pagos Yape y votos extra */}
       <PagosVotacion />
+      <MesasCobro />
         </>
       )}
 

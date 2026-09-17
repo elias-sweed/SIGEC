@@ -64,6 +64,7 @@ export interface EstadoVotante {
   gratisRestantes: number
   pagosDisponibles: number
   bloqueado: boolean
+  pagoPendiente: boolean
   config: ConfigVotacion
 }
 
@@ -187,6 +188,7 @@ export async function consultarEstadoVotante(eventoId: string): Promise<EstadoVo
       gratisRestantes: config.voto_gratis_por_dispositivo,
       pagosDisponibles: 0,
       bloqueado: false,
+      pagoPendiente: false,
       config,
     }
   }
@@ -209,6 +211,7 @@ export async function consultarEstadoVotante(eventoId: string): Promise<EstadoVo
       gratisRestantes: config.voto_gratis_por_dispositivo,
       pagosDisponibles: 0,
       bloqueado: false,
+      pagoPendiente: false,
       config,
     }
   }
@@ -220,6 +223,7 @@ export async function consultarEstadoVotante(eventoId: string): Promise<EstadoVo
     gratisRestantes: number
     pagosDisponibles: number
     bloqueado: boolean
+    pagoPendiente?: boolean
   }
 
   return {
@@ -229,6 +233,7 @@ export async function consultarEstadoVotante(eventoId: string): Promise<EstadoVo
     gratisRestantes: raw.gratisRestantes,
     pagosDisponibles: raw.pagosDisponibles,
     bloqueado: raw.bloqueado,
+    pagoPendiente: raw.pagoPendiente ?? false,
     config,
   }
 }

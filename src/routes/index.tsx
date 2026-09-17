@@ -5,6 +5,7 @@ import AdminLayout from '../layouts/AdminLayout'
 import PublicScreen from '../pages/PublicScreen'
 import VotoQR from '../pages/VotoQR'
 import VotarPublico from '../pages/VotarPublico'
+import MesaCobro from '../pages/MesaCobro'
 import AdminLogin from '../pages/AdminLogin'
 import JuradoLogin from '../pages/JuradoLogin'
 import JuradoActivar from '../pages/JuradoActivar'
@@ -36,6 +37,9 @@ export default function AppRoutes() {
       {/* Votación pública por QR: sin login, standalone */}
       <Route path="/voto" element={<VotoQR />} />
       <Route path="/votar" element={<VotarPublico />} />
+
+      {/* Mesa de cobro: los cobradores confirmar los Yapes en vivo */}
+      <Route path="/mesa" element={<MesaCobro />} />
 
       {/* Zona privada del jurado (sin navegación de administración) */}
       <Route element={<JuradoLayout />}>

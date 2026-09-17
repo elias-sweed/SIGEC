@@ -234,8 +234,8 @@ function ModalYape({
           {enviando ? 'Registrando pago…' : 'Pagar y votar'}
         </button>
         <p className="text-[11px] text-navy-400">
-          Ingresa el número de operación que te dio Yape. La verificación es automática: si el
-          código es válido, tu voto se registra al instante.
+          Ingresa el número de operación que te dio Yape. Si la verificación está en revisión, tu
+          pago quedará "pendiente" hasta que la mesa de cobro lo confirme.
         </p>
       </div>
     </div>
@@ -359,6 +359,14 @@ export default function VotarPublico() {
       setMensaje({ tipo: 'error', texto: 'La votación está desactivada en este momento.' })
       return
     }
+    if (estado?.pagoPendiente && !(estado.pagosDisponibles ?? 0)) {
+      setMensaje({
+        tipo: 'error',
+        texto:
+          'Tu pago está pendiente de confirmación. Acércate a la mesa de cobro; en cuanto lo confirmen, toca Votar de nuevo.',
+      })
+      return
+    }
     if (!estado?.registrado) {
       setCandidataSel(c)
       setPaso('correo')
@@ -389,9 +397,23 @@ export default function VotarPublico() {
 
   const confirmarPago = async (numeroOperacion: string) => {
     if (!eventoId || !candidataSel) return
-    await emitir({ candidataId: candidataSel.id, tipo: 'pago', numeroOperacion })
-    setPaso(null)
-    setCandidataSel(null)
+    try {
+      await emitir({ candidataId: candidataSel.id, tipo: 'pago', numeroOperacion })
+      setPaso(null)
+      setCandidataSel(null)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.toLowerCase().includes('pendiente')) {
+        // El pago quedó registrado; la mesa debe confirmarlo. Se cierra el modal
+        // y se muestra el aviso + banner de pago pendiente.
+        setPaso(null)
+        setCandidataSel(null)
+        setMensaje({ tipo: 'error', texto: msg })
+        await recargarEstado()
+        return
+      }
+      throw err
+    }
   }
 
   if (cargando && !eventoCandidato) {
@@ -445,7 +467,15 @@ export default function VotarPublico() {
           </div>
         )}
 
-        {estado?.bloqueado && estado.registrado && (
+        {estado?.pagoPendiente && estado.registrado && (
+          <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-300">
+            Tu pago queda en "pendiente" hasta que la mesa de cobro lo confirme. En cuanto te
+            confirmen, toca <span className="text-white">Votar</span> de nuevo para registrar tu
+            voto.
+          </div>
+        )}
+
+        {estado?.bloqueado && estado.registrado && !estado.pagoPendiente && (
           <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-300">
             Ya agotaste tus votos gratis en este evento. Toca una candidata para desbloquear más con
             Yape.

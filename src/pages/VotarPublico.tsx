@@ -213,6 +213,11 @@ function ModalYape({
           </p>
         )}
 
+        <p className="text-[11px] text-navy-400">
+          Necesitas tener Yape activo y vinculado a tu DNI para pagar. Si no tienes Yape, acércate
+          a una mesa de cobro.
+        </p>
+
         <p className="text-sm font-semibold text-white">
           Yapea exactamente{' '}
           <span className="font-black text-gold-300">S/ {config.monto_por_pago.toFixed(2)}</span>{' '}

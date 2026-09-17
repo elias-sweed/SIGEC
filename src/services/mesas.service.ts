@@ -26,6 +26,7 @@ export interface PagoMesa {
   numero_operacion: string
   estado: 'pendiente' | 'verificado' | 'rechazado'
   verificado_por: string | null
+  mesa_verifico_id: string | null
   created_at: string
 }
 

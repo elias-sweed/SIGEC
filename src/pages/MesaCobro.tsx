@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { consultarConfiguracion, type ConfigVotacion } from '../services/votacion.service'
+import { urlQRYape } from '../utils/yape'
 import logo from '../assets/Logo/logo.png'
 import {
   aprobarPagoMesa,
@@ -91,29 +93,45 @@ function LoginMesa({ onEntrar }: { onEntrar: (sesion: MesaSesion) => void }) {
 
 function DashboardMesa({ sesion, onSalir }: { sesion: MesaSesion; onSalir: () => void }) {
   const [pagos, setPagos] = useState<PagoMesa[]>([])
+  const [config, setConfig] = useState<ConfigVotacion | null>(null)
   const [cargando, setCargando] = useState(true)
   const [operando, setOperando] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
-  const ultimoSonidoRef = useRef<string | null>(null)
+  const [nuevoId, setNuevoId] = useState<string | null>(null)
+  const [confirmando, setConfirmando] = useState<{ id: string; accion: 'aprobar' | 'rechazar' } | null>(null)
+  const [verDetalle, setVerDetalle] = useState(false)
+  const timeoutConfirmRef = useRef<number | null>(null)
+  const timeoutNuevoRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timeoutConfirmRef.current) window.clearTimeout(timeoutConfirmRef.current)
+      if (timeoutNuevoRef.current) window.clearTimeout(timeoutNuevoRef.current)
+    }
+  }, [])
 
   const cargar = useCallback(async () => {
     const lista = await listarPagosMesa(sesion.codigo)
-    setPagos(lista)
-    setCargando(false)
-
-    // Notifica (sonido + aviso) cuando aparece un pago pendiente nuevo.
-    const pendienteNuevo = lista.find((p) => p.estado === 'pendiente')
-    if (pendienteNuevo && pendienteNuevo.id !== ultimoSonidoRef.current) {
-      ultimoSonidoRef.current = pendienteNuevo.id
-      setAviso(`Nuevo pago pendiente: ${pendienteNuevo.email ?? 'votante'} · ${pendienteNuevo.numero_operacion}`)
-      try {
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-          window.speechSynthesis.speak(new SpeechSynthesisUtterance('Nuevo voto por confirmar'))
+    setPagos((prev) => {
+      // Mejora #3: marca como NUEVO el pago pendiente que no estaba antes.
+      const idsPrevios = new Set(prev.map((p) => p.id))
+      const pendienteNuevo = lista.find((p) => p.estado === 'pendiente' && !idsPrevios.has(p.id))
+      if (pendienteNuevo) {
+        setNuevoId(pendienteNuevo.id)
+        if (timeoutNuevoRef.current) window.clearTimeout(timeoutNuevoRef.current)
+        timeoutNuevoRef.current = window.setTimeout(() => setNuevoId(null), 10000)
+        setAviso(`🔔 Nuevo pago pendiente: ${pendienteNuevo.email ?? 'votante'} · ${pendienteNuevo.numero_operacion}. ¡Verifica y confirma!`)
+        try {
+          if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance('Nuevo voto por confirmar'))
+          }
+        } catch {
+          /* sin voz */
         }
-      } catch {
-        /* sin voz */
       }
-    }
+      return lista
+    })
+    setCargando(false)
   }, [sesion.codigo])
 
   useEffect(() => {
@@ -121,6 +139,19 @@ function DashboardMesa({ sesion, onSalir }: { sesion: MesaSesion; onSalir: () =>
     const intervalo = window.setInterval(() => void cargar(), INTERVALO_MS)
     return () => window.clearInterval(intervalo)
   }, [cargar])
+
+  // Mejora #1: muestra el Yape del evento para que el cobrador sepa con qué validar.
+  useEffect(() => {
+    let activo = true
+    consultarConfiguracion(sesion.eventoId)
+      .then((cfg) => {
+        if (activo) setConfig(cfg)
+      })
+      .catch((err) => logError('MesaCobro.config', err instanceof Error ? err.message : String(err)))
+    return () => {
+      activo = false
+    }
+  }, [sesion.eventoId])
 
   const resolver = async (pago: PagoMesa, accion: 'aprobar' | 'rechazar') => {
     if (operando) return
@@ -137,9 +168,29 @@ function DashboardMesa({ sesion, onSalir }: { sesion: MesaSesion; onSalir: () =>
     }
   }
 
+  // Mejora #4: doble toque para confirmar (evita accidentes).
+  const pedirConfirmacion = (pago: PagoMesa, accion: 'aprobar' | 'rechazar') => {
+    if (operando === pago.id) return
+    if (confirmando?.id === pago.id && confirmando.accion === accion) {
+      if (timeoutConfirmRef.current) window.clearTimeout(timeoutConfirmRef.current)
+      setConfirmando(null)
+      void resolver(pago, accion)
+      return
+    }
+    setConfirmando({ id: pago.id, accion })
+    if (timeoutConfirmRef.current) window.clearTimeout(timeoutConfirmRef.current)
+    timeoutConfirmRef.current = window.setTimeout(() => setConfirmando(null), 4000)
+  }
+
   const pendientes = pagos.filter((p) => p.estado === 'pendiente')
-  const verificados = pagos.filter((p) => p.estado === 'verificado')
-  const recaudado = verificados.reduce((s, p) => s + Number(p.monto), 0)
+  // Mejora #2: SOLO lo que aprobó ESTA mesa (mesa_verifico_id = sesion.id).
+  const misVerificados = pagos.filter(
+    (p) => p.estado === 'verificado' && p.mesa_verifico_id === sesion.id,
+  )
+  const miRecaudado = misVerificados.reduce((s, p) => s + Number(p.monto), 0)
+
+  const esNuevo = (p: PagoMesa) => nuevoId === p.id
+  const confirmandoEste = (p: PagoMesa) => confirmando?.id === p.id
 
   return (
     <div className="min-h-screen w-full bg-navy-950">
@@ -164,8 +215,40 @@ function DashboardMesa({ sesion, onSalir }: { sesion: MesaSesion; onSalir: () =>
         </header>
 
         {aviso && (
-          <div className="mb-4 rounded-2xl border border-gold-500/40 bg-gold-500/10 px-4 py-3 text-sm font-semibold text-gold-200">
+          <div className="mb-4 animate-pulse rounded-2xl border border-gold-500/50 bg-gold-500/15 px-4 py-3 text-sm font-semibold text-gold-200 shadow-[0_0_24px_rgba(201,162,39,0.25)]">
             {aviso}
+          </div>
+        )}
+
+        {/* Mejora #1: datos del Yape a validar */}
+        {config && (
+          <div className="mb-5 flex flex-wrap items-center gap-4 rounded-3xl border border-white/10 bg-navy-900/60 px-5 py-4 backdrop-blur">
+            {urlQRYape(config.yape_numero, config.yape_titular, config.yape_banco) ? (
+              <img
+                src={urlQRYape(config.yape_numero, config.yape_titular, config.yape_banco, 96)}
+                alt="QR Yape de referencia"
+                className="h-16 w-16 shrink-0 rounded-lg bg-white p-0.5"
+              />
+            ) : null}
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-navy-400">
+                Pago que debes verificar
+              </p>
+              {config.yape_numero ? (
+                <p className="mt-0.5 font-mono text-base font-black tracking-wide text-white">
+                  S/ {Number(config.monto_por_pago).toFixed(2)} →{' '}
+                  <span className="text-gold-300">{config.yape_numero}</span>
+                </p>
+              ) : (
+                <p className="mt-0.5 text-sm font-semibold text-amber-300">
+                  El organizador aún no configura el Yape en el panel.
+                </p>
+              )}
+              <p className="text-[11px] text-navy-300">
+                {config.yape_titular?.trim() || 'Sin titular configurado'} ·{' '}
+                {config.votos_por_pago} {config.votos_por_pago === 1 ? 'voto' : 'votos'} por pago
+              </p>
+            </div>
           </div>
         )}
 
@@ -176,14 +259,48 @@ function DashboardMesa({ sesion, onSalir }: { sesion: MesaSesion; onSalir: () =>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-200/70">Por confirmar</p>
           </div>
           <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-center">
-            <p className="font-mono text-2xl font-black tabular-nums text-emerald-300">{verificados.length}</p>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-200/70">Confirmados</p>
+            <p className="font-mono text-2xl font-black tabular-nums text-emerald-300">{misVerificados.length}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-200/70">Mis confirmados</p>
           </div>
-          <div className="rounded-2xl border border-gold-400/30 bg-gold-500/10 p-3 text-center">
-            <p className="font-mono text-2xl font-black tabular-nums text-gold-300">S/ {recaudado.toFixed(2)}</p>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gold-200/70">Recaudado</p>
-          </div>
+          <button
+            onClick={() => setVerDetalle((v) => !v)}
+            className="rounded-2xl border border-gold-400/40 bg-gold-500/15 p-3 text-center transition hover:bg-gold-500/25"
+            title="Ver detalle de lo que recaudó esta mesa"
+          >
+            <p className="font-mono text-xl font-black tabular-nums text-gold-300">S/ {miRecaudado.toFixed(2)}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gold-200/80">
+              Mi recaudado {verDetalle ? '▲' : '▼'}
+            </p>
+          </button>
         </div>
+
+        {/* Mejora #2: detalle de lo recaudado por ESTA mesa */}
+        {verDetalle && (
+          <div className="mb-5 rounded-3xl border border-white/10 bg-navy-900/60 p-4 backdrop-blur">
+            <p className="text-xs font-bold uppercase tracking-widest text-gold-300">
+              Confirmados por {sesion.nombre} ({misVerificados.length})
+            </p>
+            {misVerificados.length === 0 ? (
+              <p className="mt-2 text-sm text-navy-400">Aún no has confirmado ningún pago.</p>
+            ) : (
+              <ul className="mt-2 max-h-52 space-y-1.5 overflow-y-auto">
+                {misVerificados.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 rounded-xl bg-navy-800/50 px-3 py-2 text-sm">
+                    <span className="grid h-7 w-9 shrink-0 place-items-center rounded-lg bg-emerald-500/15 font-mono text-[10px] font-bold text-emerald-300">
+                      S/ {Number(p.monto).toFixed(2)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-white">{p.email ?? 'Votante'}</span>
+                    <span className="shrink-0 font-mono text-xs text-navy-300">{p.numero_operacion}</span>
+                    <span className="shrink-0 text-[11px] text-navy-400">{fechaHora(p.created_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3 border-t border-white/10 pt-2 text-center font-mono text-sm font-bold text-gold-300">
+              Total: S/ {miRecaudado.toFixed(2)}
+            </p>
+          </div>
+        )}
 
         {/* Lista de pagos */}
         {cargando ? (
@@ -203,7 +320,9 @@ function DashboardMesa({ sesion, onSalir }: { sesion: MesaSesion; onSalir: () =>
                 key={p.id}
                 className={`rounded-3xl border p-4 backdrop-blur transition ${
                   p.estado === 'pendiente'
-                    ? 'border-amber-400/40 bg-amber-500/10'
+                    ? esNuevo(p)
+                      ? 'border-gold-400/70 bg-gold-500/15 shadow-[0_0_28px_rgba(201,162,39,0.35)] animate-pulse'
+                      : 'border-amber-400/40 bg-amber-500/10'
                     : p.estado === 'verificado'
                       ? 'border-emerald-400/30 bg-navy-900/50 opacity-70'
                       : 'border-red-400/30 bg-red-500/5 opacity-60'
@@ -221,22 +340,68 @@ function DashboardMesa({ sesion, onSalir }: { sesion: MesaSesion; onSalir: () =>
                       <p className="mt-0.5 text-[10px] text-emerald-400/70">Confirmado por {p.verificado_por}</p>
                     )}
                   </div>
+
                   {p.estado === 'pendiente' ? (
                     <div className="flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => void resolver(p, 'rechazar')}
-                        disabled={operando === p.id}
-                        className="rounded-xl border border-red-400/40 px-3.5 py-2 text-xs font-bold text-red-300 transition hover:bg-red-500/15 disabled:opacity-50"
-                      >
-                        Rechazar
-                      </button>
-                      <button
-                        onClick={() => void resolver(p, 'aprobar')}
-                        disabled={operando === p.id}
-                        className="rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-black uppercase text-navy-950 transition hover:bg-emerald-400 disabled:opacity-50"
-                      >
-                        {operando === p.id ? '…' : 'Confirmar ✓'}
-                      </button>
+                      {esNuevo(p) && (
+                        <span className="animate-pulse rounded-full bg-gold-500 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-navy-950">
+                          Nuevo
+                        </span>
+                      )}
+                      {confirmandoEste(p) && confirmando?.accion === 'rechazar' ? (
+                        <>
+                          <span className="text-[11px] font-semibold text-red-300">¿Rechazar?</span>
+                          <button
+                            onClick={() => pedirConfirmacion(p, 'rechazar')}
+                            className="rounded-xl bg-red-500 px-3.5 py-2 text-xs font-black uppercase text-white transition hover:bg-red-400"
+                          >
+                            Sí
+                          </button>
+                          <button
+                            onClick={() => setConfirmando(null)}
+                            className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-navy-200"
+                          >
+                            No
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => pedirConfirmacion(p, 'rechazar')}
+                          disabled={operando === p.id}
+                          className="rounded-xl border border-red-400/40 px-3.5 py-2 text-xs font-bold text-red-300 transition hover:bg-red-500/15 disabled:opacity-50"
+                        >
+                          Rechazar
+                        </button>
+                      )}
+
+                      {confirmandoEste(p) && confirmando?.accion === 'aprobar' ? (
+                        <>
+                          <span className="text-[11px] font-black uppercase text-emerald-300">
+                            ¿Confirmas S/ {Number(p.monto).toFixed(2)}?
+                          </span>
+                          <button
+                            onClick={() => pedirConfirmacion(p, 'aprobar')}
+                            disabled={operando === p.id}
+                            className="rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-black uppercase text-navy-950 transition hover:bg-emerald-400 disabled:opacity-50"
+                          >
+                            {operando === p.id ? '…' : 'Sí, confirmar'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmando(null)}
+                            className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-navy-200"
+                          >
+                            No
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => pedirConfirmacion(p, 'aprobar')}
+                          disabled={operando === p.id}
+                          className="rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-black uppercase text-navy-950 transition hover:bg-emerald-400 disabled:opacity-50"
+                        >
+                          {operando === p.id ? '…' : 'Confirmar ✓'}
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <span
@@ -256,8 +421,8 @@ function DashboardMesa({ sesion, onSalir }: { sesion: MesaSesion; onSalir: () =>
         )}
 
         <p className="mt-6 text-center text-[11px] text-navy-400">
-          Verifica que el votante te haya mostrado el comprobante Yape antes de confirmar. Solo
-          confirma si el pago fue por S/ {Number(pagos[0]?.monto ?? 2).toFixed(2)}.
+          Verifica que el votante te muestre el comprobante Yape por S/ {Number(config?.monto_por_pago ?? 2).toFixed(2)}{' '}
+          antes de confirmar. El pago debe llegar a la cuenta de la mesa.
         </p>
       </div>
     </div>

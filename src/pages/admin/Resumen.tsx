@@ -6,7 +6,7 @@ import PagosVotacion from '../../components/admin/PagosVotacion'
 import { usePanelData } from '../../context/PanelDataContext'
 import { SectionSkeleton } from '../../components/Skeleton'
 import { getSupabase } from '../../lib/supabase'
-import { resetCertamen } from '../../services/reset.service'
+import { resetEvento } from '../../services/reset.service'
 import { logConsulta, logError } from '../../utils/devlog'
 import { registrarAccion } from '../../utils/auditLog'
 import { generarActaOficial } from '../../utils/actaPdf'
@@ -358,15 +358,14 @@ export default function Resumen() {
     setError(null)
     setResetAbierto(false)
     try {
-      // Reinicia TODO el certamen: se borran los datos de todas las etapas
-      // (jurados, candidatas, criterios, evaluaciones, votación, estado) y
-      // solo quedan los eventos, que vuelven a "preparando".
-      await resetCertamen()
+      // Reinicia SOLO el evento activo: limpia sus evaluaciones y su estado; los
+      // demás eventos y datos compartidos quedan intactos.
+      await resetEvento(evento.id)
       await recargar()
       await registrarAccion(
         'Operador',
-        'reiniciar_certamen',
-        'Certamen reiniciado: se eliminaron todos los datos (jurados, candidatas, criterios y evaluaciones); los eventos quedaron en preparando',
+        'reiniciar_evento',
+        `Evento «${evento.nombre}» reiniciado (solo sus evaluaciones y estado)`,
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -610,7 +609,7 @@ export default function Resumen() {
               disabled={reiniciando || operando}
               className="btn-danger shrink-0"
             >
-              {reiniciando ? 'Reiniciando…' : 'Reiniciar Certamen'}
+              {reiniciando ? 'Reiniciando…' : 'Reiniciar Evento'}
             </button>
           </div>
         </div>

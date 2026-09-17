@@ -1,8 +1,6 @@
 import PanelHeader from '../../components/admin/PanelHeader'
 import EvaluacionesPanel from '../../components/admin/EvaluacionesPanel'
 import RankingPanel from '../../components/admin/RankingPanel'
-import VotoPopularPanel from '../../components/admin/VotoPopularPanel'
-import PagosYapePanel from '../../components/admin/PagosYapePanel'
 import { SectionSkeleton } from '../../components/Skeleton'
 import { usePanelData } from '../../context/PanelDataContext'
 
@@ -42,10 +40,6 @@ export default function Evaluaciones() {
             evaluaciones={evaluaciones}
             detalles={detalles}
           />
-
-          <VotoPopularPanel eventoId={evento?.id ?? null} candidatas={candidatas} />
-
-          <PagosYapePanel eventoId={evento?.id ?? null} />
         </>
       )}
     </div>

@@ -89,7 +89,7 @@ export default function ScoreSlider({
           type="range"
           min={0}
           max={max}
-          step={0.5}
+          step={1}
           value={value}
           disabled={bloqueado}
           onChange={(e) => onChange(Number(e.target.value))}
@@ -97,6 +97,7 @@ export default function ScoreSlider({
           className="w-full accent-gold-500 disabled:cursor-not-allowed disabled:opacity-40"
           style={{ height: '24px' }}
         />
+        <p className="text-center text-[10px] text-navy-500">Solo números enteros</p>
 
         <div className="flex justify-between text-[10px] font-semibold tabular-nums text-navy-500">
           <span>0</span>

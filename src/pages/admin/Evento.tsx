@@ -5,7 +5,6 @@ import { SectionSkeleton } from '../../components/Skeleton'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
 import { logConsulta, logError } from '../../utils/devlog'
-import { ETAPAS } from '../../constants/criteriosOficiales'
 import { EVENT_STATE_LABELS } from '../../constants/eventStates'
 
 function fechaCorta(iso: string): string {
@@ -16,41 +15,59 @@ function fechaCorta(iso: string): string {
   })
 }
 
+// Las 3 etapas de la Gran Final: cada una se crea como su propio evento/evaluación.
+const ETAPAS_GRAN_FINAL = [
+  {
+    etapa: 'GRAN FINAL · 1 · COREOGRAFÍA',
+    titulo: 'Etapa 1 · Coreografía',
+    nombre: 'Gran Final · 1 · Coreografía',
+    descripcion:
+      'Apertura y coreografía de presentación. Se evalúa: coordinación, desenvolvimiento, expresión corporal, seguridad y actitud escénica.',
+  },
+  {
+    etapa: 'GRAN FINAL · 2 · TALENTO',
+    titulo: 'Etapa 2 · Talento',
+    nombre: 'Gran Final · 2 · Talento',
+    descripcion:
+      'Presentación individual de talento de libre elección (máx. 2 min). Se evalúa: dominio, creatividad, expresión escénica, impacto y organización del tiempo.',
+  },
+  {
+    etapa: 'GRAN FINAL · 3 · GALA Y PREGUNTAS',
+    titulo: 'Etapa 3 · Gala y preguntas',
+    nombre: 'Gran Final · 3 · Gala y Preguntas',
+    descripcion:
+      'Desfile en traje de gala y ronda de preguntas final. Se evalúa: porte, seguridad, expresión corporal, claridad, argumentación, expresión oral y barra.',
+  },
+]
+
 export default function Evento() {
   const { eventos, evento, cargandoInicial, recargar, seleccionarEvento } = usePanelData()
 
-  const [nombre, setNombre] = useState('')
-  const [etapa, setEtapa] = useState<string>(ETAPAS[0])
+  const [creando, setCreando] = useState<string | null>(null)
   const [editandoNombre, setEditandoNombre] = useState('')
   const [modoEdicion, setModoEdicion] = useState(false)
   const [confirmandoEliminar, setConfirmandoEliminar] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const crear = async () => {
-    if (!nombre.trim()) {
-      setError('Ingresa el nombre del evento')
-      return
-    }
+  const crearEtapa = async (item: (typeof ETAPAS_GRAN_FINAL)[number]) => {
+    if (creando) return
+    setCreando(item.etapa)
+    setError(null)
     const supabase = getSupabase()
-    logConsulta('Panel: crear evento')
+    logConsulta(`Panel: crear evento de la etapa "${item.etapa}"`)
     const { data: nuevo, error } = await supabase
       .from('eventos')
-      .insert({
-        nombre: nombre.trim(),
-        etapa,
-        estado: 'preparando',
-      })
+      .insert({ nombre: item.nombre, etapa: item.etapa, estado: 'preparando' })
       .select('id')
       .single()
     if (error) {
       logError('crear evento', error.message)
-      setError(error.message)
+      setError(`No se pudo crear «${item.titulo}»: ${error.message}`)
+      setCreando(null)
       return
     }
-    setError(null)
-    setNombre('')
-    // Al crear, se abre el nuevo evento: aparece todo en blanco y lo del
-    // evento anterior queda guardado intacto.
+    setCreando(null)
+    // Al crear, se abre el nuevo evento: aparece todo en blanco listo para la ronda.
     if (nuevo) await seleccionarEvento(nuevo.id)
   }
 
@@ -276,39 +293,71 @@ export default function Evento() {
             )}
           </Section>
 
-          {/* Nuevo evento: la siguiente etapa inicia limpiando todo */}
+          {/* Etapas de la Gran Final: crear una por una */}
           <Section
-            titulo="Nuevo evento"
-            descripcion="Crea la siguiente etapa del certamen (ej: la final). Inicia en blanco sin tocar los datos de las etapas anteriores."
-            completado={false}
+            titulo="Etapas de la Gran Final"
+            descripcion="Crea las 3 rondas de evaluación una por una. Cada etapa se abre en blanco sin tocar los datos de las anteriores."
+            completado={ETAPAS_GRAN_FINAL.every((i) => eventos.some((e) => e.etapa === i.etapa))}
           >
-            <div className="space-y-3">
-              <input
-                placeholder="Nombre del certamen (ej: Señorita Jiménez Pimentel 2026)"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                className="input-panel"
-              />
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-navy-400">Etapa:</span>
-                {ETAPAS.map((e) => (
-                  <button
-                    key={e}
-                    onClick={() => setEtapa(e)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      etapa === e
-                        ? 'bg-gold-500 text-navy-900'
-                        : 'bg-navy-800 text-navy-300 hover:bg-navy-700'
+            {error && <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
+            <div className="grid gap-3 sm:grid-cols-3">
+              {ETAPAS_GRAN_FINAL.map((item, idx) => {
+                const existente = eventos.find((e) => e.etapa === item.etapa)
+                const activo = evento?.id === existente?.id
+                const creandoEsta = creando === item.etapa
+                return (
+                  <div
+                    key={item.etapa}
+                    className={`flex flex-col rounded-2xl border p-4 transition ${
+                      existente
+                        ? activo
+                          ? 'border-gold-500/60 bg-gold-500/10 ring-2 ring-gold-400/40'
+                          : 'border-emerald-500/30 bg-navy-900/50'
+                        : 'border-dashed border-white/15 bg-navy-900/30'
                     }`}
                   >
-                    {e}
-                  </button>
-                ))}
-              </div>
-              {error && <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>}
-              <button onClick={crear} className="btn-gold w-full">
-                Crear evento
-              </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gold-500/20 font-mono text-xs font-black text-gold-300">
+                        {idx + 1}
+                      </span>
+                      {existente && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            activo
+                              ? 'bg-gold-500 text-navy-950'
+                              : 'bg-emerald-500/15 text-emerald-300'
+                          }`}
+                        >
+                          {activo ? 'Activa' : 'Creada'}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-3 text-sm font-bold text-white">{item.titulo}</p>
+                    <p className="mt-1 flex-1 text-[11px] leading-relaxed text-navy-300">{item.descripcion}</p>
+                    {existente ? (
+                      <button
+                        onClick={() => void seleccionarEvento(existente.id)}
+                        disabled={activo}
+                        className={`mt-3 w-full rounded-xl px-4 py-2 text-xs font-bold transition disabled:cursor-default ${
+                          activo
+                            ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30'
+                            : 'bg-gold-500 text-navy-900 hover:bg-gold-400'
+                        }`}
+                      >
+                        {activo ? '✓ Esta es la etapa activa' : 'Abrir etapa'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => void crearEtapa(item)}
+                        disabled={!!creando}
+                        className="mt-3 w-full rounded-xl bg-gold-500 px-4 py-2 text-xs font-bold text-navy-900 transition hover:bg-gold-400 disabled:opacity-60"
+                      >
+                        {creandoEsta ? 'Creando…' : '+ Crear etapa'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </Section>
         </>

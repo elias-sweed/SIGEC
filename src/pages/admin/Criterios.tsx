@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
 import { SectionSkeleton } from '../../components/Skeleton'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
 import { logConsulta, logError } from '../../utils/devlog'
-import { CRITERIOS_OFICIALES } from '../../constants/criteriosOficiales'
+import { CRITERIOS_OFICIALES, ETAPAS } from '../../constants/criteriosOficiales'
 import type { Criterio } from '../../types/database'
 
 const PUNTOS_RUBRICA = 100
@@ -200,7 +200,17 @@ export default function Criterios() {
   const [criterioEditar, setCriterioEditar] = useState<Criterio | null>(null)
   const [confirmarEliminar, setConfirmarEliminar] = useState<Criterio | null>(null)
 
-  const etapa = evento?.etapa ?? ''
+  // Etapa seleccionada en el panel de Criterios (independiente del evento activo):
+  // permite preparar las rúbricas de todas las etapas y cambiar entre ellas.
+  const [etapaSel, setEtapaSel] = useState<string>(ETAPAS[0])
+
+  // Al cambiar de evento activo, se salta a su etapa para ver sus criterios.
+  useEffect(() => {
+    const e = evento?.etapa
+    if (e && ETAPAS.includes(e as (typeof ETAPAS)[number])) setEtapaSel(e)
+  }, [evento?.etapa])
+
+  const etapa = etapaSel
   const criteriosEtapa = [...criterios.filter((c) => c.etapa === etapa)].sort(
     (a, b) => a.orden - b.orden,
   )
@@ -353,8 +363,27 @@ export default function Criterios() {
       <PanelHeader
         eyebrow="Configuración"
         title="Criterios de evaluación"
-        description="Administra la rúbrica oficial: agrega, edita o elimina criterios. Los criterios de desempate no cuentan dentro de los 100 pts."
+        description="Administra la rúbrica por etapas: elige una etapa y agrega, edita o elimina sus criterios. Cada etapa tiene sus propios criterios separados. Los criterios de desempate no cuentan dentro de los 100 pts."
       />
+
+      {/* Selector de etapa: cada etapa guarda sus propios criterios */}
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-navy-900/60 p-3">
+        <span className="text-xs font-semibold uppercase tracking-widest text-navy-400">Etapa:</span>
+        {ETAPAS.map((e) => (
+          <button
+            key={e}
+            onClick={() => setEtapaSel(e)}
+            disabled={cargandoInicial}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              etapaSel === e
+                ? 'bg-gold-500 text-navy-900'
+                : 'bg-navy-800 text-navy-300 hover:bg-navy-700'
+            }`}
+          >
+            {e}
+          </button>
+        ))}
+      </div>
 
       {!etapa ? (
         <p className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 text-sm text-navy-400">
@@ -366,8 +395,8 @@ export default function Criterios() {
             <SectionSkeleton rows={4} />
           ) : (
           <Section
-            titulo="Rúbrica de la etapa"
-            descripcion={`Etapa actual: ${etapa}`}
+            titulo="Criterios de la etapa"
+            descripcion={`Etapa: ${etapa} · los criterios de esta etapa se guardan aquí`}
             completado={criteriosEtapa.length > 0}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">

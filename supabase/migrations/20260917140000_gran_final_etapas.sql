@@ -78,7 +78,16 @@ on conflict (etapa, orden) do update
       puntaje_maximo = excluded.puntaje_maximo,
       indicadores    = excluded.indicadores;
 
--- Reglamentos breves por ronda
+-- Reglamentos breves por ronda.
+-- La tabla reglamento_etapa viene de la migración 20260901110000; se crea aquí
+-- (si no existe) para que este script sea autocontenible.
+create table if not exists public.reglamento_etapa (
+  id uuid primary key default gen_random_uuid(),
+  etapa text not null unique,
+  contenido text not null,
+  updated_at timestamptz not null default now()
+);
+
 insert into public.reglamento_etapa (etapa, contenido) values
   ('GRAN FINAL · 1 · COREOGRAFÍA',
    E'Ronda de apertura de la Gran Final 18/09/26.\n\nLa candidata participa en la coreografía grupal de apertura. El jurado evalúa: coordinación, desenvolvimiento, expresión corporal, seguridad y actitud escénica. (5 criterios × 20 = 100 pts)'),

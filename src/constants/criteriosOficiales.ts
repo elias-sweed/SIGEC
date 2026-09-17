@@ -4,117 +4,190 @@ export interface CriterioOficial {
   indicadores: string
 }
 
-export const CRITERIOS_OFICIALES: Record<string, CriterioOficial[]> = {
-  'ETAPA 1 · COREOGRAFÍA': [
+// Un bloque es un grupo de criterios. El evento es la ceremonia (etapa);
+// dentro de un evento puede haber varios bloques (p. ej. las 3 rondas de la final).
+export interface BloqueOficial {
+  bloque: string
+  criterios: CriterioOficial[]
+}
+
+// Las 2 únicas etapas (ceremonias) del certamen. No agregar más.
+export const ETAPAS = ['PRIMERA ETAPA 04/09/26', 'SEGUNDA ETAPA 18/09/26'] as const
+
+// Orden lógico de los bloques para mostrarlos siempre igual.
+const PRIORIDAD_BLOQUES = ['General', 'Coreografía', 'Talento', 'Gala y preguntas']
+
+export function ordenarBloques(bloques: readonly string[]): string[] {
+  return [...new Set(bloques)].sort((a, b) => {
+    const ia = PRIORIDAD_BLOQUES.indexOf(a)
+    const ib = PRIORIDAD_BLOQUES.indexOf(b)
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+  })
+}
+
+export function bloquesDeEtapa(etapa: string): string[] {
+  return (CRITERIOS_OFICIALES[etapa] ?? []).map((b) => b.bloque)
+}
+
+export const CRITERIOS_OFICIALES: Record<string, BloqueOficial[]> = {
+  'PRIMERA ETAPA 04/09/26': [
     {
-      nombre: 'Coordinación',
-      puntaje_maximo: 20,
-      indicadores:
-        'Ejecuta los movimientos de la coreografía con sincronización y ritmo junto al grupo, sin fallas evidentes.',
-    },
-    {
-      nombre: 'Desenvolvimiento',
-      puntaje_maximo: 20,
-      indicadores:
-        'Se desplaza con soltura por el escenario, domina los espacios y mantiene la línea de la figura durante la presentación.',
-    },
-    {
-      nombre: 'Expresión corporal',
-      puntaje_maximo: 20,
-      indicadores:
-        'Comunica con el cuerpo y la gestualidad; los movimientos transmiten la intención de la coreografía.',
-    },
-    {
-      nombre: 'Seguridad',
-      puntaje_maximo: 20,
-      indicadores:
-        'Demuestra confianza y control en cada paso, sin titubeos, manteniendo la naturalidad durante toda la apertura.',
-    },
-    {
-      nombre: 'Actitud escénica',
-      puntaje_maximo: 20,
-      indicadores:
-        'Proyecta energía, carisma y presencia ante el público y el jurado durante la coreografía grupal.',
+      bloque: 'General',
+      criterios: [
+        {
+          nombre: 'Presentación y porte',
+          puntaje_maximo: 15,
+          indicadores:
+            'Presentación adecuada con el uniforme institucional; postura, seguridad, naturalidad y desenvolvimiento durante el desfile.',
+        },
+        {
+          nombre: 'Desenvolvimiento en la coreografía, actitud y carisma',
+          puntaje_maximo: 15,
+          indicadores:
+            'Coordinación, expresión corporal, seguridad, ritmo e integración con la presentación grupal.',
+        },
+        {
+          nombre: 'Dominio del tema',
+          puntaje_maximo: 25,
+          indicadores:
+            'Evidencia conocimiento y comprensión del tema planteado: bullying, ambiente, drogadicción o uso de recursos tecnológicos.',
+        },
+        {
+          nombre: 'Capacidad de expresión y argumentación',
+          puntaje_maximo: 25,
+          indicadores:
+            'Responde con claridad, coherencia y fluidez; fundamenta sus ideas y comunica un mensaje pertinente.',
+        },
+        {
+          nombre: 'Actitud y carisma',
+          puntaje_maximo: 10,
+          indicadores:
+            'Demuestra seguridad, respeto, espontaneidad, simpatía y capacidad para proyectarse positivamente ante el público.',
+        },
+        {
+          nombre: 'Participación de la barra',
+          puntaje_maximo: 10,
+          indicadores:
+            'Organización, creatividad y entusiasmo de la barra, respetando las normas de convivencia.',
+        },
+      ],
     },
   ],
-  'ETAPA 2 · TALENTO': [
+  'SEGUNDA ETAPA 18/09/26': [
     {
-      nombre: 'Dominio y demostración del talento',
-      puntaje_maximo: 20,
-      indicadores: 'Evidencia habilidad y preparación en la disciplina seleccionada.',
+      // Ronda grupal de apertura (baile general)
+      bloque: 'Coreografía',
+      criterios: [
+        {
+          nombre: 'Coordinación',
+          puntaje_maximo: 20,
+          indicadores:
+            'Ejecuta los movimientos de la coreografía con sincronización y ritmo junto al grupo, sin fallas evidentes.',
+        },
+        {
+          nombre: 'Desenvolvimiento',
+          puntaje_maximo: 20,
+          indicadores:
+            'Se desplaza con soltura por el escenario, domina los espacios y mantiene la línea de la figura durante la presentación.',
+        },
+        {
+          nombre: 'Expresión corporal',
+          puntaje_maximo: 20,
+          indicadores:
+            'Comunica con el cuerpo y la gestualidad; los movimientos transmiten la intención de la coreografía.',
+        },
+        {
+          nombre: 'Seguridad',
+          puntaje_maximo: 20,
+          indicadores:
+            'Demuestra confianza y control en cada paso, sin titubeos, manteniendo la naturalidad durante toda la apertura.',
+        },
+        {
+          nombre: 'Actitud escénica',
+          puntaje_maximo: 20,
+          indicadores:
+            'Proyecta energía, carisma y presencia ante el público y el jurado durante la coreografía grupal.',
+        },
+      ],
     },
     {
-      nombre: 'Creatividad y originalidad',
-      puntaje_maximo: 20,
-      indicadores: 'Presenta su talento de manera auténtica, innovadora y atractiva.',
+      // Ronda individual de talento (máx. 2 minutos)
+      bloque: 'Talento',
+      criterios: [
+        {
+          nombre: 'Dominio y demostración del talento',
+          puntaje_maximo: 20,
+          indicadores: 'Evidencia habilidad y preparación en la disciplina seleccionada.',
+        },
+        {
+          nombre: 'Creatividad y originalidad',
+          puntaje_maximo: 20,
+          indicadores: 'Presenta su talento de manera auténtica, innovadora y atractiva.',
+        },
+        {
+          nombre: 'Expresión y desenvolvimiento escénico',
+          puntaje_maximo: 20,
+          indicadores:
+            'Demuestra seguridad, naturalidad, expresividad y adecuado manejo del escenario.',
+        },
+        {
+          nombre: 'Impacto de la presentación',
+          puntaje_maximo: 20,
+          indicadores: 'Logra captar y mantener la atención del público y del jurado.',
+        },
+        {
+          nombre: 'Organización y cumplimiento del tiempo',
+          puntaje_maximo: 20,
+          indicadores:
+            'Desarrolla su presentación de manera ordenada y dentro del tiempo (2 min. máx.) establecido.',
+        },
+      ],
     },
     {
-      nombre: 'Expresión y desenvolvimiento escénico',
-      puntaje_maximo: 20,
-      indicadores:
-        'Demuestra seguridad, naturalidad, expresividad y adecuado manejo del escenario.',
-    },
-    {
-      nombre: 'Impacto de la presentación',
-      puntaje_maximo: 20,
-      indicadores: 'Logra captar y mantener la atención del público y del jurado.',
-    },
-    {
-      nombre: 'Organización y cumplimiento del tiempo',
-      puntaje_maximo: 20,
-      indicadores:
-        'Desarrolla su presentación de manera ordenada y dentro del tiempo (2.30 min. máx.) establecido.',
-    },
-  ],
-  'ETAPA 3 · GALA Y PREGUNTAS': [
-    {
-      nombre: 'Porte y elegancia en traje de gala',
-      puntaje_maximo: 15,
-      indicadores:
-        'Postura, presencia escénica, elegancia y manera de lucir el traje durante el recorrido.',
-    },
-    {
-      nombre: 'Seguridad y desenvolvimiento escénico',
-      puntaje_maximo: 10,
-      indicadores:
-        'Confianza, naturalidad, dominio del escenario y actitud durante la pasarela.',
-    },
-    {
-      nombre: 'Expresión corporal y comunicación no verbal',
-      puntaje_maximo: 10,
-      indicadores: 'Manejo de gestos, mirada, postura y movimientos acordes con la presentación.',
-    },
-    {
-      nombre: 'Claridad y coherencia de la respuesta',
-      puntaje_maximo: 15,
-      indicadores:
-        'Expresa sus ideas de manera ordenada, comprensible y directamente relacionada con la pregunta formulada.',
-    },
-    {
-      nombre: 'Capacidad de análisis y argumentación',
-      puntaje_maximo: 20,
-      indicadores:
-        'Fundamenta su opinión, demuestra criterio propio, reflexión y capacidad para sustentar sus ideas.',
-    },
-    {
-      nombre: 'Expresión oral y seguridad en la respuesta',
-      puntaje_maximo: 15,
-      indicadores:
-        'Fluidez, dicción, tono de voz, seguridad y espontaneidad al responder.',
-    },
-    {
-      nombre: 'Participación de la barra',
-      puntaje_maximo: 10,
-      indicadores:
-        'Organización, creatividad y entusiasmo de la barra, respetando las normas de convivencia.',
+      // Desfile en traje de gala + ronda de preguntas final
+      bloque: 'Gala y preguntas',
+      criterios: [
+        {
+          nombre: 'Porte y elegancia en traje de gala',
+          puntaje_maximo: 15,
+          indicadores:
+            'Postura, presencia escénica, elegancia y manera de lucir el traje durante el recorrido.',
+        },
+        {
+          nombre: 'Seguridad y desenvolvimiento escénico',
+          puntaje_maximo: 15,
+          indicadores:
+            'Confianza, naturalidad, dominio del escenario y actitud durante la pasarela.',
+        },
+        {
+          nombre: 'Expresión corporal y comunicación no verbal',
+          puntaje_maximo: 10,
+          indicadores: 'Manejo de gestos, mirada, postura y movimientos acordes con la presentación.',
+        },
+        {
+          nombre: 'Claridad y coherencia de la respuesta',
+          puntaje_maximo: 15,
+          indicadores:
+            'Expresa sus ideas de manera ordenada, comprensible y directamente relacionada con la pregunta formulada.',
+        },
+        {
+          nombre: 'Capacidad de análisis y argumentación',
+          puntaje_maximo: 20,
+          indicadores:
+            'Fundamenta su opinión, demuestra criterio propio, reflexión y capacidad para sustentar sus ideas.',
+        },
+        {
+          nombre: 'Expresión oral y seguridad en la respuesta',
+          puntaje_maximo: 15,
+          indicadores: 'Fluidez, dicción, tono de voz, seguridad y espontaneidad al responder.',
+        },
+        {
+          nombre: 'Participación de la barra',
+          puntaje_maximo: 10,
+          indicadores:
+            'Organización, creatividad y entusiasmo de la barra, respetando las normas de convivencia.',
+        },
+      ],
     },
   ],
 }
-
-// Las 3 únicas etapas de la Gran Final: grupal (coreografía), individual (talento)
-// y gala con preguntas.
-export const ETAPAS = [
-  'ETAPA 1 · COREOGRAFÍA',
-  'ETAPA 2 · TALENTO',
-  'ETAPA 3 · GALA Y PREGUNTAS',
-] as const

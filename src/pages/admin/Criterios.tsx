@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
 import { SectionSkeleton } from '../../components/Skeleton'
 import { usePanelData } from '../../context/PanelDataContext'
 import { getSupabase } from '../../lib/supabase'
 import { logConsulta, logError } from '../../utils/devlog'
-import { CRITERIOS_OFICIALES, ETAPAS } from '../../constants/criteriosOficiales'
+import { CRITERIOS_OFICIALES, ETAPAS, bloquesDeEtapa, ordenarBloques } from '../../constants/criteriosOficiales'
 import type { Criterio } from '../../types/database'
 
 const PUNTOS_RUBRICA = 100
@@ -203,6 +203,8 @@ export default function Criterios() {
   // Etapa seleccionada en el panel de Criterios (independiente del evento activo):
   // permite preparar las rúbricas de todas las etapas y cambiar entre ellas.
   const [etapaSel, setEtapaSel] = useState<string>(ETAPAS[0])
+  // Bloque dentro de la etapa: las 3 rondas de la final son bloques de criterios.
+  const [bloqueSel, setBloqueSel] = useState<string>('General')
 
   // Al cambiar de evento activo, se salta a su etapa para ver sus criterios.
   useEffect(() => {
@@ -211,14 +213,32 @@ export default function Criterios() {
   }, [evento?.etapa])
 
   const etapa = etapaSel
-  const criteriosEtapa = [...criterios.filter((c) => c.etapa === etapa)].sort(
-    (a, b) => a.orden - b.orden,
+
+  // Bloques de la etapa: los oficiales más los que ya existan en la base.
+  const bloques = useMemo(
+    () =>
+      ordenarBloques([
+        ...bloquesDeEtapa(etapa),
+        ...criterios.filter((c) => c.etapa === etapa).map((c) => c.bloque),
+      ]),
+    [etapa, criterios],
   )
+
+  // Si el bloque elegido ya no existe en la etapa, se pasa al primero.
+  useEffect(() => {
+    setBloqueSel((prev) => (bloques.includes(prev) ? prev : (bloques[0] ?? 'General')))
+  }, [bloques])
+
+  const criteriosEtapa = [
+    ...criterios.filter((c) => c.etapa === etapa && c.bloque === bloqueSel),
+  ].sort((a, b) => a.orden - b.orden)
   const criteriosBase = criteriosEtapa.filter((c) => !c.es_desempate)
   const criteriosDesempate = criteriosEtapa.filter((c) => c.es_desempate)
   const totalBase = criteriosBase.reduce((suma, c) => suma + c.puntaje_maximo, 0)
   const totalDesempate = criteriosDesempate.reduce((suma, c) => suma + c.puntaje_maximo, 0)
-  const oficiales = CRITERIOS_OFICIALES[etapa]
+  const oficiales = (CRITERIOS_OFICIALES[etapa] ?? []).find(
+    (b) => b.bloque === bloqueSel,
+  )?.criterios
   const reglamento = reglamentos.find((r) => r.etapa === etapa)?.contenido ?? null
 
   const estadoTexto =
@@ -255,12 +275,13 @@ export default function Criterios() {
     const { error } = await supabase.from('criterios').upsert(
       oficiales.map((c, i) => ({
         etapa,
+        bloque: bloqueSel,
         nombre: c.nombre,
         puntaje_maximo: c.puntaje_maximo,
         indicadores: c.indicadores,
         orden: i + 1,
       })),
-      { onConflict: 'etapa,orden' },
+      { onConflict: 'etapa,bloque,orden' },
     )
     if (error) logError('cargar criterios', error.message)
     setCargando(false)
@@ -302,6 +323,7 @@ export default function Criterios() {
       logConsulta(`Panel: agregar criterio "${datos.nombre}" (orden ${orden})`)
       const { error } = await supabase.from('criterios').insert({
         etapa,
+        bloque: bloqueSel,
         nombre: datos.nombre,
         puntaje_maximo: datos.puntaje_maximo,
         indicadores: datos.indicadores,
@@ -363,7 +385,7 @@ export default function Criterios() {
       <PanelHeader
         eyebrow="Configuración"
         title="Criterios de evaluación"
-        description="Administra la rúbrica por etapas: elige una etapa y agrega, edita o elimina sus criterios. Cada etapa tiene sus propios criterios separados. Los criterios de desempate no cuentan dentro de los 100 pts."
+        description="Administra la rúbrica por etapas y bloques: elige la etapa (Primera o Final) y, en la final, la ronda (coreografía, talento o gala y preguntas). Cada bloque guarda sus propios criterios. Los criterios de desempate no cuentan dentro de los 100 pts."
       />
 
       {/* Selector de etapa: cada etapa guarda sus propios criterios */}
@@ -385,6 +407,27 @@ export default function Criterios() {
         ))}
       </div>
 
+      {/* Selector de bloque: las rondas de la final son bloques de criterios */}
+      {bloques.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-navy-900/60 p-3">
+          <span className="text-xs font-semibold uppercase tracking-widest text-navy-400">Ronda:</span>
+          {bloques.map((b) => (
+            <button
+              key={b}
+              onClick={() => setBloqueSel(b)}
+              disabled={cargandoInicial}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                bloqueSel === b
+                  ? 'bg-gold-500 text-navy-900'
+                  : 'bg-navy-800 text-navy-300 hover:bg-navy-700'
+              }`}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
+      )}
+
       {!etapa ? (
         <p className="rounded-2xl border border-white/10 bg-navy-900/70 p-6 text-sm text-navy-400">
           Primero crea el evento para definir la etapa.
@@ -395,8 +438,8 @@ export default function Criterios() {
             <SectionSkeleton rows={4} />
           ) : (
           <Section
-            titulo="Criterios de la etapa"
-            descripcion={`Etapa: ${etapa} · los criterios de esta etapa se guardan aquí`}
+            titulo="Criterios del bloque"
+            descripcion={`${etapa} · ${bloqueSel} — los criterios de este bloque se guardan aquí`}
             completado={criteriosEtapa.length > 0}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -604,6 +647,7 @@ export default function Criterios() {
               Se eliminará{' '}
               <strong className="text-white">"{confirmarEliminar.nombre}"</strong> de la etapa{' '}
               <strong className="text-gold-300">{confirmarEliminar.etapa}</strong>{' '}
+              (<span className="text-gold-300">{confirmarEliminar.bloque}</span>){' '}
               {confirmarEliminar.es_desempate && (
                 <span className="text-gold-300">(criterio de desempate)</span>
               )}

@@ -34,6 +34,7 @@ export interface Jurado {
 export interface Criterio {
   id: string
   etapa: string
+  bloque: string
   nombre: string
   puntaje_maximo: number
   indicadores: string | null

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import PanelHeader from '../../components/admin/PanelHeader'
 import Section from '../../components/admin/Section'
 import ReiniciarCertamenModal from '../../components/admin/ReiniciarCertamenModal'
+import PagosVotacion from '../../components/admin/PagosVotacion'
 import { usePanelData } from '../../context/PanelDataContext'
 import { SectionSkeleton } from '../../components/Skeleton'
 import { getSupabase } from '../../lib/supabase'
@@ -658,6 +659,9 @@ export default function Resumen() {
           </ul>
         )}
       </Section>
+
+      {/* Votación pública: pagos Yape y votos extra */}
+      <PagosVotacion />
         </>
       )}
 

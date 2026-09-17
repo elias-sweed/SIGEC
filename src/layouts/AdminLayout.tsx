@@ -99,6 +99,15 @@ function AdminLayoutContent() {
         </svg>
       ),
     },
+    {
+      ruta: '/panel/mesas',
+      etiqueta: 'Mesas de cobro',
+      icono: (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="h-4 w-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15M2.25 12a9.75 9.75 0 1119.5 0 9.75 9.75 0 01-19.5 0z" />
+        </svg>
+      ),
+    },
   ]
 
   const totalActivados = jurados.filter((j) => j.activado).length

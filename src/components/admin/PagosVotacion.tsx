@@ -10,6 +10,7 @@ import {
   type PagoConVotante,
 } from '../../services/votacion.service'
 import { registrarAccion } from '../../utils/auditLog'
+import { normalizarNumeroYape, urlQRYape } from '../../utils/yape'
 import { logError } from '../../utils/devlog'
 
 function fechaCorta(iso: string): string {
@@ -41,6 +42,9 @@ export default function PagosVotacion() {
   const [operando, setOperando] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<'todos' | 'pendiente' | 'verificado' | 'rechazado'>('todos')
+  const [yapeNumero, setYapeNumero] = useState('')
+  const [yapeTitular, setYapeTitular] = useState('')
+  const [yapeBanco, setYapeBanco] = useState('BCP')
 
   const cargar = useCallback(async () => {
     if (!eventoId) {
@@ -56,6 +60,9 @@ export default function PagosVotacion() {
       ])
       setConfig(cfg)
       setPagos(lista)
+      setYapeNumero(cfg?.yape_numero ?? '')
+      setYapeTitular(cfg?.yape_titular ?? '')
+      setYapeBanco(cfg?.yape_banco ?? 'BCP')
     } catch (err) {
       logError('PagosVotacion.cargar', err instanceof Error ? err.message : String(err))
       setError('No se pudieron cargar los pagos de votación.')
@@ -79,6 +86,33 @@ export default function PagosVotacion() {
         'Operador',
         'votacion_config',
         `Configuración de votación actualizada: ${JSON.stringify(cambios)}`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setOperando(null)
+    }
+  }
+
+  const guardarYape = async () => {
+    if (!eventoId) return
+    if (normalizarNumeroYape(yapeNumero).length < 13) {
+      setError('Ingresa un número Yape válido: debe tener los 9 dígitos del celular.')
+      return
+    }
+    setOperando('yape')
+    setError(null)
+    try {
+      await actualizarConfigVotacion(eventoId, {
+        yape_numero: normalizarNumeroYape(yapeNumero),
+        yape_titular: yapeTitular.trim() || null,
+        yape_banco: yapeBanco.trim() || 'BCP',
+      })
+      await cargar()
+      await registrarAccion(
+        'Operador',
+        'votacion_yape',
+        `Número Yape actualizado a ${normalizarNumeroYape(yapeNumero)} (${yapeTitular.trim() || 'sin titular'}, ${yapeBanco})`,
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -178,6 +212,86 @@ export default function PagosVotacion() {
             <p className="mt-0.5 text-xs text-navy-300/80">
               {config.votos_por_pago} voto{config.votos_por_pago === 1 ? '' : 's'} por pago
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Configuración de cobro Yape */}
+      {config && (
+        <div className="mt-5 rounded-2xl border border-white/10 bg-navy-800/40 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-white">QR Yape de cobro</p>
+              <p className="mt-0.5 text-xs text-navy-300/80">
+                Escribe tu número Yape y el QR se genera solo (aparece en la pantalla del votante).
+              </p>
+            </div>
+            {urlQRYape(yapeNumero, yapeTitular, yapeBanco) && (
+              <img
+                src={urlQRYape(yapeNumero, yapeTitular, yapeBanco)}
+                alt="Vista previa QR Yape"
+                className="h-24 w-24 shrink-0 rounded-xl bg-white p-1"
+              />
+            )}
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-navy-400">
+                Número Yape (9 dígitos)
+              </span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={yapeNumero}
+                onChange={(e) => setYapeNumero(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                placeholder="987654321"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-navy-950 px-3 py-2 text-sm text-white outline-none transition focus:border-gold-500/60"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-navy-400">
+                Titular del Yape
+              </span>
+              <input
+                type="text"
+                value={yapeTitular}
+                onChange={(e) => setYapeTitular(e.target.value)}
+                placeholder="Nombre del dueño"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-navy-950 px-3 py-2 text-sm text-white outline-none transition focus:border-gold-500/60"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-navy-400">
+                Banco de la cuenta
+              </span>
+              <select
+                value={yapeBanco}
+                onChange={(e) => setYapeBanco(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-navy-950 px-3 py-2 text-sm text-white outline-none transition focus:border-gold-500/60"
+              >
+                <option value="BCP">BCP</option>
+                <option value="BBVA">BBVA</option>
+                <option value="INTERBANK">Interbank</option>
+                <option value="SCOTIABANK">Scotiabank</option>
+                <option value="BN">Banco de la Nación</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => void guardarYape()}
+              disabled={operando === 'yape'}
+              className="rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-bold text-navy-900 transition hover:bg-gold-400 disabled:opacity-50"
+            >
+              {operando === 'yape' ? 'Guardando…' : 'Guardar Yape'}
+            </button>
+            {normalizarNumeroYape(yapeNumero) && (
+              <p className="font-mono text-xs text-navy-200">
+                Se pagará a la cuenta <span className="font-bold text-gold-300">{normalizarNumeroYape(yapeNumero)}</span>
+              </p>
+            )}
           </div>
         </div>
       )}

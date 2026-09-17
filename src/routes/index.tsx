@@ -21,6 +21,7 @@ import Criterios from '../pages/admin/Criterios'
 import Conectados from '../pages/admin/Conectados'
 import Accesos from '../pages/admin/Accesos'
 import Evaluaciones from '../pages/admin/Evaluaciones'
+import Mesas from '../pages/admin/Mesas'
 
 export default function AppRoutes() {
   return (
@@ -64,6 +65,7 @@ export default function AppRoutes() {
           <Route path="conectados" element={<Conectados />} />
           <Route path="accesos" element={<Accesos />} />
           <Route path="evaluaciones" element={<Evaluaciones />} />
+          <Route path="mesas" element={<Mesas />} />
         </Route>
       </Route>
     </Routes>

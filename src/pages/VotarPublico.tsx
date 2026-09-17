@@ -9,6 +9,7 @@ import {
   type ResultadoVoto,
 } from '../services/votacion.service'
 import type { Candidata } from '../types/database'
+import { urlQRYape } from '../utils/yape'
 import { logError } from '../utils/devlog'
 import logo from '../assets/Logo/logo.png'
 
@@ -184,9 +185,16 @@ function ModalYape({
             ' para volver a votar.'}
         </p>
 
-        {config.yape_qr_url ? (
+        {urlQRYape(config.yape_numero, config.yape_titular, config.yape_banco) ? (
           <div className="mx-auto w-fit rounded-2xl bg-white p-3">
-            <img src={config.yape_qr_url} alt="QR Yape" className="h-44 w-44 rounded-xl object-contain" />
+            <img
+              src={urlQRYape(config.yape_numero, config.yape_titular, config.yape_banco)}
+              alt="QR Yape"
+              className="h-44 w-44 rounded-xl object-contain"
+            />
+            <p className="mt-1 max-w-[176px] truncate text-center text-[9px] font-semibold text-navy-800">
+              {config.yape_titular?.trim() || 'Cuenta Yape'}
+            </p>
           </div>
         ) : null}
 

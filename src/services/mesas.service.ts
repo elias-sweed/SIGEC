@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase'
+import { generarCodigoMesa } from '../utils/codigos'
 import { logError } from '../utils/devlog'
 
 export interface MesaCobro {
@@ -28,16 +29,7 @@ export interface PagoMesa {
   created_at: string
 }
 
-const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const KEY_SESION_MESA = 'sigec-mesa-sesion'
-
-export function generarCodigoMesa(longitud = 6): string {
-  let codigo = ''
-  for (let i = 0; i < longitud; i++) {
-    codigo += CHARS[Math.floor(Math.random() * CHARS.length)]
-  }
-  return codigo
-}
 
 /** Lista las mesas de cobro del evento (panel admin). */
 export async function listarMesas(eventoId: string): Promise<MesaCobro[]> {
@@ -87,6 +79,28 @@ export async function actualizarMesa(
     logError('mesas.actualizar', error.message)
     throw new Error(error.message)
   }
+}
+
+/** Genera un código nuevo único para la mesa (el anterior deja de servir). */
+export async function regenerarCodigoMesa(id: string, otrasMesas: MesaCobro[]): Promise<MesaCobro> {
+  const supabase = getSupabase()
+  for (let intento = 0; intento < 10; intento++) {
+    const codigo = generarCodigoMesa()
+    if (otrasMesas.some((m) => m.codigo === codigo)) continue
+    const { data, error } = await supabase
+      .from('mesas_cobro')
+      .update({ codigo })
+      .eq('id', id)
+      .select('*')
+      .single()
+    if (error) {
+      if (error.code === '23505') continue
+      logError('mesas.regenerar', error.message)
+      throw new Error(error.message)
+    }
+    return data as MesaCobro
+  }
+  throw new Error('No se pudo generar un código único para la mesa.')
 }
 
 export async function eliminarMesa(id: string): Promise<void> {

@@ -53,7 +53,8 @@ export interface ConfigVotacion {
   mensaje_bloqueo: string | null
   mensaje_exito: string | null
   yape_numero: string | null
-  yape_qr_url: string | null
+  yape_titular: string | null
+  yape_banco: string | null
   updated_at: string
 }
 
@@ -89,7 +90,8 @@ function configPorDefecto(eventoId: string): ConfigVotacion {
     mensaje_bloqueo: null,
     mensaje_exito: null,
     yape_numero: '',
-    yape_qr_url: '',
+    yape_titular: '',
+    yape_banco: 'BCP',
     updated_at: '',
   }
 }
@@ -278,7 +280,12 @@ export async function rechazarPagoYape(pagoId: string): Promise<void> {
 /** Activa/desactiva la votación pública del evento (solo admin). */
 export async function actualizarConfigVotacion(
   eventoId: string,
-  cambios: Partial<Pick<ConfigVotacion, 'habilitada' | 'auto_verificar_pagos' | 'monto_por_pago' | 'votos_por_pago' | 'yape_numero' | 'yape_qr_url'>>,
+  cambios: Partial<
+    Pick<
+      ConfigVotacion,
+      'habilitada' | 'auto_verificar_pagos' | 'monto_por_pago' | 'votos_por_pago' | 'yape_numero' | 'yape_titular' | 'yape_banco'
+    >
+  >,
 ): Promise<void> {
   const supabase = getSupabase()
   const { data: existente } = await supabase

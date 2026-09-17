@@ -22,6 +22,11 @@ export function generarCodigoJurado(): string {
   return `JUR-${generarFragmento(6)}`
 }
 
+/** Código corto para la mesa de cobro (el cobrador lo escribe a mano en /mesa). */
+export function generarCodigoMesa(): string {
+  return generarFragmento(6)
+}
+
 /** Token largo y aleatorio para el enlace del QR (no revela el código del jurado). */
 export function generarTokenAcceso(): string {
   return generarFragmento(32)

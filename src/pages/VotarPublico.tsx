@@ -250,6 +250,58 @@ function ModalYape({
   )
 }
 
+/* ─── Pantalla de aviso previo (acuerdo de votación) ─────────────────── */
+
+const KEY_ACUERDO = 'sigec-votar-acuerdo'
+
+function PantallaAcuerdo({ onAceptar, onRechazar }: { onAceptar: () => void; onRechazar: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-navy-950/90 p-4 backdrop-blur-md sm:items-center">
+      <div className="w-full max-w-md space-y-4 rounded-3xl border border-gold-500/40 bg-navy-900 p-6 shadow-2xl shadow-gold-500/20 animate-fade-in">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <img src={logo} alt="Logo" className="h-14 w-14 rounded-xl object-contain ring-1 ring-gold-500/40" />
+          <p className="text-xl font-bold text-white">Votación Popular</p>
+          <p className="text-sm text-navy-300">Antes de empezar, lee cómo funciona:</p>
+        </div>
+
+        <div className="grid gap-3">
+          <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4">
+            <p className="text-sm font-black uppercase tracking-wide text-emerald-300">1er voto · Gratis</p>
+            <p className="mt-1 text-sm text-navy-200">
+              Totalmente <span className="font-bold text-white">GRATIS</span>. Solo puedes votar gratis{' '}
+              <span className="font-bold text-white">1 vez por dispositivo</span> (celular o computadora).
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gold-400/40 bg-gold-500/10 p-4">
+            <p className="text-sm font-black uppercase tracking-wide text-gold-300">2º voto · S/ 2.00</p>
+            <p className="mt-1 text-sm text-navy-200">
+              Si quieres votar por una segunda candidata, tiene un costo de{' '}
+              <span className="font-black text-gold-300">S/ 2.00</span> y se paga por{' '}
+              <span className="font-bold text-white">Yape</span> al instante.
+            </p>
+            <p className="mt-1 text-[11px] text-navy-300">
+              Acércate a las mesas de cobro disponibles para realizar tu pago.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={onAceptar}
+          className="w-full rounded-xl bg-gold-500 px-6 py-3 text-base font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98]"
+        >
+          Acepto y deseo votar →
+        </button>
+        <button
+          onClick={onRechazar}
+          className="w-full rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-navy-200 transition hover:bg-white/5 hover:text-white"
+        >
+          No deseo participar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Modal: voto emitido con éxito ──────────────────────────────────── */
 
 function ModalExito({ resultado, config, onClose }: { resultado: ResultadoVoto; config: ConfigVotacion; onClose: () => void }) {
@@ -307,6 +359,26 @@ export default function VotarPublico() {
   const [candidataSel, setCandidataSel] = useState<Candidata | null>(null)
   const [ultimoVoto, setUltimoVoto] = useState<ResultadoVoto | null>(null)
   const [mensaje, setMensaje] = useState<Mensaje | null>(null)
+  const [acuerdo, setAcuerdo] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(KEY_ACUERDO) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  const aceptarAcuerdo = () => {
+    try {
+      window.localStorage.setItem(KEY_ACUERDO, '1')
+    } catch {
+      /* sin almacenamiento */
+    }
+    setAcuerdo(true)
+  }
+
+  const rechazarAcuerdo = () => {
+    window.location.href = 'https://www.google.com'
+  }
 
   const recargarEstado = useCallback(async () => {
     if (!eventoId) return
@@ -561,6 +633,9 @@ export default function VotarPublico() {
       {ultimoVoto && config && (
         <ModalExito resultado={ultimoVoto} config={config} onClose={() => setUltimoVoto(null)} />
       )}
+
+      {/* Pantalla de aviso previo */}
+      {!acuerdo && <PantallaAcuerdo onAceptar={aceptarAcuerdo} onRechazar={rechazarAcuerdo} />}
     </div>
   )
 }

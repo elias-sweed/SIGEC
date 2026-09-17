@@ -1,65 +1,54 @@
 import { getSupabase } from '../lib/supabase'
 import { logConsulta, logError } from '../utils/devlog'
 
+const FILTRO_TODO = '00000000-0000-0000-0000-000000000000'
+
 /**
- * Reinicia SOLO el evento indicado: borra sus evaluaciones, sus detalles y
- * vuelve a "preparando" su estado. Los demás eventos y los datos compartidos
- * (candidatas, jurados, criterios) NUNCA se tocan: cada evento guarda sus
- * propias evaluaciones por evento_id, de modo que al volver a él se recuperan.
+ * Reinicia TODO el certamen dejando solo los eventos (las etapas creadas).
+ * No importa qué etapa esté seleccionada: es un borrado GLOBAL de todos los
+ * datos — jurados, candidatas, criterios, evaluaciones, reglamentos, estado
+ * de cada evento, votación pública y auditoría. Los eventos conservan su
+ * nombre y etapa; su estado vuelve a "preparando" para arrancar de cero.
  */
-export async function resetEvento(eventoId: string): Promise<void> {
+export async function resetCertamen(): Promise<void> {
   const supabase = getSupabase()
 
-  logConsulta(`resetEvento: limpiar evaluaciones del evento ${eventoId}`)
+  // Orden que respeta las claves foráneas:
+  //  · evaluacion_detalles.criterio_id -> criterios SIN cascade (primero)
+  //  · estado_evento.candidata_actual_id -> candidatas SIN cascade (antes)
+  //  · votos_publico / pagos_yape antes de votantes y candidatas
+  const tablas: Array<{ tabla: string; detalle: string }> = [
+    { tabla: 'evaluacion_detalles', detalle: 'detalles de evaluación' },
+    { tabla: 'votos_publico', detalle: 'votos del público' },
+    { tabla: 'pagos_yape', detalle: 'pagos Yape' },
+    { tabla: 'estado_evento', detalle: 'estado de los eventos' },
+    { tabla: 'evaluaciones', detalle: 'evaluaciones' },
+    { tabla: 'config_votacion', detalle: 'configuración de votación' },
+    { tabla: 'candidatas', detalle: 'candidatas' },
+    { tabla: 'jurados', detalle: 'jurados' },
+    { tabla: 'criterios', detalle: 'criterios de evaluación' },
+    { tabla: 'votantes', detalle: 'votantes' },
+    { tabla: 'reglamento_etapa', detalle: 'reglamentos' },
+    { tabla: 'auditoria', detalle: 'auditoría' },
+  ]
 
-  // 1) Detalles de las evaluaciones de ESTE evento (primero, por FK)
-  const { data: evals } = await supabase
-    .from('evaluaciones')
-    .select('id')
-    .eq('evento_id', eventoId)
-  const ids = (evals ?? []).map((e) => e.id as string)
-  if (ids.length > 0) {
-    const { error } = await supabase
-      .from('evaluacion_detalles')
-      .delete()
-      .in('evaluacion_id', ids)
+  for (const { tabla, detalle } of tablas) {
+    logConsulta(`resetCertamen: limpiando ${tabla} (${detalle})`)
+    const { error } = await supabase.from(tabla).delete().neq('id', FILTRO_TODO)
     if (error) {
-      logError('resetEvento', `detalles: ${error.message}`)
-      throw new Error(`No se pudieron limpiar los detalles: ${error.message}`)
+      logError('resetCertamen', `${tabla}: ${error.message}`)
+      throw new Error(`No se pudieron limpiar ${detalle}: ${error.message}`)
     }
   }
 
-  // 2) Evaluaciones de ESTE evento
-  const { error: errEval } = await supabase.from('evaluaciones').delete().eq('evento_id', eventoId)
-  if (errEval) {
-    logError('resetEvento', `evaluaciones: ${errEval.message}`)
-    throw new Error(`No se pudieron limpiar las evaluaciones: ${errEval.message}`)
-  }
-
-  // 3) Estado de ESTE evento: se recrea en "preparando" para que la pantalla
-  //    se QUEDE en este evento (si se borrara, el sistema caería al primero).
-  const { error: errEstado } = await supabase.from('estado_evento').upsert(
-    {
-      evento_id: eventoId,
-      estado: 'preparando',
-      candidata_actual_id: null,
-      modo_ensayo: false,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'evento_id' },
-  )
-  if (errEstado) {
-    logError('resetEvento', `estado_evento: ${errEstado.message}`)
-    throw new Error(`No se pudo limpiar el estado: ${errEstado.message}`)
-  }
-
-  // 4) El evento vuelve a "preparando"
+  // Los eventos quedan, pero vuelven a "preparando" para reiniciar la operación.
+  logConsulta('resetCertamen: eventos -> estado preparando')
   const { error: errEvento } = await supabase
     .from('eventos')
     .update({ estado: 'preparando' })
-    .eq('id', eventoId)
+    .neq('id', FILTRO_TODO)
   if (errEvento) {
-    logError('resetEvento', `evento: ${errEvento.message}`)
-    throw new Error(`No se pudo reiniciar el evento: ${errEvento.message}`)
+    logError('resetCertamen', `eventos: ${errEvento.message}`)
+    throw new Error(`No se pudieron reiniciar los eventos: ${errEvento.message}`)
   }
 }

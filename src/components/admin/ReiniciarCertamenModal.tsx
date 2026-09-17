@@ -62,9 +62,9 @@ export default function ReiniciarCertamenModal({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-red-400">
-              Reinicio del evento activo
+              Reinicio total del certamen
             </p>
-            <h2 className="mt-1 text-xl font-bold text-white">Reiniciar evento</h2>
+            <h2 className="mt-1 text-xl font-bold text-white">Reiniciar certamen</h2>
           </div>
           <button
             onClick={onCerrar}
@@ -75,9 +75,10 @@ export default function ReiniciarCertamenModal({
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-navy-300">
-          Se limpiarán las <span className="font-bold text-red-300">evaluaciones y el estado del
-          evento activo</span>: ese evento queda como recién creado.{' '}
-          <b>Los demás eventos conservan todos sus datos y candidatas, jurados y criterios no se tocan.</b>{' '}
+          Independientemente de la etapa seleccionada, se eliminarán{' '}
+          <span className="font-bold text-red-300">todas las evaluaciones, jurados, candidatas,
+          criterios, reglamentos, votación del público y auditoría</span> de todas las etapas.{' '}
+          <b>Los eventos (las etapas creadas) se conservan y vuelven a "preparando".</b>{' '}
           Esto no se puede deshacer.
         </p>
 
@@ -129,13 +130,14 @@ export default function ReiniciarCertamenModal({
           ) : (
             <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-center">
               <p className="text-sm font-semibold text-red-200">
-                Contraseña verificada. Si continúas se reiniciará el evento activo (los demás no se tocan).
+                Contraseña verificada. Si continúas se borrarán todos los datos del certamen y solo
+                quedarán los eventos, en "preparando".
               </p>
               <button
                 onClick={() => void confirmar()}
                 className="mt-3 w-full rounded-xl border border-red-500 bg-red-600 px-4 py-3 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-red-500 active:scale-[0.98]"
               >
-                ⚠ Reiniciar evento (solo el activo)
+                ⚠ Reiniciar certamen (borra todos los datos)
               </button>
             </div>
           )}

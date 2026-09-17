@@ -74,6 +74,13 @@ export interface ResultadoVoto {
   bloqueado: boolean
 }
 
+export interface ConteoVotosCandidata {
+  candidata_id: string
+  total: number
+  gratis: number
+  pagados: number
+}
+
 export type TipoVoto = 'gratis' | 'pago'
 
 function configPorDefecto(eventoId: string): ConfigVotacion {
@@ -83,7 +90,7 @@ function configPorDefecto(eventoId: string): ConfigVotacion {
     habilitada: false,
     voto_gratis_por_dispositivo: 1,
     votos_por_pago: 1,
-    monto_por_pago: 3,
+    monto_por_pago: 2,
     mensaje_bloqueo: null,
     mensaje_exito: null,
     yape_numero: '',
@@ -162,6 +169,26 @@ export async function registrarVotante(input: {
   }
 
   const ip = await obtenerIPPublica()
+
+  // Bloqueo por IP: solo 1 voto gratis por (evento + red/IP pública). Captura
+  // el caso de copiar el link a otro celular en la misma red/WiFi: como el
+  // segundo votante tiene el mismo IP, su voto gratis queda bloqueado y solo
+  // se desbloquea pagando exactamente el monto configurado. (La huella de
+  // dispositivo ya bloquea al mismo celular aunque use VPN o modo incógnito.)
+  if (ip !== 'ip:desconocida') {
+    const { data: mismaRed } = await supabase
+      .from('votantes')
+      .select('id')
+      .eq('evento_id', input.eventoId)
+      .eq('ip', ip)
+      .maybeSingle()
+    if (mismaRed) {
+      throw new Error(
+        'Esta red ya registró su voto gratis en este evento. Para votar de nuevo Yapea exactamente el monto indicado desde este dispositivo.',
+      )
+    }
+  }
+
   const { data, error } = await supabase
     .from('votantes')
     .insert({
@@ -332,6 +359,18 @@ export async function registrarPagoYape(input: {
     throw new Error('El monto del pago no es válido.')
   }
 
+  // Validación estricta del monto: el pago desbloquea votos SOLO si se Yapeó
+  // exactamente el monto configurado (S/ 2.00). Un Yape de 0.10 o cualquier
+  // otro valor no deja continuar: ese abono no vale y el voto no se libera.
+  const config = await consultarConfiguracion(input.eventoId)
+  const coincide = Math.abs(input.monto - config.monto_por_pago) < 0.005
+  const requiereMonto = config.monto_por_pago > 0
+  if (requiereMonto && !coincide) {
+    throw new Error(
+      `El monto debe ser exactamente S/ ${config.monto_por_pago.toFixed(2)}. Si Yapeaste otro monto, ese abono no desbloquea votos: vuelve a Yapear exactamente S/ ${config.monto_por_pago.toFixed(2)} para poder seguir votando.`,
+    )
+  }
+
   logConsulta('votacion: registrar pago Yape', {
     votante: input.votanteId,
     numero: input.numeroOperacion,
@@ -354,4 +393,35 @@ export async function registrarPagoYape(input: {
     throw error
   }
   return data as PagoYape
+}
+
+/** Conteo de votos públicos por candidata (categoría aparte de la evaluación de jurados). */
+export async function contarVotosPublicos(eventoId: string): Promise<ConteoVotosCandidata[]> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('votos_publico')
+    .select('candidata_id, tipo')
+    .eq('evento_id', eventoId)
+
+  if (error) {
+    logError('votacion.contarVotos', error.message)
+    return []
+  }
+
+  const porCandidata = new Map<string, ConteoVotosCandidata>()
+  for (const v of (data ?? []) as Array<{ candidata_id: string; tipo: string }>) {
+    const actual: ConteoVotosCandidata = porCandidata.get(v.candidata_id) ?? {
+      candidata_id: v.candidata_id,
+      total: 0,
+      gratis: 0,
+      pagados: 0,
+    }
+    actual.total += 1
+    if (v.tipo === 'pago') actual.pagados += 1
+    else actual.gratis += 1
+    porCandidata.set(v.candidata_id, actual)
+  }
+
+  return [...porCandidata.values()].sort((a, b) => b.total - a.total)
 }

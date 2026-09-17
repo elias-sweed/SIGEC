@@ -140,10 +140,11 @@ function ModalYape({
 }: {
   abierto: boolean
   config: ConfigVotacion
-  onConfirm: (numeroOperacion: string) => Promise<void>
+  onConfirm: (numeroOperacion: string, monto: number) => Promise<void>
   onClose: () => void
 }) {
   const [operacion, setOperacion] = useState('')
+  const [monto, setMonto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   usarEscape(onClose)
@@ -151,18 +152,27 @@ function ModalYape({
   useEffect(() => {
     if (abierto) {
       setOperacion('')
+      setMonto('')
       setError(null)
     }
   }, [abierto])
 
   if (!abierto) return null
 
+  const montoNum = Number(monto)
+  const montoValido =
+    !Number.isNaN(montoNum) && Math.abs(montoNum - config.monto_por_pago) < 0.005
+
   const confirmar = async () => {
     if (enviando) return
+    if (!montoValido) {
+      setError(`El monto debe ser exactamente S/ ${config.monto_por_pago.toFixed(2)}.`)
+      return
+    }
     setError(null)
     setEnviando(true)
     try {
-      await onConfirm(operacion)
+      await onConfirm(operacion, montoNum)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -181,7 +191,7 @@ function ModalYape({
       >
         <p className="text-lg font-bold text-white">🔒 Desbloquea más votos</p>
         <p className="text-sm text-navy-300">
-          {config.mensaje_bloqueo ?? 'Ya usaste tu voto gratis en este evento desde este dispositivo.'}
+          {config.mensaje_bloqueo ?? 'Ya usaste tu voto gratis en este evento desde este dispositivo o red.'}
         </p>
 
         {config.yape_qr_url ? (
@@ -193,7 +203,7 @@ function ModalYape({
         {config.yape_numero ? (
           <div className="rounded-xl border border-gold-500/30 bg-navy-950 p-4">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-navy-400">
-              Paga a este número Yape
+              Paga exactamente S/ {config.monto_por_pago.toFixed(2)} a este número Yape
             </p>
             <p className="mt-1 font-mono text-2xl font-black tracking-wider text-gold-300">
               {config.yape_numero}
@@ -206,16 +216,44 @@ function ModalYape({
         )}
 
         <p className="text-sm font-semibold text-white">
-          Por S/ {config.monto_por_pago} obtienes {config.votos_por_pago}{' '}
-          {config.votos_por_pago === 1 ? 'voto extra' : 'votos extra'}.
+          Por exactamente S/ {config.monto_por_pago.toFixed(2)} obtienes{' '}
+          {config.votos_por_pago} {config.votos_por_pago === 1 ? 'voto extra' : 'votos extra'}.
         </p>
+
+        <div>
+          <label className="mb-1 block text-left text-xs font-semibold uppercase tracking-wider text-navy-400">
+            Monto exacto Yapeado (S/)
+          </label>
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={0.01}
+            placeholder={`S/ ${config.monto_por_pago.toFixed(2)}`}
+            value={monto}
+            onChange={(e) => {
+              setMonto(e.target.value)
+              setError(null)
+            }}
+            className="w-full rounded-xl border border-white/10 bg-navy-950 px-4 py-3 text-white placeholder-navy-500 outline-none transition focus:border-gold-500/60"
+          />
+          {monto.trim() !== '' && !montoValido && (
+            <p className="mt-1 text-left text-[11px] font-semibold text-red-400">
+              Debe ser exactamente S/ {config.monto_por_pago.toFixed(2)}. Si Yapeaste otro monto (ej. 0.10),
+              ese abono no se aplica: haz un nuevo Yape por el monto exacto.
+            </p>
+          )}
+        </div>
 
         <input
           type="text"
           inputMode="numeric"
           placeholder="Número de operación Yape"
           value={operacion}
-          onChange={(e) => setOperacion(e.target.value)}
+          onChange={(e) => {
+            setOperacion(e.target.value)
+            setError(null)
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') void confirmar()
           }}
@@ -224,14 +262,15 @@ function ModalYape({
         {error && <p className="text-sm font-semibold text-red-400">{error}</p>}
         <button
           onClick={confirmar}
-          disabled={enviando || !operacion.trim()}
+          disabled={enviando || !operacion.trim() || !montoValido}
           className="w-full rounded-xl bg-gold-500 px-6 py-3 text-base font-bold text-navy-900 transition hover:bg-gold-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {enviando ? 'Registrando pago…' : 'Registrar pago y desbloquear'}
         </button>
         <p className="text-[11px] text-navy-400">
-          La verificación es manual. Cuando tu pago esté verificado, podrás votar los votos extra
-          desde este dispositivo.
+          Solo se acepta el monto exacto (S/ {config.monto_por_pago.toFixed(2)}). La verificación es
+          manual: cuando tu pago esté verificado podrás votar los votos extra desde este
+          dispositivo.
         </p>
       </div>
     </div>
@@ -374,22 +413,36 @@ export default function VotarPublico() {
 
   const confirmarCorreo = async (email: string) => {
     if (!eventoId || !candidataSel) return
-    await registrarVotante({ eventoId, email })
-    await emitirGratis(candidataSel.id)
-    setPaso(null)
-    setCandidataSel(null)
+    try {
+      await registrarVotante({ eventoId, email })
+      await emitirGratis(candidataSel.id)
+      setPaso(null)
+      setCandidataSel(null)
+    } catch (err) {
+      const texto = err instanceof Error ? err.message : String(err)
+      // Misma red con voto gratis ya registrado: se redirige a desbloquear con Yape.
+      if (/red ya registr/i.test(texto)) {
+        setPaso('yape')
+        setMensaje({
+          tipo: 'error',
+          texto: 'Esta red ya usó su voto gratis. Yapea exactamente el monto indicado para votar de nuevo.',
+        })
+        return
+      }
+      throw err
+    }
   }
 
-  const confirmarPago = async (numeroOperacion: string) => {
+  const confirmarPago = async (numeroOperacion: string, monto: number) => {
     if (!eventoId || !estado?.votante || !config) return
     await registrarPagoYape({
       votanteId: estado.votante.id,
       eventoId,
-      monto: config.monto_por_pago,
+      monto,
       numeroOperacion,
     })
     setPaso(null)
-    setMensaje({ tipo: 'exito', texto: 'Pago registrado. Cuando esté verificado podrás votar de nuevo.' })
+    setMensaje({ tipo: 'exito', texto: `Pago de S/ ${monto.toFixed(2)} registrado. Cuando esté verificado podrás votar de nuevo.` })
     await recargarEstado()
   }
 
@@ -447,7 +500,7 @@ export default function VotarPublico() {
         {estado?.bloqueado && estado.registrado && (
           <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-300">
             Ya agotaste tus votos gratis en este evento. Toca una candidata para desbloquear más con
-            Yape.
+            Yape, pagando el monto exacto.
           </div>
         )}
 
@@ -501,7 +554,7 @@ export default function VotarPublico() {
         )}
 
         <p className="mt-8 text-center text-[11px] text-navy-500">
-          1 voto gratis por dispositivo · El voto es electrónico y se registra automáticamente
+          1 voto gratis por dispositivo y red · Votos extra con Yape (monto exacto) · Voto electrónico con registro automático
         </p>
       </div>
 

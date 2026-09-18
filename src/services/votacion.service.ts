@@ -277,6 +277,30 @@ export async function rechazarPagoYape(pagoId: string): Promise<void> {
   }
 }
 
+/** Cuenta los votos de interacción (votación QR) emitidos por candidata en el evento. */
+export async function contarVotosPorCandidata(
+  eventoId: string,
+): Promise<Array<{ candidata_id: string; votos: number }>> {
+  if (!eventoId) return []
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('votos_publico')
+    .select('candidata_id')
+    .eq('evento_id', eventoId)
+
+  if (error) {
+    logError('votacion.contar', error.message)
+    return []
+  }
+
+  const conteo = new Map<string, number>()
+  for (const fila of (data ?? []) as Array<{ candidata_id: string }>) {
+    conteo.set(fila.candidata_id, (conteo.get(fila.candidata_id) ?? 0) + 1)
+  }
+  return Array.from(conteo, ([candidata_id, votos]) => ({ candidata_id, votos }))
+}
+
 /** Activa/desactiva la votación pública del evento (solo admin). */
 export async function actualizarConfigVotacion(
   eventoId: string,

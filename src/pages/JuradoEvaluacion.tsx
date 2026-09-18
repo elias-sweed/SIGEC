@@ -7,6 +7,7 @@ import { calcularTotales } from '../utils/scoring'
 import { logConsulta, logFilas, logError } from '../utils/devlog'
 import { leerSesionJurado, limpiarSesionJurado } from '../utils/session'
 import ScoreSlider from '../components/event/ScoreSlider'
+import Prism from '../components/effects/Prism'
 import { ordenarCandidatas } from '../components/public/CandidatasGrid'
 import { ordenarBloques } from '../constants/criteriosOficiales'
 import type { Candidata, Criterio, Jurado } from '../types/database'
@@ -341,7 +342,21 @@ export default function JuradoEvaluacion() {
   ).length
 
   return (
-    <div className="min-h-screen bg-navy-950 pb-28">
+    <div className="relative min-h-screen overflow-hidden bg-navy-950 pb-28">
+      {/* Fondo Prism decorativo para toda la zona del jurado */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
+        <Prism
+          animationType="rotate"
+          timeScale={0.5}
+          height={3.5}
+          baseWidth={5.5}
+          scale={3.6}
+          hueShift={0}
+          colorFrequency={1}
+          noise={0}
+          glow={1}
+        />
+      </div>
       {/* Encabezado compacto */}
       <header className="sticky top-0 z-40 border-b border-white/10 bg-navy-950/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
@@ -369,7 +384,7 @@ export default function JuradoEvaluacion() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 pt-4">
+      <main className="relative z-10 mx-auto max-w-5xl px-4 pt-4">
         {!evento ? (
           <div className="rounded-2xl border border-white/10 bg-navy-900/70 p-8 text-center">
             <p className="text-sm text-navy-300">No hay un evento activo para evaluar.</p>

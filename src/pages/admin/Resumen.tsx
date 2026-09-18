@@ -248,29 +248,50 @@ export default function Resumen() {
     setOperando(false)
   }
 
+  // Flujo lineal del certamen: cada control solo se habilita en su momento exacto.
+  const FLUJO: EventState[] = [
+    'preparando',
+    'evaluando',
+    'esperando_jurados',
+    'resultados_listos',
+    'publicado',
+  ]
+  const indiceFlujo = FLUJO.indexOf(estadoActual)
+  const indiceDe = (s: EventState) => FLUJO.indexOf(s)
+
   const botones: BotonConsola[] = [
     {
       estado: 'evaluando',
       etiqueta: 'Iniciar Evaluación',
-      detalle: 'Habilita la puntuación de los jurados',
-      deshabilitado: estadoActual === 'evaluando' || !completo || operando,
+      detalle:
+        estadoActual === 'preparando'
+          ? completo
+            ? 'Habilita la puntuación de los jurados'
+            : 'Completa el checklist para habilitarlo'
+          : 'Solo se habilita antes de comenzar',
+      deshabilitado: estadoActual !== 'preparando' || !completo || operando,
       accion: () => void cambiarEstado('evaluando', false),
     },
     {
       estado: 'resultados_listos',
       etiqueta: 'Cerrar Evaluación',
-      detalle: respondieronTodos
-        ? 'Todos los jurados completaron sus evaluaciones — cierra y deja listo el cómputo'
-        : `Esperando ${jurados.length - respondidos} jurado${jurados.length - respondidos === 1 ? '' : 's'} por terminar (${respondidos}/${jurados.length})`,
+      detalle:
+        estadoActual !== 'evaluando'
+          ? 'Solo se habilita durante la evaluación'
+          : respondieronTodos
+            ? 'Todos los jurados completaron — cierra y deja listo el cómputo'
+            : `Esperando ${jurados.length - respondidos} jurado${jurados.length - respondidos === 1 ? '' : 's'} por terminar (${respondidos}/${jurados.length})`,
       deshabilitado: estadoActual !== 'evaluando' || !respondieronTodos || operando,
       accion: () => void cambiarEstado('resultados_listos', false),
     },
     {
       estado: 'publicado',
       etiqueta: 'Publicar Resultados',
-      detalle: 'Difunde el resultado en la pantalla pública',
-      deshabilitado:
-        (estadoActual !== 'evaluando' && estadoActual !== 'resultados_listos') || operando,
+      detalle:
+        estadoActual === 'resultados_listos'
+          ? 'Difunde el resultado en la pantalla pública'
+          : 'Se habilita recién al cerrar la evaluación',
+      deshabilitado: estadoActual !== 'resultados_listos' || operando,
       accion: () => void cambiarEstado('publicado', false),
     },
   ]
@@ -433,19 +454,37 @@ export default function Resumen() {
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {botones.map((b) => {
               const activo = estadoActual === b.estado
+              const superada = indiceDe(b.estado) < indiceFlujo
               const est = estiloBoton[b.estado]
               return (
                 <button
                   key={b.estado}
                   onClick={b.accion}
                   disabled={b.deshabilitado}
-                  className={`relative flex w-full flex-col items-start gap-1 rounded-2xl border px-4 py-4 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-35 disabled:saturate-50 ${
+                  title={b.deshabilitado ? b.detalle : b.etiqueta}
+                  className={`relative flex w-full flex-col items-start gap-1 rounded-2xl border px-4 py-4 text-left transition-all duration-200 disabled:cursor-not-allowed disabled:border-navy-600/40 disabled:bg-navy-900/40 disabled:text-navy-500 disabled:shadow-none disabled:saturate-0 disabled:hover:border-navy-600/40 disabled:hover:bg-navy-900/40 ${
                     activo ? est.activo : est.neutral
                   }`}
                 >
                   <span className="flex w-full items-center justify-between gap-2 text-sm font-bold uppercase tracking-wide">
                     <span className="truncate">{b.etiqueta}</span>
-                    {activo && <span className={`h-2 w-2 shrink-0 rounded-full ${est.dot} animate-pulse`} />}
+                    {activo && (
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${est.dot} animate-pulse`} />
+                    )}
+                    {!activo && superada && (
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="h-3 w-3">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                      </span>
+                    )}
+                    {!activo && !superada && b.deshabilitado && (
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-navy-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor" className="h-3.5 w-3.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                      </span>
+                    )}
                   </span>
                   <span className="text-xs font-medium opacity-75">{b.detalle}</span>
                 </button>

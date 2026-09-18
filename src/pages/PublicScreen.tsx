@@ -4,6 +4,8 @@ import { getSupabase } from '../lib/supabase'
 import { logError } from '../utils/devlog'
 import { useRealtime } from '../utils/realtime'
 import { calcularPromedioJurados, calcularTotales } from '../utils/scoring'
+import { contarVotosPorCandidata } from '../services/votacion.service'
+import { calcularPuntosInteraccion, PESO_INTERACCION } from '../utils/interaccion'
 import logo from '../assets/Logo/logo.png'
 import Aurora from '../components/effects/Aurora'
 import AuroraText from '../components/effects/AuroraText'
@@ -15,7 +17,11 @@ interface PodioItem {
   nombre: string
   grado: string
   seccion: string
+  foto: string | null
   promedio: number
+  interaccion: number
+  votos: number
+  total: number
 }
 
 // La coronación es el viernes a las 7:00 PM. Calculamos el próximo objetivo
@@ -152,37 +158,41 @@ export default function PublicScreen() {
         const crs = (crRes.data ?? []) as Criterio[]
         const desempateIds = new Set(crs.filter((c) => c.es_desempate).map((c) => c.id))
 
-        const porCandidata = candidatas.map((c) => {
-          const evalsC = evals.filter(
-            (e) => e.candidata_id === c.id && e.estado === 'completada' && !e.es_ensayo,
-          )
-          const bases = evalsC.map((ev) => {
-            const detsEv = dets
-              .filter((d) => d.evaluacion_id === ev.id)
-              .map((d) => ({ criterio_id: d.criterio_id, puntaje: Number(d.puntaje) }))
-            return calcularTotales(detsEv, desempateIds).base
-          })
-          return {
-            nombre: c.nombre,
-            grado: c.grado,
-            seccion: c.seccion,
-            promedio: calcularPromedioJurados(bases),
-          }
-        })
+        const conteo = await contarVotosPorCandidata(evento.id)
+        const interaccion = calcularPuntosInteraccion(conteo)
 
-        // 15 finalistas: los 3 de mejor promedio por cada grado (1-5)
-        const porGrado = new Map<string, PodioItem[]>()
-        for (const c of porCandidata) {
-          if (!porGrado.has(c.grado)) porGrado.set(c.grado, [])
-          porGrado.get(c.grado)!.push(c)
-        }
-        const finalistas: PodioItem[] = []
-        for (const g of ['1', '2', '3', '4', '5']) {
-          finalistas.push(
-            ...(porGrado.get(g) ?? []).sort((a, b) => b.promedio - a.promedio).slice(0, 3),
-          )
-        }
-        setPodio(finalistas)
+        const porCandidata = candidatas
+          .map((c) => {
+            const evalsC = evals.filter(
+              (e) => e.candidata_id === c.id && e.estado === 'completada' && !e.es_ensayo,
+            )
+            const bases = evalsC.map((ev) => {
+              const detsEv = dets
+                .filter((d) => d.evaluacion_id === ev.id)
+                .map((d) => ({ criterio_id: d.criterio_id, puntaje: Number(d.puntaje) }))
+              return calcularTotales(detsEv, desempateIds).base
+            })
+            const promedio = calcularPromedioJurados(bases)
+            const puntosExtra = interaccion.puntos[c.id] ?? 0
+            return {
+              nombre: c.nombre,
+              grado: c.grado,
+              seccion: c.seccion,
+              foto: c.foto_url,
+              promedio,
+              interaccion: puntosExtra,
+              votos: evalsC.length > 0 ? (interaccion.votos[c.id] ?? 0) : 0,
+              total: Math.round((promedio + puntosExtra) * 100) / 100,
+              evaluada: evalsC.length > 0,
+            }
+          })
+          .filter((p) => p.evaluada)
+
+        // Podio oficial: las 3 mejores por puntaje total (jurado + interacción)
+        const podioFinal = [...porCandidata]
+          .sort((a, b) => b.total - a.total)
+          .slice(0, 3)
+        setPodio(podioFinal)
       } catch (err) {
         logError('PublicScreen podium', err instanceof Error ? err.message : String(err))
       }
@@ -449,30 +459,19 @@ function EscenaEsperando({
   )
 }
 
-/* ─── Escena 4: Resultados (15 finalistas, 3 por grado) ───────────────── */
+/* ─── Escena 4: Resultados (podio oficial de las 3 ganadoras) ────────── */
 
-const GRADO_ORDEN = ['1', '2', '3', '4', '5']
-const COLORES_GRADO: Record<string, string> = {
-  '1': '#c9a227',
-  '2': '#5f7fae',
-  '3': '#5bb98b',
-  '4': '#b96b9c',
-  '5': '#a06fe0',
-}
-
-function agruparPorGrado(finalistas: PodioItem[]): Map<string, PodioItem[]> {
-  const map = new Map<string, PodioItem[]>()
-  for (const f of finalistas) {
-    const grupo = map.get(f.grado) ?? []
-    grupo.push(f)
-    map.set(f.grado, grupo)
-  }
-  return map
+function inicialesCandidata(nombre: string) {
+  return nombre
+    .trim()
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
 }
 
 function EscenaResultados({ podio }: { podio: PodioItem[] }) {
-  const porGrado = useMemo(() => agruparPorGrado(podio), [podio])
-
   if (podio.length === 0) {
     return (
       <div className="space-y-4 animate-fade-in">
@@ -482,196 +481,187 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
     )
   }
 
-  // Promedio por finalista (barras) y por grado (pastel)
-  const maxProm = Math.max(...podio.map((p) => p.promedio), 1)
-  const gradosPresentes = GRADO_ORDEN.filter((g) => porGrado.has(g))
-  const promPorGrado = gradosPresentes.map((g) => {
-    const grupo = porGrado.get(g)!
-    const prom = grupo.reduce((s, f) => s + f.promedio, 0) / grupo.length
-    return { grado: g, prom }
-  })
-  const totalPastel = promPorGrado.reduce((s, p) => s + p.prom, 0) || 1
+  const ganadora = podio[0]
+  const segunda = podio[1]
+  const tercera = podio[2]
+
+  // Orden visual del podio: 2º · 1º · 3º
+  const columnas = (
+    [
+      { p: segunda, lugar: 2 },
+      { p: ganadora, lugar: 1 },
+      { p: tercera, lugar: 3 },
+    ] as Array<{ p: PodioItem | undefined; lugar: number }>
+  ).filter((c): c is { p: PodioItem; lugar: number } => c.p !== undefined)
+
+  const datosLugar: Record<
+    number,
+    { corona: boolean; ring: string; barra: string; brillo: string; tamFoto: string; alturaBarra: string; texto: string; medalla: string }
+  > = {
+    1: {
+      corona: true,
+      ring: 'ring-gold-300/90',
+      barra: 'bg-linear-to-t from-gold-300 via-gold-500 to-gold-600',
+      brillo: 'shadow-[0_0_45px_rgba(223,191,98,0.4)]',
+      tamFoto: 'h-32 w-32 sm:h-44 sm:w-44',
+      alturaBarra: 'h-40 sm:h-56',
+      texto: 'text-gold-300',
+      medalla: 'bg-gold-500 text-navy-950',
+    },
+    2: {
+      corona: false,
+      ring: 'ring-slate-300/70',
+      barra: 'bg-linear-to-t from-slate-300 to-slate-500',
+      brillo: 'shadow-[0_0_30px_rgba(148,163,184,0.35)]',
+      tamFoto: 'h-24 w-24 sm:h-32 sm:w-32',
+      alturaBarra: 'h-32 sm:h-44',
+      texto: 'text-slate-200',
+      medalla: 'bg-slate-300 text-navy-950',
+    },
+    3: {
+      corona: false,
+      ring: 'ring-amber-600/70',
+      barra: 'bg-linear-to-t from-amber-500 to-amber-800',
+      brillo: 'shadow-[0_0_30px_rgba(217,119,6,0.35)]',
+      tamFoto: 'h-20 w-20 sm:h-28 sm:w-28',
+      alturaBarra: 'h-24 sm:h-32',
+      texto: 'text-amber-300',
+      medalla: 'bg-amber-700 text-white',
+    },
+  }
 
   return (
-    <div className="w-full max-w-6xl space-y-10 animate-fade-in">
+    <div className="w-full max-w-5xl space-y-10 animate-fade-in">
+      {/* Encabezado */}
       <div className="text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-purple-400">
-          Resultados del certamen
+        <p className="text-sm font-semibold uppercase tracking-[0.35em] text-gold-300">
+          Gran Final · Resultados oficiales
         </p>
-        <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">
-          15 finalistas{' '}
-          <span className="bg-linear-to-r from-gold-300 to-purple-300 bg-clip-text text-transparent">
-            (3 por grado)
-          </span>
-        </h2>
-        <p className="mt-1 text-sm text-navy-400">
-          Pasan a la etapa final los 3 mejores de cada grado, del 1° al 5°.
+        <h2 className="mt-2 text-4xl font-black text-white sm:text-5xl">El podio de la noche</h2>
+        <p className="mt-1 text-sm text-navy-300">
+          Jurado /100 + Interacción pública hasta {PESO_INTERACCION} pts
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.7fr_1fr]">
-        {/* Gráfico de barras: promedio por finalista */}
-        <div className="rounded-3xl border border-white/10 bg-navy-900/50 p-5 backdrop-blur">
-          <p className="mb-5 text-sm font-bold uppercase tracking-widest text-gold-300">
-            Promedio por finalista
-          </p>
-          <div className="grid grid-cols-5 gap-2 sm:gap-3">
-            {gradosPresentes.map((g) => (
-              <div key={g} className="flex flex-col gap-2">
-                {porGrado.get(g)!.map((f) => {
-                  const alto = Math.max(8, Math.round((f.promedio / maxProm) * 130))
-                  return (
-                    <div key={f.nombre} className="flex flex-col items-center gap-1">
-                      <span className="text-[10px] font-bold tabular-nums text-white">
-                        {f.promedio.toFixed(1)}
-                      </span>
-                      <div className="group relative flex w-full flex-col items-center">
-                        <div
-                          className="w-full rounded-t-lg transition-transform group-hover:scale-x-105"
-                          style={{
-                            height: `${alto}px`,
-                            background: `linear-gradient(to top, ${COLORES_GRADO[g]}cc, ${COLORES_GRADO[g]}55)`,
-                            boxShadow: `0 0 12px ${COLORES_GRADO[g]}55`,
-                          }}
-                        />
-                        {/* Tooltip al pasar el mouse: nombre y sección grandes */}
-                        <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-xl border border-white/20 bg-navy-950/95 px-3 py-2 text-center shadow-2xl backdrop-blur group-hover:block">
-                          <p className="text-sm font-bold text-white">{f.nombre}</p>
-                          <p className="text-xs font-semibold text-gold-300">
-                            {f.grado}º grado · Sección {f.seccion}
-                          </p>
-                        </div>
-                      </div>
-                      <span
-                        className="w-full truncate text-center text-[10px] font-semibold leading-tight text-navy-200"
-                        title={f.nombre}
-                      >
-                        {f.nombre}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex items-center justify-center gap-4">
-            {gradosPresentes.map((g) => (
-              <span key={g} className="flex items-center gap-1.5 text-[11px] font-semibold text-navy-200">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORES_GRADO[g] }} />
-                {g}° grado
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Gráfico de pastel (dona): distribución por grado */}
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-navy-900/50 p-5 backdrop-blur">
-          <p className="mb-3 self-start text-sm font-bold uppercase tracking-widest text-gold-300">
-            Distribución por grado
-          </p>
-          <svg viewBox="0 0 200 200" className="h-44 w-44">
-            <circle cx="100" cy="100" r="72" fill="none" stroke="#1b2740" strokeWidth="26" />
-            <g transform="rotate(-90 100 100)">
-              {promPorGrado.reduce<{ dash: number; offset: number; grado: string }[]>(
-                (acc, p) => {
-                  const dash = (p.prom / totalPastel) * 2 * Math.PI * 72
-                  const prev = acc[acc.length - 1]?.offset ?? 0
-                  acc.push({ dash, offset: prev - dash, grado: p.grado })
-                  return acc
-                },
-                [],
-              ).map((seg, i) => (
-                <circle
-                  key={i}
-                  cx="100"
-                  cy="100"
-                  r="72"
-                  fill="none"
-                  stroke={COLORES_GRADO[seg.grado]}
-                  strokeWidth="26"
-                  strokeDasharray={`${seg.dash} ${2 * Math.PI * 72 - seg.dash}`}
-                  strokeDashoffset={seg.offset}
-                />
-              ))}
-            </g>
-            <text x="100" y="96" textAnchor="middle" className="fill-white text-[26px] font-black">
-              15
-            </text>
-            <text x="100" y="118" textAnchor="middle" className="fill-navy-300 text-[11px] font-semibold">
-              finalistas
-            </text>
-          </svg>
-          <ul className="mt-4 w-full space-y-1.5">
-            {promPorGrado.map((p) => (
-              <li key={p.grado} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 font-semibold text-navy-200">
-                  <span className="h-3 w-3 rounded-full" style={{ background: COLORES_GRADO[p.grado] }} />
-                  {p.grado}° grado
-                </span>
-                <span className="font-bold tabular-nums text-white">{p.prom.toFixed(1)} pts</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Tarjetas de los 15 finalistas agrupadas por grado */}
-      <div className="space-y-8">
-        {gradosPresentes.map((g) => {
-          const grupo = porGrado.get(g)!
+      {/* Podio con fotos y barras */}
+      <div className="flex items-end justify-center gap-3 sm:gap-6">
+        {columnas.map(({ p, lugar }) => {
+          const d = datosLugar[lugar]
           return (
-            <div key={g} className="space-y-3">
-              <div className="flex items-center gap-3">
+            <div key={p.nombre} className="flex w-1/3 flex-col items-center">
+              {/* Foto sobre la barra */}
+              <div
+                className={`relative z-10 rounded-full bg-linear-to-b from-navy-800 to-navy-900 p-1.5 ring-2 ${d.ring} ${d.tamFoto} ${d.brillo} transition-transform duration-500`}
+              >
+                {d.corona && (
+                  <IconoCorona className="absolute -top-10 left-1/2 h-12 w-12 -translate-x-1/2 text-gold-300 drop-shadow-[0_0_15px_rgba(223,191,98,0.9)]" />
+                )}
+                {p.foto ? (
+                  <img
+                    src={p.foto}
+                    alt={p.nombre}
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className={`flex h-full w-full items-center justify-center rounded-full bg-linear-to-br ${
+                      lugar === 1
+                        ? 'from-gold-400 to-gold-600'
+                        : lugar === 2
+                          ? 'from-slate-300 to-slate-500'
+                          : 'from-amber-600 to-amber-800'
+                    } text-3xl font-black text-navy-950`}
+                  >
+                    {inicialesCandidata(p.nombre)}
+                  </div>
+                )}
                 <span
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-xl font-black text-navy-950"
-                  style={{ background: COLORES_GRADO[g] }}
+                  className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider ring-2 ring-navy-950 ${d.medalla}`}
                 >
-                  {g}°
+                  {lugar}º lugar
                 </span>
-                <h3 className="text-2xl font-black uppercase tracking-wider text-white">
-                  Grado {g}
-                </h3>
-                <span className="h-px flex-1 bg-linear-to-r from-white/25 to-transparent" />
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {grupo.map((f, i) => (
-                  <div
-                    key={f.nombre}
-                    className="flex flex-col items-center rounded-3xl border border-white/10 bg-navy-900/50 p-5 text-center backdrop-blur"
-                    style={{ boxShadow: `0 10px 30px -12px ${COLORES_GRADO[g]}66` }}
-                  >
-                    <span
-                      className="mb-2 rounded-full px-3 py-0.5 text-[11px] font-black uppercase tracking-widest text-navy-950"
-                      style={{ background: COLORES_GRADO[g] }}
-                    >
-                      {i === 0 ? '1º del grado' : i === 1 ? '2º del grado' : '3º del grado'}
+              {/* Nombre + datos */}
+              <div className="relative z-20 mt-5 text-center">
+                <p className={`text-lg font-black uppercase tracking-wide sm:text-2xl ${d.texto}`}>
+                  {p.nombre}
+                </p>
+                <p className="text-sm font-semibold text-white/80">
+                  {p.grado}° Grado · Sección {p.seccion}
+                </p>
+                <p className="mt-1 text-xs text-navy-300">
+                  Jurado <b className="text-white">{p.promedio.toFixed(1)}</b>
+                  {p.interaccion > 0 && (
+                    <>
+                      {' '}· Público{' '}
+                      <b className="text-sky-300">+{p.interaccion.toFixed(1)}</b>
+                    </>
+                  )}
+                  {p.votos > 0 && (
+                    <span className="text-navy-400">
+                      {' '}({p.votos} voto{p.votos === 1 ? '' : 's'})
                     </span>
-                    <span className="text-4xl font-black tabular-nums text-white">
-                      {f.promedio.toFixed(2)}
-                    </span>
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-navy-400">
-                      pts
-                    </span>
-                    <p className="mt-2 text-base font-bold text-white">{f.nombre}</p>
-                    {/* Grado y sección GRANDES y notorios */}
-                    <div className="mt-3 flex items-center gap-2">
-                      <span
-                        className="rounded-xl px-4 py-1.5 text-2xl font-black text-navy-950"
-                        style={{ background: COLORES_GRADO[g] }}
-                      >
-                        {g}°
-                      </span>
-                      <span className="rounded-xl border-2 border-white/20 px-4 py-1 text-2xl font-black text-white">
-                        Sección {f.seccion}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  )}
+                </p>
+              </div>
+
+              {/* Barra del lugar */}
+              <div
+                className={`mt-3 flex w-full flex-col items-center justify-end rounded-t-2xl pb-3 ${d.barra} ${d.alturaBarra} ${d.brillo}`}
+              >
+                <span className="text-3xl font-black tabular-nums text-white drop-shadow sm:text-4xl">
+                  {p.total.toFixed(1)}
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">
+                  {100 + PESO_INTERACCION} pts
+                </span>
               </div>
             </div>
           )
         })}
+      </div>
+
+      {/* Acta de lectura para el presentador */}
+      <div className="mx-auto w-full max-w-3xl rounded-3xl border border-gold-500/30 bg-navy-900/70 p-6 text-center backdrop-blur sm:p-8">
+        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-gold-300">
+          Acta · Lectura del presentador
+        </p>
+        <div className="mt-5 space-y-5 text-lg leading-relaxed text-white">
+          <p>
+            Dando por concluido el escrutinio del jurado y la interacción pública, presentamos a las
+            ganadoras de la Gran Final.
+          </p>
+          {tercera && (
+            <p>
+              En el <b className="text-amber-500">tercer lugar</b>, con{' '}
+              <b className="text-white">{tercera.total.toFixed(2)}</b> puntos:{' '}
+              <b className="text-amber-300">{tercera.nombre}</b>, del {tercera.grado}° grado,
+              sección {tercera.seccion}.
+            </p>
+          )}
+          {segunda && (
+            <p>
+              En el <b className="text-slate-300">segundo lugar</b>, con{' '}
+              <b className="text-white">{segunda.total.toFixed(2)}</b> puntos:{' '}
+              <b className="text-slate-200">{segunda.nombre}</b>, del {segunda.grado}° grado,
+              sección {segunda.seccion}.
+            </p>
+          )}
+          <p>
+            Y la <b className="text-gold-300">ganadora</b> de la corona, con{' '}
+            <b className="text-white">{ganadora.total.toFixed(2)}</b> puntos, es:{' '}
+            <b className="text-gold-200">{ganadora.nombre}</b>, del {ganadora.grado}° grado, sección{' '}
+            {ganadora.seccion}.
+          </p>
+          <p className="pt-2 text-2xl font-black sm:text-3xl">
+            ¡La corona de la{' '}
+            <span className="bg-linear-to-r from-gold-200 to-gold-500 bg-clip-text text-transparent">
+              Señorita Jiménez Pimentel 2026
+            </span>{' '}
+            es para {ganadora.nombre}!
+          </p>
+        </div>
       </div>
     </div>
   )

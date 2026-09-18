@@ -13,6 +13,7 @@ import { generarActaOficial } from '../../utils/actaPdf'
 import { exportarResultadosExcel } from '../../utils/exportExcel'
 import { descargarRespaldoJSON } from '../../utils/respaldo'
 import { EVENT_STATE_LABELS, EVENT_STATE_COLORS, type EventState } from '../../constants/eventStates'
+import { ordenarBloques } from '../../constants/criteriosOficiales'
 
 interface ItemChecklist {
   clave: string
@@ -106,9 +107,52 @@ export default function Resumen() {
           return respondidos >= totalCriteriosPorEval
         })
       : evaluacionesCompletas
+  // Bloques (rondas) del evento en su orden lógico: Coreografía → Talento → Gala.
+  const bloquesEvento = ordenarBloques(criteriosEtapa.map((c) => c.bloque))
+
   const progresoJurados = jurados.map((j) => {
     const completadas = completasReales.filter((ev) => ev.jurado_id === j.id).length
-    return { jurado: j, completadas, listo: totalCandidatas > 0 && completadas >= totalCandidatas }
+    const listo = totalCandidatas > 0 && completadas >= totalCandidatas
+    const pendientes = Math.max(0, totalCandidatas - completadas)
+    const candActual = candidatas.find((c) => c.id === j.candidata_actual_id) ?? null
+
+    // Ronda (bloque) en la que va con su candidata actual: el primer bloque que
+    // aún no respondió al 100% en la evaluación de esa candidata.
+    let rondaActual: string | null = null
+    let rondaRespondidos = 0
+    let rondaTotal = 0
+    if (candActual) {
+      const evalActual = evaluaciones.find(
+        (ev) => ev.candidata_id === candActual.id && ev.jurado_id === j.id && !ev.es_ensayo,
+      )
+      const ids = new Set<string>(
+        evalActual
+          ? detalles.filter((d) => d.evaluacion_id === evalActual.id).map((d) => d.criterio_id as string)
+          : [],
+      )
+      const bloque = bloquesEvento.find((b) =>
+        criteriosEtapa.some((c) => c.bloque === b && !ids.has(c.id)),
+      )
+      if (bloque) {
+        const crs = criteriosEtapa.filter((c) => c.bloque === bloque)
+        rondaActual = bloque
+        rondaRespondidos = crs.filter((c) => ids.has(c.id)).length
+        rondaTotal = crs.length
+      } else {
+        rondaActual = 'Revisando'
+      }
+    }
+
+    return {
+      jurado: j,
+      completadas,
+      listo,
+      pendientes,
+      candActual,
+      rondaActual,
+      rondaRespondidos,
+      rondaTotal,
+    }
   })
   const respondidos = progresoJurados.filter((p) => p.listo).length
   const respondieronTodos = jurados.length > 0 && respondidos === jurados.length
@@ -522,33 +566,140 @@ export default function Resumen() {
               Progreso de jurados
             </p>
             <p className="text-xs font-bold tabular-nums text-gold-300">
-              {respondidos} / {jurados.length} jurados completos
+              {respondidos} / {jurados.length} jurados al 100%
             </p>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-navy-800">
+
+          {/* Barra global: avance total entre todos los jurados */}
+          <div className="mt-2 h-3 overflow-hidden rounded-full bg-navy-800">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
-                respondieronTodos ? 'bg-emerald-500' : 'bg-gold-500'
+                respondieronTodos
+                  ? 'bg-emerald-500'
+                  : pctRespondidos > 0
+                    ? 'bg-linear-to-r from-gold-700 to-gold-400'
+                    : 'bg-navy-600'
               }`}
               style={{ width: `${pctRespondidos}%` }}
             />
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <p className="mt-1.5 text-[11px] text-navy-400">
+            Avance total: {Math.round(pctRespondidos)}% de evaluaciones completas ({respondidos} de{' '}
+            {jurados.length} jurados terminaron).
+          </p>
+
+          {/* Tarjetas por jurado */}
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
             {jurados.length === 0 ? (
-              <p className="text-xs text-navy-400/80">Registra jurados antes de iniciar.</p>
+              <p className="rounded-xl border border-dashed border-white/15 bg-navy-900/40 p-4 text-xs text-navy-400/80 md:col-span-2">
+                Registra jurados antes de iniciar para ver su progreso aquí.
+              </p>
             ) : (
-              progresoJurados.map((p) => (
-                <span key={p.jurado.id} className={`chip ${p.listo ? 'chip-ok' : 'chip-muted'}`}>
-                  <span className="font-mono">{p.jurado.codigo}</span>{' '}
-                  <span className="tabular-nums">
-                    {Math.min(p.completadas, totalCandidatas)}/{totalCandidatas}
-                  </span>{' '}
-                  {p.listo ? '✓' : '⏳'}
-                </span>
-              ))
+              progresoJurados.map((p) => {
+                const pct = totalCandidatas > 0 ? (p.completadas / totalCandidatas) * 100 : 0
+                return (
+                  <div
+                    key={p.jurado.id}
+                    className={`rounded-2xl border p-4 transition-colors ${
+                      p.listo
+                        ? 'border-emerald-500/30 bg-emerald-500/8'
+                        : p.completadas > 0
+                          ? 'border-amber-500/25 bg-amber-500/5'
+                          : 'border-white/10 bg-navy-800/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="font-mono text-xs font-black text-gold-300">
+                          {p.jurado.codigo}
+                        </span>
+                        <span className="truncate text-sm font-semibold text-white">
+                          {p.jurado.nombre}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className={`chip ${p.jurado.en_sesion ? 'chip-ok' : 'chip-muted'}`}>
+                          {p.jurado.en_sesion ? '● Conectado' : '○ Sin conexión'}
+                        </span>
+                        {p.jurado.activado ? (
+                          <span className="chip chip-ok">✔ Activado</span>
+                        ) : (
+                          <span className="chip chip-muted">Pendiente</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Barra individual del jurado */}
+                    <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-navy-800/80">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          p.listo
+                            ? 'bg-emerald-500'
+                            : p.completadas > 0
+                              ? 'bg-gold-500'
+                              : 'bg-navy-600'
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-navy-300">
+                        {p.listo ? (
+                          <span className="font-semibold text-emerald-300">
+                            ✓ Completó {p.completadas}/{totalCandidatas} candidatas
+                          </span>
+                        ) : (
+                          <>
+                            <b className="text-white">{p.completadas}</b>/{totalCandidatas} candidatas ·
+                            le faltan{' '}
+                            <b className={p.pendientes > 0 ? 'text-amber-300' : 'text-white'}>
+                              {p.pendientes}
+                            </b>
+                          </>
+                        )}
+                      </span>
+                      <span className="font-bold tabular-nums text-navy-200">{Math.round(pct)}%</span>
+                    </div>
+
+                    {/* Contexto: candidata actual + ronda */}
+                    {p.candActual ? (
+                      <p className="mt-2 truncate rounded-lg bg-navy-900/60 px-2.5 py-1.5 text-[11px] text-navy-200">
+                        Evaluando:{' '}
+                        <b className="text-white">{p.candActual.nombre}</b>
+                        <span className="text-navy-400">
+                          {' '}
+                          ({p.candActual.grado}° · {p.candActual.seccion})
+                        </span>
+                        {p.rondaActual && (
+                          <>
+                            {' '}
+                            · <span className="text-gold-300">Ronda {p.rondaActual}</span>
+                            {p.rondaTotal > 0 ? (
+                              <span className="text-navy-300">
+                                {' '}
+                                {p.rondaRespondidos}/{p.rondaTotal}
+                              </span>
+                            ) : null}
+                          </>
+                        )}
+                      </p>
+                    ) : p.listo ? (
+                      <p className="mt-2 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-300">
+                        ✓ Todas sus evaluaciones están completas
+                      </p>
+                    ) : (
+                      <p className="mt-2 rounded-lg bg-navy-900/50 px-2.5 py-1.5 text-[11px] text-navy-400">
+                        Esperando que empiece a evaluar…
+                      </p>
+                    )}
+                  </div>
+                )
+              })
             )}
           </div>
-          <p className="mt-3 text-[11px] text-navy-400">
+
+          <p className="mt-4 text-[11px] text-navy-400">
             Progreso real: una candidata cuenta como «evaluada» solo cuando el jurado respondió
             todos los criterios de la etapa ({totalCriteriosPorEval} crit.{' '}
             {totalCriteriosPorEval === 1 ? '' : 's'}). Las guardadas a medias no suman.

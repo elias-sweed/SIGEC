@@ -591,11 +591,11 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
                   {p.grado}° Grado · Sección {p.seccion}
                 </p>
                 <p className="mt-1 text-xs text-navy-300">
-                  Jurado <b className="text-white">{Math.round(p.promedio)}</b>
+                  Jurado <b className="text-white">{p.promedio.toFixed(1)}</b>
                   {p.interaccion > 0 && (
                     <>
                       {' '}· Público{' '}
-                      <b className="text-sky-300">+{Math.round(p.interaccion)}</b>
+                      <b className="text-sky-300">+{p.interaccion.toFixed(1)}</b>
                     </>
                   )}
                   {p.votos > 0 && (
@@ -611,7 +611,7 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
                 className={`mt-3 flex w-full flex-col items-center justify-end rounded-t-2xl pb-3 ${d.barra} ${d.alturaBarra} ${d.brillo}`}
               >
                 <span className="text-3xl font-black tabular-nums text-white drop-shadow sm:text-4xl">
-                  {Math.round(p.total)}
+                  {p.total.toFixed(1)}
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">
                   {100 + PESO_INTERACCION} pts
@@ -635,7 +635,7 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
           {tercera && (
             <p>
               En el <b className="text-amber-500">tercer lugar</b>, con{' '}
-              <b className="text-white">{Math.round(tercera.total)}</b> puntos:{' '}
+              <b className="text-white">{tercera.total.toFixed(2)}</b> puntos:{' '}
               <b className="text-amber-300">{tercera.nombre}</b>, del {tercera.grado}° grado,
               sección {tercera.seccion}.
             </p>
@@ -643,14 +643,14 @@ function EscenaResultados({ podio }: { podio: PodioItem[] }) {
           {segunda && (
             <p>
               En el <b className="text-slate-300">segundo lugar</b>, con{' '}
-              <b className="text-white">{Math.round(segunda.total)}</b> puntos:{' '}
+              <b className="text-white">{segunda.total.toFixed(2)}</b> puntos:{' '}
               <b className="text-slate-200">{segunda.nombre}</b>, del {segunda.grado}° grado,
               sección {segunda.seccion}.
             </p>
           )}
           <p>
             Y la <b className="text-gold-300">ganadora</b> de la corona, con{' '}
-            <b className="text-white">{Math.round(ganadora.total)}</b> puntos, es:{' '}
+            <b className="text-white">{ganadora.total.toFixed(2)}</b> puntos, es:{' '}
             <b className="text-gold-200">{ganadora.nombre}</b>, del {ganadora.grado}° grado, sección{' '}
             {ganadora.seccion}.
           </p>

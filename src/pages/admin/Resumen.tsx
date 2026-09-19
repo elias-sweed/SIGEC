@@ -72,6 +72,7 @@ export default function Resumen() {
   const [resetAbierto, setResetAbierto] = useState(false)
   const [exportando, setExportando] = useState(false)
   const [ahora, setAhora] = useState(() => new Date())
+  const [forzarCierre, setForzarCierre] = useState(false)
 
   useEffect(() => {
     const reloj = setInterval(() => setAhora(new Date()), 1000)
@@ -109,6 +110,16 @@ export default function Resumen() {
       : evaluacionesCompletas
   // Bloques (rondas) del evento en su orden lógico: Coreografía → Talento → Gala.
   const bloquesEvento = ordenarBloques(criteriosEtapa.map((c) => c.bloque))
+
+  // Solo cuentan los jurados que realmente participan en este evento: los que
+  // están vinculados a este evento o ya emitieron alguna evaluación aquí.
+  // Evita que un jurado "legacy" (sin evento) o duplicado bloquee el cierre.
+  const juradosOperativos = jurados.filter(
+    (j) =>
+      j.evento_id === evento?.id ||
+      evaluacionesCompletas.some((ev) => ev.jurado_id === j.id),
+  )
+  const juradosBase = juradosOperativos.length > 0 ? juradosOperativos : jurados
 
   const progresoJurados = jurados.map((j) => {
     const completadas = completasReales.filter((ev) => ev.jurado_id === j.id).length
@@ -154,12 +165,23 @@ export default function Resumen() {
       rondaTotal,
     }
   })
-  const respondidos = progresoJurados.filter((p) => p.listo).length
-  const respondieronTodos = jurados.length > 0 && respondidos === jurados.length
+  const respondidos = progresoJurados
+    .filter((p) => juradosBase.some((jb) => jb.id === p.jurado.id) && p.listo)
+    .length
+  const respondieronTodos =
+    juradosBase.length > 0 && respondidos === juradosBase.length
   const pctRespondidos =
-    jurados.length > 0 && totalCandidatas > 0
-      ? (progresoJurados.reduce((s, p) => s + Math.min(p.completadas, totalCandidatas), 0) /
-          (jurados.length * totalCandidatas)) *
+    juradosBase.length > 0 && totalCandidatas > 0
+      ? (juradosBase.reduce(
+          (s, jb) =>
+            s +
+            Math.min(
+              completasReales.filter((ev) => ev.jurado_id === jb.id).length,
+              totalCandidatas,
+            ),
+          0,
+        ) /
+          (juradosBase.length * totalCandidatas)) *
         100
       : 0
 
@@ -318,14 +340,17 @@ export default function Resumen() {
     },
     {
       estado: 'resultados_listos',
-      etiqueta: 'Cerrar Evaluación',
+      etiqueta: forzarCierre ? 'Cerrar Evaluación (manual)' : 'Cerrar Evaluación',
       detalle:
         estadoActual !== 'evaluando'
           ? 'Solo se habilita durante la evaluación'
           : respondieronTodos
             ? 'Todos los jurados completaron — cierra y deja listo el cómputo'
-            : `Esperando ${jurados.length - respondidos} jurado${jurados.length - respondidos === 1 ? '' : 's'} por terminar (${respondidos}/${jurados.length})`,
-      deshabilitado: estadoActual !== 'evaluando' || !respondieronTodos || operando,
+            : forzarCierre
+              ? 'Cierre manual: publica con lo guardado hasta ahora'
+              : `Esperando ${juradosBase.length - respondidos} jurado${juradosBase.length - respondidos === 1 ? '' : 's'} por terminar (${respondidos}/${juradosBase.length})`,
+      deshabilitado:
+        estadoActual !== 'evaluando' || (!respondieronTodos && !forzarCierre) || operando,
       accion: () => void cambiarEstado('resultados_listos', false),
     },
     {
@@ -537,6 +562,31 @@ export default function Resumen() {
           </div>
         </div>
 
+        {/* Emergencia: cierre manual cuando la verificación automática no alcanza el 100% */}
+          {estadoActual === 'evaluando' && !respondieronTodos && (
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-dashed border-red-400/40 bg-red-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-red-300">
+                  {forzarCierre
+                    ? 'Cierre manual habilitado'
+                    : `En espera: ${respondidos}/${juradosBase.length} jurados al 100% (${totalCandidatas}/${totalCandidatas} candidatas)`}
+                </p>
+                <p className="mt-0.5 text-xs text-red-100/70">
+                  {forzarCierre
+                    ? 'La verificación se ignora: presiona "Cerrar Evaluación (manual)" para dejar listo el cómputo con lo guardado y luego publicar.'
+                    : 'Si los jurados ya terminaron pero el sistema sigue marcando incompleto (jurado duplicado, legacy o criterios no aplicados al resultado), fuerza el cierre manual.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setForzarCierre((v) => !v)}
+                disabled={operando}
+                className="shrink-0 rounded-xl border border-red-400/70 bg-red-500/20 px-4 py-2.5 text-sm font-bold text-red-100 transition hover:bg-red-500/30 disabled:opacity-50"
+              >
+                {forzarCierre ? 'Quitar modo manual' : 'Forzar cierre manual'}
+              </button>
+            </div>
+          )}
+
         {/* Acceso rápido: reabrir evaluación tras cerrarla o publicarla */}
           {['esperando_jurados', 'resultados_listos', 'publicado'].includes(estadoActual) && (
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-dashed border-amber-400/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -566,7 +616,7 @@ export default function Resumen() {
               Progreso de jurados
             </p>
             <p className="text-xs font-bold tabular-nums text-gold-300">
-              {respondidos} / {jurados.length} jurados al 100%
+              {respondidos} / {juradosBase.length} jurados al 100%
             </p>
           </div>
 
@@ -585,7 +635,7 @@ export default function Resumen() {
           </div>
           <p className="mt-1.5 text-[11px] text-navy-400">
             Avance total: {Math.round(pctRespondidos)}% de evaluaciones completas ({respondidos} de{' '}
-            {jurados.length} jurados terminaron).
+            {juradosBase.length} jurados en este evento terminaron).
           </p>
 
           {/* Tarjetas por jurado */}
